@@ -1422,44 +1422,48 @@ export class Overlay {
     const cfg = this.cfg
     const a   = gs.alpha
     if (a <= 0) return
-    const w   = this.canvas.width
-    const h   = this.canvas.height
-    const r   = gs.result
-    const cx  = w / 2, cy = h / 2
+    const w = this.canvas.width
+    const h = this.canvas.height
+    const r = gs.result
 
     ctx.globalAlpha = a
-    ctx.fillStyle = 'rgba(0,0,0,0.78)'
+    ctx.fillStyle = 'rgba(0,0,0,0.82)'
     ctx.fillRect(0, 0, w, h)
 
+    ctx.textAlign    = 'center'
+    ctx.textBaseline = 'middle'
+
     const gradeColor = cfg.GRADE_COLORS[r.grade] ?? cfg.C_TEXT
+    const cx = w / 2
 
-    ctx.font = `bold ${cfg.FONT_XL}px Consolas, monospace`
-    ctx.fillStyle = gradeColor
-    ctx.fillText(r.grade, cx - Math.min(100, w / 4) - ctx.measureText(r.grade).width / 2, cy - 6)
+    // Build the row list dynamically so row height always fits the canvas.
+    const rows: Array<{ text: string; color: string; bold?: boolean; size: number }> = [
+      { text: `${r.grade}  ${(r.accuracy * 100).toFixed(1)}%  ${r.score.toLocaleString()} pts`,
+        color: gradeColor, bold: true, size: cfg.FONT_LG },
+      { text: `HIT:${r.hit}  CLIP:${r.clipped}  MISS:${r.miss}  Combo x${r.maxCombo}`,
+        color: cfg.C_TEXT_DIM, size: cfg.FONT_SM },
+      { text: `Fists:${r.fistAttacks}  +${r.addedDps.toFixed(0)} dps  Clips:${r.mainhandClips}`,
+        color: cfg.C_TEXT_DIM, size: cfg.FONT_SM },
+    ]
+    if (r.avgReactionMs !== null)
+      rows.push({ text: `${r.avgReactionMs.toFixed(0)} ms avg reaction`,
+        color: cfg.C_TEXT_DIM, size: cfg.FONT_SM })
+    rows.push({ text: 'SPACE / click to dismiss   V copy to chat',
+      color: 'rgba(90,100,130,0.7)', size: cfg.FONT_SM })
 
-    ctx.font = `${cfg.FONT_LG}px Consolas, monospace`
-    const accRight = cx + Math.min(60, w / 4)
-    ctx.fillStyle = cfg.C_TEXT
-    ctx.fillText(`${(r.accuracy * 100).toFixed(1)}%`, accRight - ctx.measureText(`${(r.accuracy * 100).toFixed(1)}%`).width / 2, cy - 14)
-    ctx.fillStyle = cfg.C_TEXT_DIM
-    ctx.fillText(`${r.score.toLocaleString()} pts`, accRight - ctx.measureText(`${r.score.toLocaleString()} pts`).width / 2, cy + 12)
+    const pad  = 4
+    const rowH = (h - pad * 2) / rows.length
 
-    ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
-    const detail = `HIT:${r.hit}  CLIP:${r.clipped}  MISS:${r.miss}  x${r.maxCombo}`
-    ctx.fillStyle = cfg.C_TEXT_DIM
-    ctx.fillText(detail, cx - ctx.measureText(detail).width / 2, cy + 36)
+    rows.forEach((row, i) => {
+      const y = pad + rowH * i + rowH / 2
+      ctx.font      = `${row.bold ? 'bold ' : ''}${row.size}px Consolas, monospace`
+      ctx.fillStyle = row.color
+      ctx.fillText(row.text, cx, y)
+    })
 
-    const stats2 = `Fists:${r.fistAttacks}  +${r.addedDps.toFixed(0)}dps  Clips:${r.mainhandClips}`
-    ctx.fillText(stats2, cx - ctx.measureText(stats2).width / 2, cy + 52)
-
-    const reactionStr = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms avg reaction` : ''
-    if (reactionStr) ctx.fillText(reactionStr, cx - ctx.measureText(reactionStr).width / 2, cy + 68)
-
-    const hint = 'SPACE/click dismiss   V copy to chat'
-    ctx.fillStyle = 'rgba(90,100,130,0.63)'
-    ctx.fillText(hint, cx - ctx.measureText(hint).width / 2, cy + 84)
-
-    ctx.globalAlpha = 1
+    ctx.textAlign    = 'left'
+    ctx.textBaseline = 'alphabetic'
+    ctx.globalAlpha  = 1
   }
 
   // ── Hit / click helpers ───────────────────────────────────────

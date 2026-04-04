@@ -14,6 +14,7 @@ import { Config } from '../shared/config'
 import { IPC, type GameEvent } from '../shared/events'
 import { LogReader } from './log-reader'
 import { createTray } from './tray'
+import { autoUpdater } from 'electron-updater'
 
 // ── Persist last-used log path ────────────────────────────────
 
@@ -185,6 +186,58 @@ function setupIPC(): void {
   })
 }
 
+// ── Auto-updater ──────────────────────────────────────────────
+
+function setupAutoUpdater(): void {
+  // Only run in packaged builds — not during dev
+  if (!app.isPackaged) return
+
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+
+  autoUpdater.on('update-available', (info) => {
+    const current = app.getVersion()
+    const next    = info.version
+    dialog.showMessageBox({
+      type:    'info',
+      title:   'Update Available',
+      message: `Basketweaver ${next} is available (you have ${current}).`,
+      detail:  'Would you like to download and install it now?',
+      buttons: ['Update Now', 'Later'],
+      defaultId: 0,
+      cancelId:  1,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.downloadUpdate()
+      }
+    })
+  })
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox({
+      type:    'info',
+      title:   'Update Ready',
+      message: 'Update downloaded. Basketweaver will restart to apply it.',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId:  1,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.quitAndInstall()
+      }
+    })
+  })
+
+  autoUpdater.on('error', (err) => {
+    console.error('[Updater] Error:', err.message)
+  })
+
+  // Check silently — no dialog if already up to date
+  autoUpdater.checkForUpdates().catch(err => {
+    console.error('[Updater] Check failed:', err.message)
+  })
+}
+
 // ── App entry ─────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
@@ -194,6 +247,9 @@ app.whenReady().then(async () => {
 
   // Create tray
   createTray(win!, () => app.quit(), saveSettings)
+
+  // Check for updates (no-op in dev mode)
+  setupAutoUpdater()
 
   // Start the log reader once the window is ready
   win!.webContents.on('did-finish-load', () => {
