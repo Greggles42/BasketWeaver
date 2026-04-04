@@ -12,8 +12,9 @@ declare global {
     electronAPI: {
       onGameEvent:        (cb: (ev: GameEvent) => void) => void
       onLogSelected:      (cb: (path: string) => void) => void
-      onToggleAudio:      (cb: () => void) => void
-      onToggleOrientation:(cb: () => void) => void
+      onToggleAudio:        (cb: () => void) => void
+      onToggleOrientation:  (cb: () => void) => void
+      onToggleHighContrast: (cb: () => void) => void
       onSetScale:             (cb: (pct: number) => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:       (cb: () => void) => void
@@ -62,6 +63,10 @@ window.electronAPI.onToggleAudio(() => {
 window.electronAPI.onToggleOrientation(() => {
   overlay.toggleOrientation()
   initCanvasSize()
+})
+
+window.electronAPI.onToggleHighContrast(() => {
+  overlay.toggleHighContrast()
 })
 
 window.electronAPI.onSetScale((pct: number) => {

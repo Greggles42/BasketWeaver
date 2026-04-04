@@ -16,6 +16,8 @@ const OPACITIES: Array<[string, number]> = [
   ['50%',  0.50], ['70%',  0.70], ['85%',  0.85], ['100%', 1.00],
 ]
 
+let highContrastEnabled = false
+
 export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
   const icon = buildTrayIcon()
@@ -155,6 +157,15 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         type:    'checkbox',
         checked: true,  // will be updated by toggle
         click:   () => win.webContents.send(IPC.TOGGLE_AUDIO),
+      },
+      {
+        label:   'High Contrast',
+        type:    'checkbox',
+        checked: highContrastEnabled,
+        click:   () => {
+          highContrastEnabled = !highContrastEnabled
+          win.webContents.send(IPC.TOGGLE_HIGH_CONTRAST)
+        },
       },
       { label: 'Opacity', submenu: opacityItems },
       { type: 'separator' },

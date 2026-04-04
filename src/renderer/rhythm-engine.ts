@@ -19,19 +19,13 @@ export interface Note {
 
 export interface GradeResult {
   grade: string
-  accuracy: number      // 0–1
-  score: number
-  hit: number
-  clipped: number
-  miss: number
-  total: number
-  maxCombo: number
-  fistAttacks: number
+  pctInGreen: number    // 0–1, fraction of weave windows hit within the green box
+  weaveAttempts: number // total fist punch attempts (log events, hit or miss)
+  weaveLanded: number   // fist attacks that dealt damage
   totalFistDamage: number
-  mainhandClips: number
   fightDuration: number // ms
-  addedDps: number      // damage per second
-  avgReactionMs: number | null  // ms from mainhand swing to weapon swap (null if no hits)
+  addedDps: number      // damage per second from fist attacks
+  avgReactionMs: number | null  // ms from mainhand round to weave (null if no hits)
 }
 
 const GRADE_THRESHOLDS: Array<[number, string]> = [
@@ -74,9 +68,14 @@ export class RhythmEngine {
   clippedCount = 0
   missCount = 0
 
+  fistAttemptCount = 0
   fistAttackCount = 0
   totalFistDamage = 0
   mainhandClips = 0
+
+  private reactionTimeSum = 0
+  private reactionTimeCount = 0
+  private lastMainhandTs = 0   // timestamp of most recent new mainhand round opening
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
@@ -131,6 +130,7 @@ export class RhythmEngine {
     } else {
       this.roundOpen = true
       this.lastCrushTime = ts
+      this.lastMainhandTs = ts
       this.roundFistDamages = []
       // swingTimerValid intentionally kept — the predicted swing just happened as expected.
       // Cleared only by onOutOfRange or combat end.
@@ -156,6 +156,11 @@ export class RhythmEngine {
       return true
     }
 
+    this.fistAttemptCount++
+    if (this.lastMainhandTs > 0) {
+      this.reactionTimeSum += ts - this.lastMainhandTs
+      this.reactionTimeCount++
+    }
     if (hit && damage > 0) {
       this.totalFistDamage += damage
       this.fistAttackCount++
@@ -265,12 +270,12 @@ export class RhythmEngine {
   }
 
   makeGrade(): GradeResult {
-    const total    = this.hitCount + this.clippedCount + this.missCount
-    const accuracy = total > 0 ? this.hitCount / total : 0.0
+    const total      = this.hitCount + this.clippedCount + this.missCount
+    const pctInGreen = total > 0 ? this.hitCount / total : 0.0
 
     let grade = 'F'
     for (const [threshold, letter] of GRADE_THRESHOLDS) {
-      if (accuracy >= threshold) { grade = letter; break }
+      if (pctInGreen >= threshold) { grade = letter; break }
     }
 
     const fightDuration = this.combatStartTime > 0
@@ -278,15 +283,13 @@ export class RhythmEngine {
     const addedDps = fightDuration > 0
       ? this.totalFistDamage / (fightDuration / 1000) : 0.0
 
-    const hitNotes = this.notes.filter(n => n.state === 'hit' && n.hitTime !== null)
-    const avgReactionMs = hitNotes.length > 0
-      ? hitNotes.reduce((sum, n) => sum + (n.hitTime! - n.swingTime), 0) / hitNotes.length
+    const avgReactionMs = this.reactionTimeCount > 0
+      ? this.reactionTimeSum / this.reactionTimeCount
       : null
 
-    return { grade, accuracy, score: this.score, hit: this.hitCount,
-      clipped: this.clippedCount, miss: this.missCount, total, maxCombo: this.maxCombo,
-      fistAttacks: this.fistAttackCount, totalFistDamage: this.totalFistDamage,
-      mainhandClips: this.mainhandClips, fightDuration, addedDps, avgReactionMs }
+    return { grade, pctInGreen, weaveAttempts: this.fistAttemptCount,
+      weaveLanded: this.fistAttackCount, totalFistDamage: this.totalFistDamage,
+      fightDuration, addedDps, avgReactionMs }
   }
 
   // ── Internal ─────────────────────────────────────────────────
@@ -358,7 +361,8 @@ export class RhythmEngine {
   private resetScore(): void {
     this.score = 0; this.combo = 0; this.maxCombo = 0
     this.hitCount = 0; this.clippedCount = 0; this.missCount = 0
-    this.fistAttackCount = 0; this.totalFistDamage = 0; this.mainhandClips = 0
+    this.fistAttemptCount = 0; this.fistAttackCount = 0; this.totalFistDamage = 0; this.mainhandClips = 0
+    this.reactionTimeSum = 0; this.reactionTimeCount = 0; this.lastMainhandTs = 0
     this.notes = []; this.nextId = 0
     this.roundOpen = false; this.notesAnchored = false
     this.lastRoundCloseTime = 0.0; this.nextSwingTime = 0.0

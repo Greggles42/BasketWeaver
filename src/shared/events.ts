@@ -30,8 +30,9 @@ export const IPC = {
   SELECT_LOG:        'select-log',         // renderer/tray → main: open file picker
   LOG_SELECTED:      'log-selected',       // main → renderer: string (path)
   QUIT:              'quit',               // tray → main
-  TOGGLE_AUDIO:      'toggle-audio',       // tray → renderer
-  TOGGLE_ORIENTATION:'toggle-orientation', // tray → renderer
+  TOGGLE_AUDIO:          'toggle-audio',          // tray → renderer
+  TOGGLE_ORIENTATION:    'toggle-orientation',    // tray → renderer
+  TOGGLE_HIGH_CONTRAST:  'toggle-high-contrast',  // tray → renderer
   SET_SCALE:            'set-scale',             // tray → renderer: number (pct)
   SET_TARGET_POSITION:  'set-target-position',  // tray → renderer: number (pct)
   SET_OPACITY:       'set-opacity',        // tray → main: number (0–1)

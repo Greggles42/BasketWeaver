@@ -140,6 +140,9 @@ export const Config = {
   } as Record<string, number>,
 
   // ── EQ log regex patterns ─────────────────────────────────────
+  // Riposte lines must be checked first — they can match crush/fist patterns
+  // but are not normal swing-timer events and would corrupt interval tracking.
+  RIPOSTE_PATTERNS:      ['\\bbut you riposte\\b'],
   CRUSH_HIT_PATTERNS:    ['^You crush\\b'],
   CRUSH_MISS_PATTERNS:   ['^You try to crush\\b', '^You attempt to crush\\b'],
   FIST_HIT_PATTERNS:     ['^You (?:punch|strike)\\b'],

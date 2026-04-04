@@ -40,11 +40,13 @@ export class LogReader {
   private inCombat = false
 
   // ── Mystats offhand-detection state machine ───────────────
+  // The calibration macro runs /mystats twice with different weapon combinations.
+  // We track which block we're in and capture the secondary weapon from the second block.
   private mystatsState: 'idle' | 'await_secondary' | 'reading_secondary' = 'idle'
+  private mystatsBlockNum = 0   // increments on each "---- Melee Primary:" line; reset after capture
   private mystatsName   = ''
   private mystatsDmgAve = 0
 
-  private static readonly MELEE_PRIMARY_HTH_RE = /^---- Melee Primary: HandToHand ----/i
   private static readonly MELEE_PRIMARY_RE     = /^---- Melee Primary: /i
   private static readonly MELEE_SECONDARY_RE   = /^---- Melee Secondary: (.+?) ----/
   private static readonly MYSTATS_DMG_RE        = /^Dmg = [\d.]+ to [\d.]+, ave = ([\d.]+)/
@@ -52,6 +54,7 @@ export class LogReader {
 
   private crushHitRe:   RegExp[]
   private crushMissRe:  RegExp[]
+  private riposteRe:    RegExp[]
   private fistHitRe:    RegExp[]
   private fistMissRe:   RegExp[]
   private oorRe:        RegExp[]
@@ -68,6 +71,7 @@ export class LogReader {
     const compile = (patterns: string[]) =>
       patterns.map(p => new RegExp(p, 'i'))
 
+    this.riposteRe   = compile(cfg.RIPOSTE_PATTERNS)
     this.crushHitRe  = compile(cfg.CRUSH_HIT_PATTERNS)
     this.crushMissRe = compile(cfg.CRUSH_MISS_PATTERNS)
     this.fistHitRe   = compile(cfg.FIST_HIT_PATTERNS)
@@ -139,6 +143,9 @@ export class LogReader {
     const content = stripPrefix(line)
     const now = performance.now()
 
+    // ── Riposte — ignore, not a swing-timer event ───────────
+    if (this.riposteRe.some(r => r.test(content))) return
+
     // ── Mainhand crush hit ──────────────────────────────────
     if (this.crushHitRe.some(r => r.test(content))) {
       this.ensureCombat(now)
@@ -202,13 +209,17 @@ export class LogReader {
     }
 
     // ── Mystats offhand detection (weave calibration macro) ──────
-    if (LogReader.MELEE_PRIMARY_HTH_RE.test(content)) {
-      this.mystatsState   = 'await_secondary'
-      this.mystatsName    = ''
-      this.mystatsDmgAve  = 0
-    } else if (LogReader.MELEE_PRIMARY_RE.test(content)) {
-      // A different primary resets the state — this is the 2H block
-      this.mystatsState = 'idle'
+    // The macro runs /mystats twice. Each "---- Melee Primary:" line starts a new block.
+    // We capture the secondary weapon's delay from the second block only.
+    if (LogReader.MELEE_PRIMARY_RE.test(content)) {
+      this.mystatsBlockNum++
+      if (this.mystatsBlockNum === 2) {
+        this.mystatsState  = 'await_secondary'
+        this.mystatsName   = ''
+        this.mystatsDmgAve = 0
+      } else {
+        this.mystatsState = 'idle'
+      }
     } else if (this.mystatsState === 'await_secondary') {
       const m = LogReader.MELEE_SECONDARY_RE.exec(content)
       if (m) {
@@ -228,6 +239,7 @@ export class LogReader {
           this.mystatsState  = 'idle'
           this.mystatsName   = ''
           this.mystatsDmgAve = 0
+          this.mystatsBlockNum = 0  // reset so next macro run starts fresh
         }
       }
     }
@@ -235,6 +247,7 @@ export class LogReader {
     // ── Weapon preset detection ─────────────────────────────
     for (const { re, name, delay } of this.weaponRe) {
       if (re.test(content)) {
+        this.cfg.BASE_WEAPON_DELAY = delay  // keep main-process cfg in sync for haste calc
         this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
         return
       }

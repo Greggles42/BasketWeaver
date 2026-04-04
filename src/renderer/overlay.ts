@@ -160,6 +160,14 @@ export class Overlay {
   private lastFrameTime = 0
   private lastCombatActivity = 0
 
+  private highContrast = false
+  private defaultColors: Partial<ConfigType> = {}
+  private static readonly HC_COLORS = {
+    C_BG:     '#000000',
+    C_HEADER: '#000000',
+    C_FOOTER: '#000000',
+  }
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.ctx2d  = canvas.getContext('2d')!
@@ -223,16 +231,19 @@ export class Overlay {
         break
 
       case EvType.MAINHAND_CRUSH: {
+        // Use renderer-side performance.now() so the orange bar position and
+        // audio are anchored to the same clock, eliminating IPC timing drift.
+        const crushTs = performance.now()
         const damage = ev.data?.damage as number ?? 0
         const hit    = ev.data?.hit    as boolean ?? false
-        this.rhythm.onMainhandCrush(ts, damage, hit)
-        this.lastCombatActivity = ts
-        this.swingLog.push(ts)
+        this.rhythm.onMainhandCrush(crushTs, damage, hit)
+        this.lastCombatActivity = crushTs
+        this.swingLog.push(crushTs)
         if (this.swingLog.length > 9) this.swingLog.shift()
         this.consecutiveCrushesWithoutFist++
         if (this.consecutiveCrushesWithoutFist >= Overlay.RAPID_CRUSH_THRESHOLD) {
           this.audioMutedRapidAttack = true
-          this.rapidAttackMuteUntil = ts + Overlay.RAPID_MUTE_MS
+          this.rapidAttackMuteUntil = crushTs + Overlay.RAPID_MUTE_MS
           this.audio.setTemporaryMute(true)
         }
         if (!this.audioMutedRapidAttack) this.audio.play('crush')
@@ -386,6 +397,23 @@ export class Overlay {
     this.cfg.HIT_ZONE_X = Math.max(10,
       Math.trunc(this.cfg.WINDOW_WIDTH * pct / 100))
     this.computeLayout()
+  }
+
+  toggleHighContrast(): void {
+    const hc = Overlay.HC_COLORS
+    if (!this.highContrast) {
+      // Save originals and apply HC colors
+      for (const key of Object.keys(hc) as Array<keyof typeof hc>) {
+        (this.defaultColors as any)[key] = (this.cfg as any)[key];
+        (this.cfg as any)[key] = hc[key]
+      }
+    } else {
+      // Restore originals
+      for (const key of Object.keys(hc) as Array<keyof typeof hc>) {
+        (this.cfg as any)[key] = (this.defaultColors as any)[key]
+      }
+    }
+    this.highContrast = !this.highContrast
   }
 
   // ── Layout ────────────────────────────────────────────────────
@@ -828,9 +856,15 @@ export class Overlay {
 
     // Swing times: k=0 → last swing (may still be on screen), k=1 → next, k=2 → one beyond
     //   swingTime_k = nextSwing + (k - 1) * interval
-    const GREEN_FILL_A = [0.50, 0.25, 0.12]
-    const GREEN_STRK_A = [0.70, 0.38, 0.18]
-    const ORANGE_A     = [0.95, 0.55, 0.28]
+    const hc = this.highContrast
+    const GREEN_FILL  = hc
+      ? ['rgba(0,210,0,0.88)', 'rgba(0,210,0,0.55)', 'rgba(0,210,0,0.28)']
+      : ['rgba(25,90,50,0.50)', 'rgba(25,90,50,0.25)', 'rgba(25,90,50,0.12)']
+    const GREEN_STRK  = hc
+      ? ['rgba(0,255,0,1.0)',   'rgba(0,255,0,0.75)',  'rgba(0,255,0,0.45)']
+      : ['rgba(60,200,90,0.70)','rgba(60,200,90,0.38)','rgba(60,200,90,0.18)']
+    const ORANGE_A    = [0.95, 0.55, 0.28]
+    const strokeW     = hc ? 2 : 1
 
     let rank = 0
     for (let k = 0; rank < 3 && k < 10; k++) {
@@ -849,9 +883,9 @@ export class Overlay {
         if (barY > h) continue       // entire box is below canvas — try next k
 
         // Green weave window box
-        ctx.fillStyle = `rgba(25,90,50,${GREEN_FILL_A[rank]})`
+        ctx.fillStyle = GREEN_FILL[rank]
         ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 3); ctx.fill()
-        ctx.strokeStyle = `rgba(60,200,90,${GREEN_STRK_A[rank]})`; ctx.lineWidth = 1
+        ctx.strokeStyle = GREEN_STRK[rank]; ctx.lineWidth = strokeW
         ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 3); ctx.stroke()
 
         // Orange mainhand swing marker at bottom of green box (the swing time itself)
@@ -869,9 +903,9 @@ export class Overlay {
         if (barX > w) break             // beyond right edge — nothing further visible
 
         // Green weave window box
-        ctx.fillStyle = `rgba(25,90,50,${GREEN_FILL_A[rank]})`
+        ctx.fillStyle = GREEN_FILL[rank]
         ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 3); ctx.fill()
-        ctx.strokeStyle = `rgba(60,200,90,${GREEN_STRK_A[rank]})`; ctx.lineWidth = 1
+        ctx.strokeStyle = GREEN_STRK[rank]; ctx.lineWidth = strokeW
         ctx.beginPath(); ctx.roundRect(barX, barY, barW, barH, 3); ctx.stroke()
 
         // Orange mainhand swing marker at left edge of green box (the swing time itself)
@@ -1438,11 +1472,9 @@ export class Overlay {
 
     // Build the row list dynamically so row height always fits the canvas.
     const rows: Array<{ text: string; color: string; bold?: boolean; size: number }> = [
-      { text: `${r.grade}  ${(r.accuracy * 100).toFixed(1)}%  ${r.score.toLocaleString()} pts`,
+      { text: `${r.grade}  ${(r.pctInGreen * 100).toFixed(1)}% in green`,
         color: gradeColor, bold: true, size: cfg.FONT_LG },
-      { text: `HIT:${r.hit}  CLIP:${r.clipped}  MISS:${r.miss}  Combo x${r.maxCombo}`,
-        color: cfg.C_TEXT_DIM, size: cfg.FONT_SM },
-      { text: `Fists:${r.fistAttacks}  +${r.addedDps.toFixed(0)} dps  Clips:${r.mainhandClips}`,
+      { text: `Bonus attacks: ${r.weaveAttempts} attempts  ${r.weaveLanded} landed  +${r.addedDps.toFixed(0)} dps`,
         color: cfg.C_TEXT_DIM, size: cfg.FONT_SM },
     ]
     if (r.avgReactionMs !== null)
@@ -1566,12 +1598,9 @@ export class Overlay {
   private copyToClipboard(): void {
     const r = this.lastGradeResult ?? this.rhythm.makeGrade()
     const reactionPart = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
-    const text = `Basketweaver: ${r.grade} ${(r.accuracy * 100).toFixed(1)}% | ` +
-      `HIT:${r.hit} CLIP:${r.clipped} MISS:${r.miss} | ` +
-      `Fist attacks: ${r.fistAttacks} | ` +
-      `Added DPS: ${r.addedDps.toFixed(0)} | ` +
-      `Longest Combo: ${r.maxCombo} | ` +
-      `Mainhand clips: ${r.mainhandClips}` + reactionPart
+    const text = `Basketweaver: ${r.grade} ${(r.pctInGreen * 100).toFixed(1)}% in green | ` +
+      `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
+      `Added DPS: ${r.addedDps.toFixed(0)}` + reactionPart
     navigator.clipboard.writeText(text).then(() => {
       this.showBanner('Copied to clipboard!', this.cfg.C_GOOD, 2000)
     }).catch(() => {
