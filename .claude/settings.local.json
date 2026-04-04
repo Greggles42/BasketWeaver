@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill /F /IM electron.exe)",
+      "Bash(taskkill /F /IM Basketweaver.exe)",
+      "Bash(npx electron-vite:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(xargs cat:*)",
+      "Bash(pkill -f \"electron\")",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npm run dist 2>&1)",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npm run pack 2>&1)",
+      "Bash(cp:*)",
+      "Bash(ls:*)",
+      "Bash(taskkill //F //IM electron.exe)",
+      "Bash(taskkill //F //IM Basketweaver.exe)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
