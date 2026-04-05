@@ -85,6 +85,11 @@ Notes approach from the right and travel left toward the hit zone.
 **◉ Hit Zone** (gold circle, left side)
 This is your timing target. Weave actions are judged here.
 
+**⊙ Pin Icon** (top-right corner of header)
+Locks the window position so it cannot be accidentally dragged.
+Orange/filled = position locked. Dim/hollow = window can be dragged.
+Click it to toggle.
+
 **● Blue Dot** (note)
 Each blue dot represents one upcoming weave opportunity.
 It travels left along the highway and should reach the hit zone
@@ -291,6 +296,8 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Latency Comp.** | Compensate for network/input delay (ms) |
 | **Clip Window** | How long after a weave to suppress duplicate detections |
 | **Audio** | Toggle all sounds on / off |
+| **High Contrast** | Black background with vivid green weave window |
+| **Fist Sound on Miss** | Play punch sound even when the fist attack misses |
 | **Opacity** | Overlay transparency |
 | **Quit Basketweaver** | Exit the app |
 
@@ -337,6 +344,12 @@ without closing the app.
 The grade screen only fires when the mob you were fighting dies
 (`You have slain` / `has been slain`). It does not fire if you zone,
 die, or log out mid-fight.
+
+**Out-of-range alert sound keeps playing**
+The two-tone blip plays at most once every 1.5 seconds while you are in
+combat and out of range. It stops as soon as your mainhand connects again.
+If it fires outside of combat, check that your `COMBAT_END` patterns
+match your server's death/zone messages.
 
 **Audio not playing**
 Click the overlay window once to focus it, then press `M` to toggle

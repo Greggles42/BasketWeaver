@@ -32,6 +32,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onResetTrack: (cb: () => void) =>
     ipcRenderer.on(IPC.RESET_TRACK, () => cb()),
 
+  onToggleFistMissSound: (cb: () => void) =>
+    ipcRenderer.on(IPC.TOGGLE_FIST_MISS_SOUND, () => cb()),
+
   // ── Renderer → main ─────────────────────────────────────
   quit: () => ipcRenderer.send(IPC.QUIT),
 

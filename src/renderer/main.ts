@@ -17,7 +17,8 @@ declare global {
       onToggleHighContrast: (cb: () => void) => void
       onSetScale:             (cb: (pct: number) => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
-      onResetTrack:       (cb: () => void) => void
+      onResetTrack:           (cb: () => void) => void
+      onToggleFistMissSound:  (cb: () => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -81,6 +82,8 @@ window.electronAPI.onSetTargetPosition((pct: number) => {
 
 window.electronAPI.onResetTrack(() => overlay.resetTrack())
 
+window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
+
 // ── Status requests from tray ─────────────────────────────────
 
 window.addEventListener('request-status', () => {
@@ -107,23 +110,27 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
 const DRAG_THRESHOLD = 4  // px — movement needed to commit to a drag
 
-let dragPending = false
-let dragging    = false
-let lastScreenX = 0
-let lastScreenY = 0
-let dragStartX  = 0
-let dragStartY  = 0
-let clickDownTs = 0
+let dragPending    = false
+let dragging       = false
+let lastScreenX    = 0
+let lastScreenY    = 0
+let dragStartX     = 0
+let dragStartY     = 0
+let clickDownTs    = 0
+let clickDownClientX = 0
+let clickDownClientY = 0
 
 canvas.addEventListener('mousedown', (e: MouseEvent) => {
   if (e.button !== 0) return
-  dragPending = true
-  dragging    = false
-  dragStartX  = e.screenX
-  dragStartY  = e.screenY
-  lastScreenX = e.screenX
-  lastScreenY = e.screenY
-  clickDownTs = performance.now()
+  dragPending      = true
+  dragging         = false
+  dragStartX       = e.screenX
+  dragStartY       = e.screenY
+  lastScreenX      = e.screenX
+  lastScreenY      = e.screenY
+  clickDownTs      = performance.now()
+  clickDownClientX = e.clientX
+  clickDownClientY = e.clientY
 })
 
 window.addEventListener('mousemove', (e: MouseEvent) => {
@@ -134,6 +141,7 @@ window.addEventListener('mousemove', (e: MouseEvent) => {
     const dx = e.screenX - dragStartX
     const dy = e.screenY - dragStartY
     if (dx * dx + dy * dy < DRAG_THRESHOLD * DRAG_THRESHOLD) return
+    if (overlay.pinned) { dragPending = false; return }  // position locked
     dragging    = true
     dragPending = false
   }
@@ -149,7 +157,7 @@ window.addEventListener('mouseup', (e: MouseEvent) => {
   if (e.button !== 0) { dragPending = false; dragging = false; return }
   if (dragPending && !dragging) {
     // Released without moving — weapon-swap click at the original mousedown time.
-    overlay.handleMouseClick(clickDownTs)
+    overlay.handleMouseClick(clickDownTs, clickDownClientX, clickDownClientY)
   }
   dragPending = false
   dragging    = false

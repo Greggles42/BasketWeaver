@@ -89,6 +89,7 @@ export const Config = {
   SAMPLE_RATE:  44100,
   TICK_VOLUME:  0.38,
   FX_VOLUME:    0.62,
+  FIST_SOUND_ON_MISS: false,
 
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',

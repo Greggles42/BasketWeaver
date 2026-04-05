@@ -179,6 +179,22 @@ export class AudioManager {
     return this.makeBuffer(out)
   }
 
+  private makeOutOfRange(): AudioBuffer {
+    const vol = this.cfg.FX_VOLUME * 0.35
+    const notes: Array<[number, number]> = [[880.0, 0.07], [440.0, 0.10]]
+    const chunks: Float32Array[] = []
+    for (const [freq, dur] of notes) {
+      const chunk = this.sine(freq, dur, vol)
+      this.applyEnvelope(chunk, 0.003, 0.04)
+      chunks.push(chunk)
+    }
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0)
+    const out = new Float32Array(totalLen)
+    let offset = 0
+    for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length }
+    return this.makeBuffer(out)
+  }
+
   private makeCombatEnd(): AudioBuffer {
     const sr  = this.cfg.SAMPLE_RATE
     const vol = this.cfg.FX_VOLUME
@@ -211,6 +227,7 @@ export class AudioManager {
         case 'crush':        this.buffers.set(name, this.makeCrush());       break
         case 'punch':        this.buffers.set(name, this.makePunch());       break
         case 'combat_end':   this.buffers.set(name, this.makeCombatEnd());   break
+        case 'out_of_range': this.buffers.set(name, this.makeOutOfRange()); break
         default: throw new Error(`Unknown sound: ${name}`)
       }
     }
@@ -222,7 +239,7 @@ export class AudioManager {
   /** Pre-generate all sound buffers so the first call has no latency. */
   preload(): void {
     for (const name of ['tick', 'perfect', 'good', 'miss',
-                        'combat_start', 'crush', 'punch', 'combat_end']) {
+                        'combat_start', 'crush', 'punch', 'combat_end', 'out_of_range']) {
       try { this.getBuffer(name) } catch {}
     }
   }

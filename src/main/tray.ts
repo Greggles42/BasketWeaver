@@ -16,7 +16,8 @@ const OPACITIES: Array<[string, number]> = [
   ['50%',  0.50], ['70%',  0.70], ['85%',  0.85], ['100%', 1.00],
 ]
 
-let highContrastEnabled = false
+let highContrastEnabled  = false
+let fistMissSoundEnabled = false
 
 export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
@@ -165,6 +166,15 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         click:   () => {
           highContrastEnabled = !highContrastEnabled
           win.webContents.send(IPC.TOGGLE_HIGH_CONTRAST)
+        },
+      },
+      {
+        label:   'Fist Sound on Miss',
+        type:    'checkbox',
+        checked: fistMissSoundEnabled,
+        click:   () => {
+          fistMissSoundEnabled = !fistMissSoundEnabled
+          win.webContents.send(IPC.TOGGLE_FIST_MISS_SOUND)
         },
       },
       { label: 'Opacity', submenu: opacityItems },

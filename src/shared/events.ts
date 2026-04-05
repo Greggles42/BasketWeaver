@@ -40,5 +40,6 @@ export const IPC = {
   STATUS_REPLY:      'status-reply',       // renderer → main: { inCombat }
   WINDOW_DRAG_START: 'window-drag-start',  // renderer → main
   SAVE_SETTINGS:     'save-settings',      // renderer → main: persist config to disk
-  RESET_TRACK:       'reset-track',        // tray → renderer: hard reset engine state
+  RESET_TRACK:            'reset-track',             // tray → renderer: hard reset engine state
+  TOGGLE_FIST_MISS_SOUND: 'toggle-fist-miss-sound',  // tray → renderer
 } as const

@@ -162,6 +162,9 @@ export class Overlay {
 
   private highContrast = false
   private defaultColors: Partial<ConfigType> = {}
+
+  pinned = true
+  private oorLastSoundTs = 0
   private static readonly HC_COLORS = {
     C_BG:     '#000000',
     C_HEADER: '#000000',
@@ -208,6 +211,7 @@ export class Overlay {
           this.gradeScreen = null
           this.swingLog = []
           this.clearRapidAttackMute()
+          this.oorLastSoundTs = 0
         }
         this.lastCombatActivity = ts
         break
@@ -247,6 +251,7 @@ export class Overlay {
           this.audio.setTemporaryMute(true)
         }
         if (!this.audioMutedRapidAttack) this.audio.play('crush')
+        this.oorLastSoundTs = 0   // back in range — next OOR episode gets its own sound
         break
       }
 
@@ -268,16 +273,23 @@ export class Overlay {
             this.audio.play('punch')
             this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)
           } else {
+            if (this.cfg.FIST_SOUND_ON_MISS) this.audio.play('punch')
             this.spawnMissDrop(hzx, hzy)
           }
         }
         break
       }
 
-      case EvType.OUT_OF_RANGE:
+      case EvType.OUT_OF_RANGE: {
         this.rhythm.onOutOfRange(ts)
         this.showBanner('Out of range / no LoS — swing timer desynced', this.cfg.C_CLIP, 3000)
+        const oorNow = now()
+        if (this.rhythm.inCombat && oorNow - this.oorLastSoundTs > 1500) {
+          this.oorLastSoundTs = oorNow
+          this.audio.play('out_of_range')
+        }
         break
+      }
 
       case EvType.MOUSE_CLICK: {
         const adjTs = ts - this.cfg.LATENCY_COMPENSATION * 1000
@@ -397,6 +409,10 @@ export class Overlay {
     this.cfg.HIT_ZONE_X = Math.max(10,
       Math.trunc(this.cfg.WINDOW_WIDTH * pct / 100))
     this.computeLayout()
+  }
+
+  toggleFistMissSound(): void {
+    this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS
   }
 
   toggleHighContrast(): void {
@@ -1303,9 +1319,41 @@ export class Overlay {
     ctx.fillStyle = statusColor
     ctx.fillText(rhy.inCombat ? '⚔ COMBAT' : '○ IDLE', 4, h / 2 + cfg.FONT_SM / 2)
 
+    // Pin icon at far right
+    this.drawPinIcon(w - h, 0, h)
+
     ctx.fillStyle = cfg.C_TEXT
     const sw = ctx.measureText(scoreText).width
-    ctx.fillText(scoreText, w - sw - 4, h / 2 + cfg.FONT_SM / 2)
+    ctx.fillText(scoreText, w - h - sw - 4, h / 2 + cfg.FONT_SM / 2)
+  }
+
+  private drawPinIcon(x: number, y: number, size: number): void {
+    const ctx = this.ctx2d
+    const cfg = this.cfg
+    const cx  = x + size / 2
+    const cy  = y + size / 2
+    const r   = Math.max(2, size * 0.24)
+    const color = this.pinned ? cfg.C_COMBAT : cfg.C_TEXT_DIM
+
+    // Pin head
+    ctx.beginPath()
+    ctx.arc(cx, cy - r * 0.5, r, 0, Math.PI * 2)
+    if (this.pinned) {
+      ctx.fillStyle = color
+      ctx.fill()
+    } else {
+      ctx.strokeStyle = color
+      ctx.lineWidth = 1
+      ctx.stroke()
+    }
+
+    // Needle
+    ctx.strokeStyle = color
+    ctx.lineWidth   = 1
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - r * 0.5 + r)
+    ctx.lineTo(cx + r * 0.5, cy + r * 1.0)
+    ctx.stroke()
   }
 
   // ── Footer ────────────────────────────────────────────────────
@@ -1501,7 +1549,14 @@ export class Overlay {
   // ── Hit / click helpers ───────────────────────────────────────
 
   /** Called from the renderer when a canvas click is confirmed (not a drag). */
-  handleMouseClick(ts: number): void {
+  handleMouseClick(ts: number, x = -1, y = -1): void {
+    // Check if the click landed on the pin icon (top-right header area)
+    const pinSize = this.cfg.HEADER_H
+    const pinX    = this.canvas.width - pinSize
+    if (x >= pinX && y >= 0 && y < pinSize) {
+      this.pinned = !this.pinned
+      return
+    }
     this.doClickHit(ts)
     this.gradeScreen?.dismiss()
   }
