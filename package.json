@@ -36,7 +36,8 @@
     "win": {
       "target": "nsis",
       "icon": "resources/icon.ico",
-      "forceCodeSigning": false
+      "forceCodeSigning": false,
+      "artifactName": "Basketweaver-Setup-${version}.exe"
     },
     "nsis": {
       "oneClick": false,
