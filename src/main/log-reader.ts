@@ -42,7 +42,8 @@ export class LogReader {
   // ── Mystats offhand-detection state machine ───────────────
   // The calibration macro runs /mystats twice with different weapon combinations.
   // We track which block we're in and capture the secondary weapon from the second block.
-  private currentTarget = ''   // most recent mob the player was attacking
+  private currentTarget   = ''   // most recent mob the player was attacking
+  private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
 
   private mystatsState: 'idle' | 'await_secondary' | 'reading_secondary' = 'idle'
   private mystatsBlockNum = 0   // increments on each "---- Melee Primary:" line; reset after capture
@@ -65,7 +66,6 @@ export class LogReader {
   private oorRe:           RegExp[]
   private cursorBlockedRe: RegExp[]
   private startRe:      RegExp[]
-  private mobDeathRe:   RegExp[]
   private endRe:        RegExp[]
   private weaponRe:     Array<{ re: RegExp; name: string; delay: number }>
 
@@ -85,7 +85,6 @@ export class LogReader {
     this.oorRe            = compile(cfg.OUT_OF_RANGE_PATTERNS)
     this.cursorBlockedRe  = compile(cfg.CURSOR_BLOCKED_PATTERNS)
     this.startRe     = compile(cfg.COMBAT_START_PATTERNS)
-    this.mobDeathRe  = compile(cfg.MOB_DEATH_PATTERNS)
     this.endRe       = compile(cfg.COMBAT_END_PATTERNS)
 
     this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
@@ -132,7 +131,7 @@ export class LogReader {
       }
     }
 
-    const interval = setInterval(readChunk, 50)
+    const interval = setInterval(readChunk, 16)
 
     return () => {
       this.stopped = true
@@ -157,7 +156,7 @@ export class LogReader {
     if (this.crushHitRe.some(r => r.test(content))) {
       this.ensureCombat(now)
       const tm = LogReader.TARGET_RE.exec(content)
-      if (tm) this.currentTarget = tm[1]
+      if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
       this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
         data: { damage: parseDamage(content), hit: true, line: content } })
       return
@@ -175,7 +174,7 @@ export class LogReader {
     if (this.fistHitRe.some(r => r.test(content))) {
       this.ensureCombat(now)
       const tm = LogReader.TARGET_RE.exec(content)
-      if (tm) this.currentTarget = tm[1]
+      if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
       this.emit({ type: EvType.FIST_ATTACK, ts: now,
         data: { damage: parseDamage(content), hit: true, line: content } })
       return
@@ -201,27 +200,18 @@ export class LogReader {
       return
     }
 
-    // ── Mob death (grade screen + end-combat sound) ─────────────
-    if (this.mobDeathRe.some(r => r.test(content))) {
-      if (this.inCombat) {
-        this.inCombat = false
-        this.currentTarget = ''
-        this.emit({ type: EvType.MOB_DIED, ts: now, data: { line: content } })
-      }
-      return
-    }
-
-    // ── Third-party kill of the player's current target ──────────
-    // "X has been slain" / "X died." — only fire if X matches our tracked target.
-    if (this.inCombat && this.currentTarget) {
-      const lower = content.toLowerCase()
+    // ── Target death detection ───────────────────────────────────
+    // Only fires if we have a tracked target attacked within the last 10s.
+    // Matches: "You have slain TARGET_NAME" or "TARGET_NAME has been slain by X"
+    if (this.inCombat && this.currentTarget && now - this.lastAttackTs <= 10_000) {
+      const lower  = content.toLowerCase()
       const target = this.currentTarget.toLowerCase()
-      const isTargetDeath =
-        (lower.includes(target) && lower.includes('has been slain')) ||
-        (lower.startsWith(target) && /died\.\s*$/.test(lower))
-      if (isTargetDeath) {
-        this.inCombat = false
-        this.currentTarget = ''
+      const isMyKill         = lower.startsWith('you have slain ' + target)
+      const isThirdPartyKill = lower.startsWith(target + ' has been slain by')
+      if (isMyKill || isThirdPartyKill) {
+        this.inCombat       = false
+        this.currentTarget  = ''
+        this.lastAttackTs   = 0
         this.emit({ type: EvType.MOB_DIED, ts: now, data: { line: content } })
         return
       }
@@ -230,8 +220,9 @@ export class LogReader {
     // ── Silent combat end (zoned / logout) ──────────────────────
     if (this.endRe.some(r => r.test(content))) {
       if (this.inCombat) {
-        this.inCombat = false
+        this.inCombat      = false
         this.currentTarget = ''
+        this.lastAttackTs  = 0
         this.emit({ type: EvType.COMBAT_END, ts: now, data: { line: content } })
       }
       return

@@ -130,8 +130,9 @@ export class Overlay {
   private footerY    = 0
   private hzX        = 0   // hit zone x (horizontal)
   private hzY        = 0   // hit zone y (vertical)
-  private runway     = 0
-  private speed      = 0
+  private runway      = 0
+  private speed       = 0   // smoothed display speed (px/ms)
+  private targetSpeed = 0   // instantaneous speed from current interval
 
   // Instrumentation
   private swingLog: number[] = []          // perf timestamps of mainhand crush events
@@ -149,6 +150,8 @@ export class Overlay {
   private banners:    Banner[]    = []
   private gradeScreen: GradeScreen | null = null
   private lastGradeResult: GradeResult | null = null
+  private fightHistory: GradeResult[] = []
+  private showHistory = false
   private hitFlash    = 0
   private flashColor  = Config.C_PERFECT
   private scoreDisplay = 0
@@ -221,6 +224,7 @@ export class Overlay {
         if (this.rhythm.inCombat) {
           const result = this.rhythm.onCombatEnd(ts)
           this.lastGradeResult = result
+          this.pushHistory(result)
           this.audio.play('combat_end')
           this.gradeScreen = new GradeScreen(result)
         }
@@ -228,7 +232,7 @@ export class Overlay {
         break
 
       case EvType.COMBAT_END:
-        // Silent end (you died / zoned / logout) — stop tracking, no grade or sound
+        // Silent end (zoned / logout) — stop tracking, no grade or sound
         if (this.rhythm.inCombat) {
           this.rhythm.onCombatEnd(ts)
         }
@@ -395,7 +399,10 @@ export class Overlay {
           this.gradeScreen = new GradeScreen(result)
         }
         break
-      case 'v': case 'V': this.copyToClipboard(); break
+      case 'v': case 'V':
+        if (this.showHistory) this.copyHistory()
+        else this.copyToClipboard()
+        break
       case 'i': case 'I': this.showInstrumentation = !this.showInstrumentation; break
     }
   }
@@ -433,6 +440,25 @@ export class Overlay {
 
   toggleFistMissSound(): void {
     this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS
+  }
+
+  toggleFightHistory(): void {
+    this.showHistory = !this.showHistory
+  }
+
+  private pushHistory(result: GradeResult): void {
+    this.fightHistory.unshift(result)   // newest first
+    if (this.fightHistory.length > 5) this.fightHistory.length = 5
+  }
+
+  private copyHistory(): void {
+    if (this.fightHistory.length === 0) return
+    const lines = ['--- Basketweaver Fight History ---']
+    this.fightHistory.forEach((r, i) => {
+      const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms react` : '—'
+      lines.push(`${i + 1}. ${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rounds  +${r.addedDps.toFixed(0)}dps  ${react}`)
+    })
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {})
   }
 
   toggleHighContrast(): void {
@@ -509,6 +535,15 @@ export class Overlay {
   private update(dt: number): void {
     const t = now()
 
+    // Smoothly lerp display speed toward the target so interval changes
+    // don't cause notes to jump position (stutter) on the highway.
+    this.targetSpeed = this.runway / (4.0 * this.cfg.PUNCH_INTERVAL * 1000)
+    if (this.speed === 0) {
+      this.speed = this.targetSpeed   // snap on first frame — no lerp from zero
+    } else {
+      this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * 12)
+    }
+
     // Auto combat-end idle timeout
     if (this.rhythm.inCombat && this.lastCombatActivity > 0
         && t - this.lastCombatActivity > COMBAT_IDLE_TIMEOUT_MS) {
@@ -567,7 +602,6 @@ export class Overlay {
   // ── Draw ──────────────────────────────────────────────────────
 
   private draw(): void {
-    this.speed = this.runway / (3.0 * this.cfg.PUNCH_INTERVAL * 1000)
     const ctx = this.ctx2d
     const w   = this.canvas.width
     const h   = this.canvas.height
@@ -590,6 +624,7 @@ export class Overlay {
     this.drawJudgments()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
+    if (this.showHistory) this.drawHistoryScreen()
     if (this.showInstrumentation) this.drawInstrumentation()
   }
 
@@ -728,7 +763,7 @@ export class Overlay {
           .filter(n => n.state === 'active')
           .sort((a, b) => a.targetTime - b.targetTime)
       : []
-    const UPCOMING_ALPHAS = [1.0, 0.5, 0.25]
+    const UPCOMING_ALPHAS = [1.0, 0.55, 0.28, 0.12]
 
     for (const note of rhy.notes) {
       const [nx, ny] = this.noteScreenPos(note.targetTime, t)
@@ -1394,8 +1429,9 @@ export class Overlay {
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
     ctx.fillStyle = cfg.C_TEXT_DIM
     const hasteTxt  = cfg.HASTE_PCT > 0 ? `  h:${cfg.HASTE_PCT.toFixed(0)}%` : ''
+    const windowTxt = `  win:${(cfg.GOOD_WINDOW * 2).toFixed(2)}s`
     const visualTxt = cfg.HIT_ZONE_VISUAL_OFFSET !== 0 ? `  vis:${cfg.HIT_ZONE_VISUAL_OFFSET > 0 ? '+' : ''}${cfg.HIT_ZONE_VISUAL_OFFSET}px` : ''
-    const line = `int:${cfg.PUNCH_INTERVAL.toFixed(2)}s  off:${(cfg.TARGET_OFFSET * 1000).toFixed(0)}ms${hasteTxt}${visualTxt}`
+    const line = `int:${cfg.PUNCH_INTERVAL.toFixed(2)}s  off:${(cfg.TARGET_OFFSET * 1000).toFixed(0)}ms${hasteTxt}${windowTxt}${visualTxt}`
     ctx.fillText(line, 4, y + h / 2 + cfg.FONT_SM / 2)
   }
 
@@ -1519,6 +1555,58 @@ export class Overlay {
     }
   }
 
+  private drawHistoryScreen(): void {
+    const ctx = this.ctx2d
+    const cfg = this.cfg
+    const w   = this.canvas.width
+    const h   = this.canvas.height
+
+    ctx.globalAlpha = 0.95
+    ctx.fillStyle   = 'rgba(0,0,0,0.88)'
+    ctx.fillRect(0, 0, w, h)
+    ctx.globalAlpha = 1
+
+    ctx.textAlign    = 'center'
+    ctx.textBaseline = 'middle'
+
+    const cx = w / 2
+    const history = this.fightHistory
+
+    type Row = { text: string; color: string; bold?: boolean; size: number }
+    const rows: Row[] = [
+      { text: 'Fight History', color: cfg.C_TEXT, bold: true, size: cfg.FONT_LG },
+    ]
+
+    if (history.length === 0) {
+      rows.push({ text: 'No fights recorded yet.', color: cfg.C_TEXT_DIM, size: cfg.FONT_SM })
+    } else {
+      for (let i = 0; i < history.length; i++) {
+        const r     = history[i]
+        const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+        const gc    = cfg.GRADE_COLORS[r.grade] ?? cfg.C_TEXT
+        rows.push({
+          text: `${i + 1}. ${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rounds  +${r.addedDps.toFixed(0)}dps  ${react}`,
+          color: gc,
+          size: cfg.FONT_SM,
+        })
+      }
+    }
+
+    rows.push({ text: 'V copy • click to dismiss', color: 'rgba(90,100,130,0.7)', size: cfg.FONT_SM })
+
+    const pad  = 4
+    const rowH = (h - pad * 2) / rows.length
+    rows.forEach((row, i) => {
+      const y = pad + rowH * i + rowH / 2
+      ctx.font      = `${row.bold ? 'bold ' : ''}${row.size}px Consolas, monospace`
+      ctx.fillStyle = row.color
+      ctx.fillText(row.text, cx, y)
+    })
+
+    ctx.textAlign    = 'left'
+    ctx.textBaseline = 'alphabetic'
+  }
+
   private drawGradeScreen(gs: GradeScreen): void {
     const ctx = this.ctx2d
     const cfg = this.cfg
@@ -1570,6 +1658,11 @@ export class Overlay {
 
   /** Called from the renderer when a canvas click is confirmed (not a drag). */
   handleMouseClick(ts: number, x = -1, y = -1): void {
+    // Dismiss history screen on any click
+    if (this.showHistory) {
+      this.showHistory = false
+      return
+    }
     // Check if the click landed on the pin icon (top-right header area)
     const pinSize = this.cfg.HEADER_H
     const pinX    = this.canvas.width - pinSize

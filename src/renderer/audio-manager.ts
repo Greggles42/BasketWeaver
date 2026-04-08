@@ -21,7 +21,7 @@ export class AudioManager {
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
-      this.ctx = new AudioContext({ sampleRate: this.cfg.SAMPLE_RATE })
+      this.ctx = new AudioContext({ latencyHint: 'interactive', sampleRate: this.cfg.SAMPLE_RATE })
     }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume()

@@ -156,12 +156,10 @@ export const Config = {
     '\\b(kicks?|bites?|claws?|strikes?|slashes?|bashes?|pierces?) [Yy]ou for \\d+',
   ],
   // Mob-death patterns — trigger grade screen + end-combat sound
-  MOB_DEATH_PATTERNS: [
-    '\\bYou have slain\\b',       // you killed your target
-    '\\bYou have been slain\\b',  // you died
-  ],
+  MOB_DEATH_PATTERNS: [] as string[],   // handled in code, not regex
   // Silent-end patterns — stop combat tracking, no grade/sound
   COMBAT_END_PATTERNS: [
+    '\\bYou have been slain\\b',    // you died
     '\\bYou have left the zone\\b',
     '^Welcome to EverQuest',
   ],

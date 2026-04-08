@@ -179,6 +179,24 @@ or when you die. It shows your performance for that fight:
 
 Press **Space** or click to dismiss.
 
+### Fight History
+
+Basketweaver keeps the last 5 fight results in memory. Open the history
+panel at any time with `L` or via tray → **Fight History**:
+
+```
+  ┌────────────────────────────────────────┐
+  │  Fight History                         │
+  │  1. S  18/21 rounds  +148dps  142ms   │
+  │  2. A  15/20 rounds  +121dps  —        │
+  │  3. B  12/18 rounds  + 89dps  188ms   │
+  │  V copy • click to dismiss             │
+  └────────────────────────────────────────┘
+```
+
+Press `V` to copy the full history to clipboard (useful for sharing
+parse results in Discord or guild chat). Click anywhere to close.
+
 ---
 
 ## 4. Calibration
@@ -297,6 +315,7 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Status** | Shows IN COMBAT or IDLE (read-only) |
 | **Select Log File…** | Choose a different EQ log file |
 | **Reset Track** | Hard reset — clears all state if overlay gets out of sync |
+| **Fight History** | Show the last 5 fight results in an overlay panel |
 | **Window Size** | Scale overlay to 25% / 50% / 75% / 100% |
 | **Target Position** | Move hit zone left/right on the highway |
 | **Mainhand Delay** | Select your mainhand weapon |
@@ -325,6 +344,8 @@ These work when the Basketweaver window is in focus (click it once).
 | `,` / `.` | Shift hit zone visually left / right |
 | `R` | Reset track (same as tray Reset Track) |
 | `M` | Toggle audio mute |
+| `L` | Open / close Fight History panel |
+| `V` | Copy fight history to clipboard (when history panel is open) |
 | `Space` | Dismiss grade screen |
 | `Escape` | Quit |
 
@@ -351,9 +372,10 @@ Press `R` or use tray → **Reset Track** to hard-reset the engine
 without closing the app.
 
 **Grade screen doesn't appear after a kill**
-The grade screen fires when you slay your target (`You have slain`), when
-someone else kills the mob you were attacking, or when you die. It does
-not fire on zone or logout — those end combat silently.
+The grade screen fires when your current target dies — either `You have slain TARGET`
+or `TARGET has been slain by X` — provided you attacked that target within the
+last 10 seconds. It also fires when you die. Zone and logout end combat silently
+with no grade screen.
 
 **Out-of-range alert sound keeps playing**
 The two-tone blip plays at most once every 1.5 seconds while you are in

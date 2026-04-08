@@ -144,6 +144,7 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       { type: 'separator' },
       { label: 'Select Log File…', click: () => onSelectLog() },
       { label: 'Reset Track',      click: () => win.webContents.send(IPC.RESET_TRACK) },
+      { label: 'Fight History',   click: () => win.webContents.send(IPC.SHOW_FIGHT_HISTORY) },
       { label: 'Window Size',     submenu: scaleItems },
       { label: 'Target Position', submenu: targetPosItems },
       { type: 'separator' },

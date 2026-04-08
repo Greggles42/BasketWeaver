@@ -43,4 +43,5 @@ export const IPC = {
   SAVE_SETTINGS:     'save-settings',      // renderer → main: persist config to disk
   RESET_TRACK:            'reset-track',             // tray → renderer: hard reset engine state
   TOGGLE_FIST_MISS_SOUND: 'toggle-fist-miss-sound',  // tray → renderer
+  SHOW_FIGHT_HISTORY:     'show-fight-history',       // tray → renderer
 } as const

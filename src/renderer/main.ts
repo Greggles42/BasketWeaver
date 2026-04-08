@@ -19,6 +19,7 @@ declare global {
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:           (cb: () => void) => void
       onToggleFistMissSound:  (cb: () => void) => void
+      onShowFightHistory:     (cb: () => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -83,6 +84,7 @@ window.electronAPI.onSetTargetPosition((pct: number) => {
 window.electronAPI.onResetTrack(() => overlay.resetTrack())
 
 window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
+window.electronAPI.onShowFightHistory(() => overlay.toggleFightHistory())
 
 // ── Status requests from tray ─────────────────────────────────
 
@@ -95,7 +97,8 @@ window.addEventListener('request-status', () => {
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   // Prevent browser defaults for game keys
   if (['ArrowUp', 'ArrowDown', ' ', 'Tab'].includes(e.key)) e.preventDefault()
-  overlay.handleKey(e.key)
+  if (e.key === 'l' || e.key === 'L') overlay.toggleFightHistory()
+  else overlay.handleKey(e.key)
 })
 
 // ── Pointer events (drag vs click) ────────────────────────────

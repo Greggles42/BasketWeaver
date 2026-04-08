@@ -256,10 +256,10 @@ export class RhythmEngine {
       this.closeRound()
     }
 
-    // Pre-generate upcoming notes for highway runway (3 rounds ahead)
+    // Pre-generate upcoming notes for highway runway (5 rounds ahead — extras start off-screen and scroll in)
     if (this.notesAnchored) {
       const interval  = s(this.cfg.PUNCH_INTERVAL)
-      const lookahead = now + 3.0 * interval
+      const lookahead = now + 5.0 * interval
       while (this.nextNoteTime <= lookahead) {
         const note: Note = { noteId: this.nextId++, targetTime: this.nextNoteTime,
           swingTime: this.nextNoteTime - s(this.cfg.GOOD_WINDOW),
