@@ -151,7 +151,6 @@ export class Overlay {
   private gradeScreen: GradeScreen | null = null
   private lastGradeResult: GradeResult | null = null
   private fightHistory: GradeResult[] = []
-  private showHistory = false
   private hitFlash    = 0
   private flashColor  = Config.C_PERFECT
   private scoreDisplay = 0
@@ -223,6 +222,7 @@ export class Overlay {
       case EvType.MOB_DIED:
         if (this.rhythm.inCombat) {
           const result = this.rhythm.onCombatEnd(ts)
+          result.mobName = (ev.data?.mobName as string) ?? ''
           this.lastGradeResult = result
           this.pushHistory(result)
           this.audio.play('combat_end')
@@ -399,10 +399,7 @@ export class Overlay {
           this.gradeScreen = new GradeScreen(result)
         }
         break
-      case 'v': case 'V':
-        if (this.showHistory) this.copyHistory()
-        else this.copyToClipboard()
-        break
+      case 'v': case 'V': this.copyToClipboard(); break
       case 'i': case 'I': this.showInstrumentation = !this.showInstrumentation; break
     }
   }
@@ -442,23 +439,16 @@ export class Overlay {
     this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS
   }
 
-  toggleFightHistory(): void {
-    this.showHistory = !this.showHistory
-  }
-
   private pushHistory(result: GradeResult): void {
     this.fightHistory.unshift(result)   // newest first
     if (this.fightHistory.length > 5) this.fightHistory.length = 5
-  }
-
-  private copyHistory(): void {
-    if (this.fightHistory.length === 0) return
-    const lines = ['--- Basketweaver Fight History ---']
-    this.fightHistory.forEach((r, i) => {
-      const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms react` : '—'
-      lines.push(`${i + 1}. ${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rounds  +${r.addedDps.toFixed(0)}dps  ${react}`)
+    // Send formatted history to main process for the tray submenu.
+    const lines = this.fightHistory.map(r => {
+      const mob   = r.mobName || 'Unknown'
+      const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      return `${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rnds  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
     })
-    navigator.clipboard.writeText(lines.join('\n')).catch(() => {})
+    window.electronAPI?.sendFightHistory(lines)
   }
 
   toggleHighContrast(): void {
@@ -624,7 +614,6 @@ export class Overlay {
     this.drawJudgments()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
-    if (this.showHistory) this.drawHistoryScreen()
     if (this.showInstrumentation) this.drawInstrumentation()
   }
 
@@ -763,18 +752,25 @@ export class Overlay {
           .filter(n => n.state === 'active')
           .sort((a, b) => a.targetTime - b.targetTime)
       : []
-    const UPCOMING_ALPHAS = [1.0, 0.55, 0.28, 0.12]
+    const UPCOMING_ALPHAS = [1.0, 0.55, 0.28, 0.12, 0.06]
+    // Notes beyond the canvas edge fade in over this distance (px) as they scroll into view.
+    const entryFade = Math.trunc(this.runway / 4)
 
     for (const note of rhy.notes) {
       const [nx, ny] = this.noteScreenPos(note.targetTime, t)
 
-      if (vert) { if (ny < this.highwayY - r * 4 || ny > h + r * 2) continue }
-      else { if (nx > w + r * 2 || nx < -r * 4) continue }
+      // Extend the clip zone so off-screen notes can fade in before entering.
+      if (vert) { if (ny < this.highwayY - entryFade - r || ny > h + r * 2) continue }
+      else { if (nx > w + entryFade + r || nx < -r * 4) continue }
 
       if (note.state === 'active') {
         const rank = upcomingActive.indexOf(note)
         if (rank < 0 || rank >= UPCOMING_ALPHAS.length) continue
-        const opacity = UPCOMING_ALPHAS[rank]
+        let opacity = UPCOMING_ALPHAS[rank]
+        // Smooth fade-in as the note crosses the canvas edge.
+        if (!vert && nx > w) opacity *= Math.max(0, 1 - (nx - w) / entryFade)
+        if (vert  && ny < this.highwayY) opacity *= Math.max(0, 1 - (this.highwayY - ny) / entryFade)
+        if (opacity < 0.01) continue
         if (cfg.VISUAL_MODE !== 2) {
           if (rank === 0) this.drawSwingMarker(nx, ny)
           this.drawActiveNote(nx, ny, r, opacity)
@@ -1555,58 +1551,6 @@ export class Overlay {
     }
   }
 
-  private drawHistoryScreen(): void {
-    const ctx = this.ctx2d
-    const cfg = this.cfg
-    const w   = this.canvas.width
-    const h   = this.canvas.height
-
-    ctx.globalAlpha = 0.95
-    ctx.fillStyle   = 'rgba(0,0,0,0.88)'
-    ctx.fillRect(0, 0, w, h)
-    ctx.globalAlpha = 1
-
-    ctx.textAlign    = 'center'
-    ctx.textBaseline = 'middle'
-
-    const cx = w / 2
-    const history = this.fightHistory
-
-    type Row = { text: string; color: string; bold?: boolean; size: number }
-    const rows: Row[] = [
-      { text: 'Fight History', color: cfg.C_TEXT, bold: true, size: cfg.FONT_LG },
-    ]
-
-    if (history.length === 0) {
-      rows.push({ text: 'No fights recorded yet.', color: cfg.C_TEXT_DIM, size: cfg.FONT_SM })
-    } else {
-      for (let i = 0; i < history.length; i++) {
-        const r     = history[i]
-        const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-        const gc    = cfg.GRADE_COLORS[r.grade] ?? cfg.C_TEXT
-        rows.push({
-          text: `${i + 1}. ${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rounds  +${r.addedDps.toFixed(0)}dps  ${react}`,
-          color: gc,
-          size: cfg.FONT_SM,
-        })
-      }
-    }
-
-    rows.push({ text: 'V copy • click to dismiss', color: 'rgba(90,100,130,0.7)', size: cfg.FONT_SM })
-
-    const pad  = 4
-    const rowH = (h - pad * 2) / rows.length
-    rows.forEach((row, i) => {
-      const y = pad + rowH * i + rowH / 2
-      ctx.font      = `${row.bold ? 'bold ' : ''}${row.size}px Consolas, monospace`
-      ctx.fillStyle = row.color
-      ctx.fillText(row.text, cx, y)
-    })
-
-    ctx.textAlign    = 'left'
-    ctx.textBaseline = 'alphabetic'
-  }
-
   private drawGradeScreen(gs: GradeScreen): void {
     const ctx = this.ctx2d
     const cfg = this.cfg
@@ -1658,11 +1602,6 @@ export class Overlay {
 
   /** Called from the renderer when a canvas click is confirmed (not a drag). */
   handleMouseClick(ts: number, x = -1, y = -1): void {
-    // Dismiss history screen on any click
-    if (this.showHistory) {
-      this.showHistory = false
-      return
-    }
     // Check if the click landed on the pin icon (top-right header area)
     const pinSize = this.cfg.HEADER_H
     const pinX    = this.canvas.width - pinSize

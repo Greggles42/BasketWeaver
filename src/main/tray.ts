@@ -3,7 +3,7 @@
  * Port of tray_icon.py, using Electron's native Tray + Menu API.
  */
 
-import { Tray, Menu, MenuItem, nativeImage, BrowserWindow, ipcMain } from 'electron'
+import { Tray, Menu, MenuItem, nativeImage, BrowserWindow, ipcMain, clipboard } from 'electron'
 import * as path from 'path'
 import { IPC } from '../shared/events'
 import { Config } from '../shared/config'
@@ -18,6 +18,11 @@ const OPACITIES: Array<[string, number]> = [
 
 let highContrastEnabled  = false
 let fistMissSoundEnabled = false
+let recentFights: string[] = []
+
+export function updateFightHistory(fights: string[]): void {
+  recentFights = fights
+}
 
 export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
@@ -144,7 +149,15 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       { type: 'separator' },
       { label: 'Select Log File…', click: () => onSelectLog() },
       { label: 'Reset Track',      click: () => win.webContents.send(IPC.RESET_TRACK) },
-      { label: 'Fight History',   click: () => win.webContents.send(IPC.SHOW_FIGHT_HISTORY) },
+      {
+        label: 'Recent Fights',
+        submenu: recentFights.length === 0
+          ? [{ label: 'No fights recorded yet', enabled: false }]
+          : recentFights.map(line => ({
+              label: line,
+              click: () => clipboard.writeText(line),
+            })),
+      },
       { label: 'Window Size',     submenu: scaleItems },
       { label: 'Target Position', submenu: targetPosItems },
       { type: 'separator' },

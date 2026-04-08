@@ -44,6 +44,8 @@ export class LogReader {
   // We track which block we're in and capture the secondary weapon from the second block.
   private currentTarget   = ''   // most recent mob the player was attacking
   private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
+  private lastHastePct    = -1   // dedup: last emitted haste value
+  private lastHasteEmitTs = 0    // dedup: when it was emitted
 
   private mystatsState: 'idle' | 'await_secondary' | 'reading_secondary' = 'idle'
   private mystatsBlockNum = 0   // increments on each "---- Melee Primary:" line; reset after capture
@@ -209,10 +211,11 @@ export class LogReader {
       const isMyKill         = lower.startsWith('you have slain ' + target)
       const isThirdPartyKill = lower.startsWith(target + ' has been slain by')
       if (isMyKill || isThirdPartyKill) {
+        const mobName       = this.currentTarget
         this.inCombat       = false
         this.currentTarget  = ''
         this.lastAttackTs   = 0
-        this.emit({ type: EvType.MOB_DIED, ts: now, data: { line: content } })
+        this.emit({ type: EvType.MOB_DIED, ts: now, data: { line: content, mobName } })
         return
       }
     }
@@ -282,9 +285,17 @@ export class LogReader {
     // ── Haste detection (/mystats) ──────────────────────────
     const hastePct = parseHaste(content)
     if (hastePct !== null) {
-      const interval = calcInterval(hastePct, this.cfg.BASE_WEAPON_DELAY)
-      this.emit({ type: EvType.HASTE_DETECTED, ts: now,
-        data: { haste_pct: hastePct, interval, source: content } })
+      // Deduplicate: /mystats outputs multiple lines that can each match a haste pattern.
+      // Suppress if same value was emitted within the last 2 seconds.
+      const sameValue = Math.abs(hastePct - this.lastHastePct) < 0.5
+      const recentEmit = now - this.lastHasteEmitTs < 2000
+      if (!sameValue || !recentEmit) {
+        this.lastHastePct    = hastePct
+        this.lastHasteEmitTs = now
+        const interval = calcInterval(hastePct, this.cfg.BASE_WEAPON_DELAY)
+        this.emit({ type: EvType.HASTE_DETECTED, ts: now,
+          data: { haste_pct: hastePct, interval, source: content } })
+      }
     }
   }
 

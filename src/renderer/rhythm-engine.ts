@@ -19,6 +19,7 @@ export interface Note {
 
 export interface GradeResult {
   grade: string
+  mobName: string       // name of the target that died (set by caller)
   pctInGreen: number    // 0–1, fraction of mainhand rounds that had a weave attempt
   roundsWeaved: number  // mainhand rounds where a fist attempt occurred
   totalRounds: number   // total mainhand rounds completed
@@ -303,7 +304,7 @@ export class RhythmEngine {
       ? this.reactionTimeSum / this.reactionTimeCount
       : null
 
-    return { grade, pctInGreen,
+    return { grade, mobName: '', pctInGreen,
       roundsWeaved: this.roundsWithWeave, totalRounds: this.roundCount,
       weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
       totalFistDamage: this.totalFistDamage, fightDuration, addedDps, avgReactionMs }
