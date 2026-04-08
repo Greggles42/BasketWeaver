@@ -165,6 +165,7 @@ export class Overlay {
 
   pinned = true
   private oorLastSoundTs = 0
+  private lastFistHitTs  = 0
   private static readonly HC_COLORS = {
     C_BG:     '#000000',
     C_HEADER: '#000000',
@@ -206,7 +207,7 @@ export class Overlay {
     switch (ev.type) {
       case EvType.COMBAT_START:
         if (!this.rhythm.inCombat) {
-          this.rhythm.onCombatStart(ts)
+          this.rhythm.onCombatStart(performance.now())
           this.audio.play('combat_start')
           this.gradeScreen = null
           this.swingLog = []
@@ -256,10 +257,11 @@ export class Overlay {
       }
 
       case EvType.FIST_ATTACK: {
-        const adjTs  = ts - this.cfg.LATENCY_COMPENSATION * 1000
-        const damage = ev.data?.damage as number  ?? 0
-        const hit    = ev.data?.hit    as boolean ?? false
-        const isClip = this.rhythm.onFistAttack(adjTs, damage, hit)
+        const fistNow = performance.now()   // renderer clock — matches crushTs for reaction time
+        const adjTs   = ts - this.cfg.LATENCY_COMPENSATION * 1000
+        const damage  = ev.data?.damage as number  ?? 0
+        const hit     = ev.data?.hit    as boolean ?? false
+        const isClip  = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
         this.lastCombatActivity = ts
         this.consecutiveCrushesWithoutFist = 0
         if (this.audioMutedRapidAttack) {
@@ -270,13 +272,31 @@ export class Overlay {
         } else {
           const [hzx, hzy] = this.hitZoneCenter()
           if (hit && damage > 0) {
+            this.lastFistHitTs = now()
             this.audio.play('punch')
             this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)
           } else {
-            if (this.cfg.FIST_SOUND_ON_MISS) this.audio.play('punch')
+            if (this.cfg.FIST_SOUND_ON_MISS) {
+              // Delay slightly so a near-simultaneous hit from the other
+              // dual-wield swing has time to update lastFistHitTs first.
+              setTimeout(() => {
+                if (now() - this.lastFistHitTs > 300) this.audio.play('whiff')
+              }, 150)
+            }
             this.spawnMissDrop(hzx, hzy)
           }
         }
+        break
+      }
+
+      case EvType.CURSOR_BLOCKED: {
+        this.audio.play('error')
+        const [hzx, hzy] = this.hitZoneCenter()
+        const [jx, jy] = this.cfg.ORIENTATION === 'horizontal'
+          ? [hzx + 18, this.highwayY + 6]
+          : [hzx + this.cfg.NOTE_RADIUS + 4, hzy - 12]
+        this.judgments.push(new Judgment('CURSOR!', this.cfg.C_CLIP, jx, jy))
+        this.showBanner('Item on cursor — weapon swap blocked', this.cfg.C_CLIP, 3000)
         break
       }
 
@@ -1520,7 +1540,7 @@ export class Overlay {
 
     // Build the row list dynamically so row height always fits the canvas.
     const rows: Array<{ text: string; color: string; bold?: boolean; size: number }> = [
-      { text: `${r.grade}  ${(r.pctInGreen * 100).toFixed(1)}% in green`,
+      { text: `${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rounds weaved`,
         color: gradeColor, bold: true, size: cfg.FONT_LG },
       { text: `Bonus attacks: ${r.weaveAttempts} attempts  ${r.weaveLanded} landed  +${r.addedDps.toFixed(0)} dps`,
         color: cfg.C_TEXT_DIM, size: cfg.FONT_SM },
@@ -1653,7 +1673,7 @@ export class Overlay {
   private copyToClipboard(): void {
     const r = this.lastGradeResult ?? this.rhythm.makeGrade()
     const reactionPart = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
-    const text = `Basketweaver: ${r.grade} ${(r.pctInGreen * 100).toFixed(1)}% in green | ` +
+    const text = `Basketweaver: ${r.grade} ${r.roundsWeaved}/${r.totalRounds} rounds weaved | ` +
       `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
       `Added DPS: ${r.addedDps.toFixed(0)}` + reactionPart
     navigator.clipboard.writeText(text).then(() => {

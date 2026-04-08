@@ -19,7 +19,7 @@ const OPACITIES: Array<[string, number]> = [
 let highContrastEnabled  = false
 let fistMissSoundEnabled = false
 
-export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}): Tray {
+export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
   const icon = buildTrayIcon()
   const tray = new Tray(icon)
@@ -142,7 +142,7 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
     return Menu.buildFromTemplate([
       { label: `Status: ${inCombat ? 'IN COMBAT' : 'IDLE'}`, enabled: false },
       { type: 'separator' },
-      { label: 'Select Log File…', click: () => win.webContents.send(IPC.SELECT_LOG) },
+      { label: 'Select Log File…', click: () => onSelectLog() },
       { label: 'Reset Track',      click: () => win.webContents.send(IPC.RESET_TRACK) },
       { label: 'Window Size',     submenu: scaleItems },
       { label: 'Target Position', submenu: targetPosItems },

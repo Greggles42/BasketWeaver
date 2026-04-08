@@ -106,6 +106,12 @@ Marks the exact moment your mainhand will swing next. When the orange bar
 reaches the hit zone, your mainhand fires. Do **not** initiate a weave
 after this point — you won't have time before the next swing.
 
+**CURSOR! warning**
+If you try to swap weapons while holding an item on your cursor, EQ will
+block the swap. Basketweaver detects this, shows a **CURSOR!** indicator
+at the hit zone, displays a banner, and plays an error sound so you know
+to clear your cursor immediately.
+
 ---
 
 ## 3. Timing Your Weaves
@@ -155,17 +161,21 @@ small **grey drops** fall from the hit zone.
 
 ### End-of-Fight Grade Screen
 
-When the mob dies, the overlay shows your performance for that fight:
+The grade screen fires when your target dies (by your hand or anyone else's)
+or when you die. It shows your performance for that fight:
 
 ```
-  ┌────────────────────────────┐
-  │           S                │  ← Letter grade (S / A / B / C / D / F)
-  │        96.3%               │  ← Weave accuracy
-  │    Avg React: 142 ms       │  ← Average time from swing to your weave
-  │    Combo x12               │  ← Longest hit streak
-  │    Score: 2840             │
-  └────────────────────────────┘
+  ┌────────────────────────────────────────┐
+  │    S   18/21 rounds weaved             │  ← Grade + rounds with a weave
+  │    Bonus attacks: 22 atts  19 landed   │
+  │    +148 dps                            │
+  │    142 ms avg reaction                 │  ← Crush → fist delay, per round
+  └────────────────────────────────────────┘
 ```
+
+- **Grade** is based on what fraction of mainhand rounds had a fist weave attempt.
+- **Avg reaction** is the average time from your mainhand crush to the first fist
+  attack in that round — measured per round, one sample per round.
 
 Press **Space** or click to dismiss.
 
@@ -297,7 +307,7 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Clip Window** | How long after a weave to suppress duplicate detections |
 | **Audio** | Toggle all sounds on / off |
 | **High Contrast** | Black background with vivid green weave window |
-| **Fist Sound on Miss** | Play punch sound even when the fist attack misses |
+| **Fist Sound on Miss** | Play a whiff sound when all swings in a round miss (on by default) |
 | **Opacity** | Overlay transparency |
 | **Quit Basketweaver** | Exit the app |
 
@@ -341,9 +351,9 @@ Press `R` or use tray → **Reset Track** to hard-reset the engine
 without closing the app.
 
 **Grade screen doesn't appear after a kill**
-The grade screen only fires when the mob you were fighting dies
-(`You have slain` / `has been slain`). It does not fire if you zone,
-die, or log out mid-fight.
+The grade screen fires when you slay your target (`You have slain`), when
+someone else kills the mob you were attacking, or when you die. It does
+not fire on zone or logout — those end combat silently.
 
 **Out-of-range alert sound keeps playing**
 The two-tone blip plays at most once every 1.5 seconds while you are in

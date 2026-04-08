@@ -179,6 +179,56 @@ export class AudioManager {
     return this.makeBuffer(out)
   }
 
+  private makeWhiff(): AudioBuffer {
+    const sr  = this.cfg.SAMPLE_RATE
+    const dur = 0.13
+    const vol = this.cfg.FX_VOLUME * 0.125
+    const n   = Math.floor(dur * sr)
+    const noise = new Float32Array(n)
+    let seed = 77
+    for (let i = 0; i < n; i++) {
+      seed = (1664525 * seed + 1013904223) & 0x7fffffff
+      noise[i] = ((seed / 0x3fffffff) - 1.0) * vol
+    }
+    // Two-stage low-pass with a sweeping cutoff to get a whoosh character
+    const lp1 = new Float32Array(n)
+    const lp2 = new Float32Array(n)
+    lp1[0] = noise[0]; lp2[0] = noise[0]
+    for (let i = 1; i < n; i++) {
+      const t      = i / n
+      const alpha1 = 0.18 + 0.18 * (1 - t)   // wider at start, narrows at end
+      lp1[i] = alpha1 * noise[i] + (1 - alpha1) * lp1[i - 1]
+      lp2[i] = 0.04  * noise[i] + 0.96        * lp2[i - 1]
+    }
+    // Bandpass approximation: difference of two low-passes
+    const out = new Float32Array(n)
+    for (let i = 0; i < n; i++) out[i] = lp1[i] - lp2[i] * 0.6
+    // Soft descending tone underneath for pitch sense
+    let phase = 0
+    for (let i = 0; i < n; i++) {
+      const t    = i / n
+      const freq = 280 - 180 * t          // sweeps 280 → 100 Hz
+      phase += 2 * Math.PI * freq / sr
+      out[i] += Math.sin(phase) * vol * 0.18 * (1 - t)
+    }
+    this.applyEnvelope(out, 0.002, 0.06)
+    return this.makeBuffer(out)
+  }
+
+  private makeError(): AudioBuffer {
+    const sr  = this.cfg.SAMPLE_RATE
+    const vol = this.cfg.FX_VOLUME * 0.50
+    // Two dissonant tones played simultaneously — harsh "wrong" sound
+    const low  = this.sine(220.0, 0.18, vol * 0.7)
+    const high = this.sine(311.1, 0.18, vol * 0.6)  // Eb — dissonant tritone above A
+    const out  = this.add(low, high)
+    // Extra roughness: slight amplitude modulation via a low-freq component
+    const mod = this.sine(7.0, 0.18, 1.0)
+    for (let i = 0; i < out.length; i++) out[i] *= 0.75 + 0.25 * mod[i]
+    this.applyEnvelope(out, 0.003, 0.08)
+    return this.makeBuffer(out)
+  }
+
   private makeOutOfRange(): AudioBuffer {
     const vol = this.cfg.FX_VOLUME * 0.35
     const notes: Array<[number, number]> = [[880.0, 0.07], [440.0, 0.10]]
@@ -228,6 +278,8 @@ export class AudioManager {
         case 'punch':        this.buffers.set(name, this.makePunch());       break
         case 'combat_end':   this.buffers.set(name, this.makeCombatEnd());   break
         case 'out_of_range': this.buffers.set(name, this.makeOutOfRange()); break
+        case 'whiff':        this.buffers.set(name, this.makeWhiff());      break
+        case 'error':        this.buffers.set(name, this.makeError());      break
         default: throw new Error(`Unknown sound: ${name}`)
       }
     }
@@ -239,7 +291,7 @@ export class AudioManager {
   /** Pre-generate all sound buffers so the first call has no latency. */
   preload(): void {
     for (const name of ['tick', 'perfect', 'good', 'miss',
-                        'combat_start', 'crush', 'punch', 'combat_end', 'out_of_range']) {
+                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error']) {
       try { this.getBuffer(name) } catch {}
     }
   }

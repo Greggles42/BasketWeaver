@@ -246,7 +246,13 @@ app.whenReady().then(async () => {
   createWindow()
 
   // Create tray
-  createTray(win!, () => app.quit(), saveSettings)
+  createTray(win!, () => app.quit(), saveSettings, async () => {
+    const p = await pickLogFile()
+    if (p) {
+      startReader(p)
+      win?.webContents.send(IPC.LOG_SELECTED, p)
+    }
+  })
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()

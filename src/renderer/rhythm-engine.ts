@@ -19,13 +19,15 @@ export interface Note {
 
 export interface GradeResult {
   grade: string
-  pctInGreen: number    // 0–1, fraction of weave windows hit within the green box
+  pctInGreen: number    // 0–1, fraction of mainhand rounds that had a weave attempt
+  roundsWeaved: number  // mainhand rounds where a fist attempt occurred
+  totalRounds: number   // total mainhand rounds completed
   weaveAttempts: number // total fist punch attempts (log events, hit or miss)
   weaveLanded: number   // fist attacks that dealt damage
   totalFistDamage: number
   fightDuration: number // ms
   addedDps: number      // damage per second from fist attacks
-  avgReactionMs: number | null  // ms from mainhand round to weave (null if no hits)
+  avgReactionMs: number | null  // ms from mainhand crush to first fist attempt, per round
 }
 
 const GRADE_THRESHOLDS: Array<[number, string]> = [
@@ -73,9 +75,14 @@ export class RhythmEngine {
   totalFistDamage = 0
   mainhandClips = 0
 
+  private roundCount = 0
+  private roundsWithWeave = 0
+  private roundHadFistAttempt = false
+
   private reactionTimeSum = 0
   private reactionTimeCount = 0
-  private lastMainhandTs = 0   // timestamp of most recent new mainhand round opening
+  private lastMainhandTs = 0         // timestamp of most recent new mainhand round opening
+  private roundReactionCounted = false  // true once we've recorded a reaction time for the current round
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
@@ -131,14 +138,20 @@ export class RhythmEngine {
       this.roundOpen = true
       this.lastCrushTime = ts
       this.lastMainhandTs = ts
+      this.roundReactionCounted = false
+      this.roundHadFistAttempt = false
       this.roundFistDamages = []
       // swingTimerValid intentionally kept — the predicted swing just happened as expected.
       // Cleared only by onOutOfRange or combat end.
     }
   }
 
-  /** Returns true if this fist attack was identified as a mainhand clip. */
-  onFistAttack(ts: number, damage: number, hit: boolean): boolean {
+  /**
+   * Returns true if this fist attack was identified as a mainhand clip.
+   * reactionTs: renderer performance.now() at IPC receipt — same clock as lastMainhandTs.
+   *             Must be passed separately because ts is latency-compensated for scoring.
+   */
+  onFistAttack(ts: number, damage: number, hit: boolean, reactionTs: number): boolean {
     if (!this.inCombat) return false
 
     if (this.isClip(ts)) {
@@ -157,9 +170,13 @@ export class RhythmEngine {
     }
 
     this.fistAttemptCount++
-    if (this.lastMainhandTs > 0) {
-      this.reactionTimeSum += ts - this.lastMainhandTs
+    this.roundHadFistAttempt = true
+    // Record reaction time once per round: time from mainhand crush to first fist attempt.
+    // Both timestamps use renderer performance.now() so the clocks match.
+    if (this.lastMainhandTs > 0 && !this.roundReactionCounted && reactionTs >= this.lastMainhandTs) {
+      this.reactionTimeSum += reactionTs - this.lastMainhandTs
       this.reactionTimeCount++
+      this.roundReactionCounted = true
     }
     if (hit && damage > 0) {
       this.totalFistDamage += damage
@@ -270,8 +287,7 @@ export class RhythmEngine {
   }
 
   makeGrade(): GradeResult {
-    const total      = this.hitCount + this.clippedCount + this.missCount
-    const pctInGreen = total > 0 ? this.hitCount / total : 0.0
+    const pctInGreen = this.roundCount > 0 ? this.roundsWithWeave / this.roundCount : 0.0
 
     let grade = 'F'
     for (const [threshold, letter] of GRADE_THRESHOLDS) {
@@ -287,9 +303,10 @@ export class RhythmEngine {
       ? this.reactionTimeSum / this.reactionTimeCount
       : null
 
-    return { grade, pctInGreen, weaveAttempts: this.fistAttemptCount,
-      weaveLanded: this.fistAttackCount, totalFistDamage: this.totalFistDamage,
-      fightDuration, addedDps, avgReactionMs }
+    return { grade, pctInGreen,
+      roundsWeaved: this.roundsWithWeave, totalRounds: this.roundCount,
+      weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
+      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, avgReactionMs }
   }
 
   // ── Internal ─────────────────────────────────────────────────
@@ -331,6 +348,9 @@ export class RhythmEngine {
     this.nextSwingTime   = roundEnd + s(interval)
     this.swingTimerValid = true
 
+    this.roundCount++
+    if (this.roundHadFistAttempt) this.roundsWithWeave++
+
     this.lastRoundFistDamages = [...this.roundFistDamages]
     this.roundFistDamages = []
   }
@@ -362,7 +382,8 @@ export class RhythmEngine {
     this.score = 0; this.combo = 0; this.maxCombo = 0
     this.hitCount = 0; this.clippedCount = 0; this.missCount = 0
     this.fistAttemptCount = 0; this.fistAttackCount = 0; this.totalFistDamage = 0; this.mainhandClips = 0
-    this.reactionTimeSum = 0; this.reactionTimeCount = 0; this.lastMainhandTs = 0
+    this.reactionTimeSum = 0; this.reactionTimeCount = 0; this.lastMainhandTs = 0; this.roundReactionCounted = false
+    this.roundCount = 0; this.roundsWithWeave = 0; this.roundHadFistAttempt = false
     this.notes = []; this.nextId = 0
     this.roundOpen = false; this.notesAnchored = false
     this.lastRoundCloseTime = 0.0; this.nextSwingTime = 0.0

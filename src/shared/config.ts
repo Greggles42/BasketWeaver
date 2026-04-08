@@ -89,7 +89,7 @@ export const Config = {
   SAMPLE_RATE:  44100,
   TICK_VOLUME:  0.38,
   FX_VOLUME:    0.62,
-  FIST_SOUND_ON_MISS: false,
+  FIST_SOUND_ON_MISS: true,
 
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
@@ -148,7 +148,8 @@ export const Config = {
   CRUSH_MISS_PATTERNS:   ['^You try to crush\\b', '^You attempt to crush\\b'],
   FIST_HIT_PATTERNS:     ['^You (?:punch|strike)\\b'],
   FIST_MISS_PATTERNS:    ['^You try to (?:punch|strike)\\b', '^You attempt to (?:punch|strike)\\b'],
-  OUT_OF_RANGE_PATTERNS: ['Your target is too far away', 'You cannot see your target'],
+  OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target'],
+  CURSOR_BLOCKED_PATTERNS:  ['You cannot swap items when holding something'],
   COMBAT_START_PATTERNS: [
     '^You begin casting\\b',
     '\\bhits? [Yy]ou for \\d+',
@@ -156,13 +157,11 @@ export const Config = {
   ],
   // Mob-death patterns — trigger grade screen + end-combat sound
   MOB_DEATH_PATTERNS: [
-    '\\bhas been slain\\b',
-    '\\bYou have slain\\b',
-    '\\bdied\\.\\s*$',
+    '\\bYou have slain\\b',       // you killed your target
+    '\\bYou have been slain\\b',  // you died
   ],
   // Silent-end patterns — stop combat tracking, no grade/sound
   COMBAT_END_PATTERNS: [
-    '\\bYou have been slain\\b',
     '\\bYou have left the zone\\b',
     '^Welcome to EverQuest',
   ],

@@ -11,6 +11,7 @@ export const enum EvType {
   MAINHAND_CRUSH  = 'MAINHAND_CRUSH',   // data: { damage, hit, line }
   FIST_ATTACK     = 'FIST_ATTACK',      // data: { damage, hit, line }
   OUT_OF_RANGE    = 'OUT_OF_RANGE',     // data: { line }
+  CURSOR_BLOCKED  = 'CURSOR_BLOCKED',  // data: { line }
   HASTE_DETECTED  = 'HASTE_DETECTED',   // data: { haste_pct, interval, source }
   WEAPON_DETECTED  = 'WEAPON_DETECTED',   // data: { name, delay }
   OFFHAND_DETECTED = 'OFFHAND_DETECTED', // data: { name, delay }
