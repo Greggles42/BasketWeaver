@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleFistMissSound: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_FIST_MISS_SOUND, () => cb()),
 
+  onToggleLaneLines: (cb: () => void) =>
+    ipcRenderer.on(IPC.TOGGLE_LANE_LINES, () => cb()),
+
   sendFightHistory: (fights: string[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
 

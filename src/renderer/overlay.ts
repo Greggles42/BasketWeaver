@@ -435,6 +435,10 @@ export class Overlay {
     this.computeLayout()
   }
 
+  toggleLaneLines(): void {
+    this.cfg.LANE_LINES = !this.cfg.LANE_LINES
+  }
+
   toggleFistMissSound(): void {
     this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS
   }
@@ -649,9 +653,11 @@ export class Overlay {
         ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(w, ly); ctx.stroke()
       }
 
-      ctx.strokeStyle = cfg.C_TRACK_LINE; ctx.lineWidth = 1
-      ctx.beginPath(); ctx.moveTo(0, hy + lanePad); ctx.lineTo(w, hy + lanePad); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(0, hy + hh - lanePad); ctx.lineTo(w, hy + hh - lanePad); ctx.stroke()
+      if (cfg.LANE_LINES) {
+        ctx.strokeStyle = cfg.C_TRACK_LINE; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(0, hy + lanePad); ctx.lineTo(w, hy + lanePad); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(0, hy + hh - lanePad); ctx.lineTo(w, hy + hh - lanePad); ctx.stroke()
+      }
       ctx.strokeStyle = '#323864'
       ctx.beginPath(); ctx.moveTo(this.hzX + this.cfg.HIT_ZONE_VISUAL_OFFSET, cy); ctx.lineTo(w, cy); ctx.stroke()
     } else {
@@ -670,9 +676,11 @@ export class Overlay {
         ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(w, ly); ctx.stroke()
       }
 
-      ctx.strokeStyle = cfg.C_TRACK_LINE
-      ctx.beginPath(); ctx.moveTo(lanePad, hy); ctx.lineTo(lanePad, hy + hh); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(w - lanePad, hy); ctx.lineTo(w - lanePad, hy + hh); ctx.stroke()
+      if (cfg.LANE_LINES) {
+        ctx.strokeStyle = cfg.C_TRACK_LINE
+        ctx.beginPath(); ctx.moveTo(lanePad, hy); ctx.lineTo(lanePad, hy + hh); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(w - lanePad, hy); ctx.lineTo(w - lanePad, hy + hh); ctx.stroke()
+      }
       ctx.strokeStyle = '#323864'
       ctx.beginPath(); ctx.moveTo(cx, hy); ctx.lineTo(cx, this.hzY + this.cfg.HIT_ZONE_VISUAL_OFFSET); ctx.stroke()
     }

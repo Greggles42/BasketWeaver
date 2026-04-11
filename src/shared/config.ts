@@ -93,6 +93,7 @@ export const Config = {
 
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
+  LANE_LINES: true,
 
   VERT_WINDOW_WIDTH:   43,
   VERT_WINDOW_HEIGHT: 193,

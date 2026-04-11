@@ -36,7 +36,9 @@ C:\TAKP\TAKPv22\eqlog_YourName_server.txt
 > Make sure EverQuest has logging enabled.
 > In-game command: `/log on`
 
-Basketweaver remembers your log file between sessions.
+Basketweaver remembers your log file and window position between sessions.
+If the overlay ever ends up off-screen, use tray → **Reset Window Position** to
+snap it back to the center of your primary monitor.
 
 ### Set Your Mainhand Weapon
 Right-click the tray icon → **Mainhand Delay** → select your weapon.
@@ -318,6 +320,7 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Fight History** | Show the last 5 fight results in an overlay panel |
 | **Window Size** | Scale overlay to 25% / 50% / 75% / 100% |
 | **Target Position** | Move hit zone left/right on the highway |
+| **Reset Window Position** | Snap overlay to a safe central position on the primary monitor |
 | **Mainhand Delay** | Select your mainhand weapon |
 | **Offhand Delay** | Set your fist weapon delay manually |
 | **Interval** | Override the post-haste swing interval |
@@ -327,6 +330,7 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Audio** | Toggle all sounds on / off |
 | **High Contrast** | Black background with vivid green weave window |
 | **Fist Sound on Miss** | Play a whiff sound when all swings in a round miss (on by default) |
+| **Lane Lines** | Show or hide the outer lane dividers on the highway (on by default) |
 | **Opacity** | Overlay transparency |
 | **Quit Basketweaver** | Exit the app |
 

@@ -48,6 +48,8 @@ function saveLastLog(logPath: string): void {
 
 const SETTINGS_FILE = () => path.join(configDir(), 'settings.json')
 
+let savedWindowPos: { x: number; y: number } | null = null
+
 function loadSettings(): void {
   try {
     const p = SETTINGS_FILE()
@@ -55,19 +57,45 @@ function loadSettings(): void {
       const saved = JSON.parse(fs.readFileSync(p, 'utf8'))
       if (typeof saved.OFFHAND_WEAPON_DELAY === 'number') Config.OFFHAND_WEAPON_DELAY = saved.OFFHAND_WEAPON_DELAY
       if (typeof saved.OFFHAND_WEAPON_NAME  === 'string') Config.OFFHAND_WEAPON_NAME  = saved.OFFHAND_WEAPON_NAME
-
+      if (typeof saved.windowX === 'number' && typeof saved.windowY === 'number') {
+        savedWindowPos = { x: saved.windowX, y: saved.windowY }
+      }
     }
   } catch {}
 }
 
 export function saveSettings(): void {
   try {
-    const data = {
+    const pos = win ? win.getPosition() : null
+    const data: Record<string, unknown> = {
       OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
       OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
     }
+    if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
   } catch {}
+}
+
+/** Returns true if the window center will land inside any display's work area. */
+function isPosVisible(x: number, y: number): boolean {
+  const w = Config.WINDOW_WIDTH
+  const h = Config.WINDOW_HEIGHT
+  const cx = x + w / 2
+  const cy = y + h / 2
+  return screen.getAllDisplays().some(d => {
+    const { x: dx, y: dy, width: dw, height: dh } = d.workArea
+    return cx >= dx && cx <= dx + dw && cy >= dy && cy <= dy + dh
+  })
+}
+
+export function resetWindowPosition(): void {
+  if (!win) return
+  const { x: dx, y: dy, width: dw, height: dh } = screen.getPrimaryDisplay().workArea
+  const [w, h] = win.getSize()
+  const nx = Math.trunc(dx + (dw - w) / 2)
+  const ny = Math.trunc(dy + dh - h - 80)
+  win.setPosition(nx, ny)
+  saveSettings()
 }
 
 // ── App lifecycle ─────────────────────────────────────────────
@@ -76,15 +104,21 @@ let win:       BrowserWindow | null = null
 let stopLog:   (() => void) | null  = null
 
 function createWindow(): void {
-  const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize
+  const { x: dx, y: dy, width: dw, height: dh } = screen.getPrimaryDisplay().workArea
   const w = Config.WINDOW_WIDTH
   const h = Config.WINDOW_HEIGHT
+
+  const defaultX = Math.trunc(dx + (dw - w) / 2)
+  const defaultY = Math.trunc(dy + dh - h - 80)
+  const usePos = savedWindowPos && isPosVisible(savedWindowPos.x, savedWindowPos.y)
+    ? savedWindowPos
+    : { x: defaultX, y: defaultY }
 
   win = new BrowserWindow({
     width:  w,
     height: h,
-    x: Math.trunc((sw - w) / 2),
-    y: sh - h - 80,
+    x: usePos.x,
+    y: usePos.y,
 
     // Overlay properties
     frame:       false,
@@ -114,6 +148,8 @@ function createWindow(): void {
     win.loadFile(path.join(__dirname, '../renderer/index.html'))
   }
 
+  win.on('moved', () => saveSettings())
+  win.on('close', () => saveSettings())
   win.on('closed', () => { win = null })
 }
 
@@ -254,7 +290,7 @@ app.whenReady().then(async () => {
       startReader(p)
       win?.webContents.send(IPC.LOG_SELECTED, p)
     }
-  })
+  }, resetWindowPosition)
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()

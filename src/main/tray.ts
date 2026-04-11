@@ -18,13 +18,14 @@ const OPACITIES: Array<[string, number]> = [
 
 let highContrastEnabled  = false
 let fistMissSoundEnabled = false
+let laneLineEnabled      = true
 let recentFights: string[] = []
 
 export function updateFightHistory(fights: string[]): void {
   recentFights = fights
 }
 
-export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}): Tray {
+export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
   const icon = buildTrayIcon()
   const tray = new Tray(icon)
@@ -158,8 +159,9 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
               click: () => clipboard.writeText(line),
             })),
       },
-      { label: 'Window Size',     submenu: scaleItems },
-      { label: 'Target Position', submenu: targetPosItems },
+      { label: 'Window Size',          submenu: scaleItems },
+      { label: 'Target Position',      submenu: targetPosItems },
+      { label: 'Reset Window Position', click: () => onResetPosition() },
       { type: 'separator' },
       { label: 'Mainhand Delay', submenu: presetItems },
       { label: offhandLabel,     submenu: offhandItems },
@@ -189,6 +191,15 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         click:   () => {
           fistMissSoundEnabled = !fistMissSoundEnabled
           win.webContents.send(IPC.TOGGLE_FIST_MISS_SOUND)
+        },
+      },
+      {
+        label:   'Lane Lines',
+        type:    'checkbox',
+        checked: laneLineEnabled,
+        click:   () => {
+          laneLineEnabled = !laneLineEnabled
+          win.webContents.send(IPC.TOGGLE_LANE_LINES)
         },
       },
       { label: 'Opacity', submenu: opacityItems },

@@ -84,6 +84,7 @@ window.electronAPI.onSetTargetPosition((pct: number) => {
 window.electronAPI.onResetTrack(() => overlay.resetTrack())
 
 window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
+window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
 
 // ── Status requests from tray ─────────────────────────────────
 
