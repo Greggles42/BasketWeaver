@@ -137,7 +137,7 @@ canvas.addEventListener('mousedown', (e: MouseEvent) => {
 
 window.addEventListener('mousemove', (e: MouseEvent) => {
   if (!dragPending && !dragging) return
-  if (!(e.buttons & 1)) return   // left button released mid-move
+  if (!(e.buttons & 1)) { dragPending = false; dragging = false; return }  // button released outside window
 
   if (!dragging) {
     const dx = e.screenX - dragStartX
@@ -154,6 +154,8 @@ window.addEventListener('mousemove', (e: MouseEvent) => {
   lastScreenY = e.screenY
   if (dx !== 0 || dy !== 0) window.electronAPI.moveWindow(dx, dy)
 })
+
+window.addEventListener('blur', () => { dragPending = false; dragging = false })
 
 window.addEventListener('mouseup', (e: MouseEvent) => {
   if (e.button !== 0) { dragPending = false; dragging = false; return }

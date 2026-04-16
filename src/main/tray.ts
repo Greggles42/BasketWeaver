@@ -133,8 +133,8 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       })
     )
 
-    // ── Offhand delay submenu ─────────────────────────────
-    const offhandDelays = [10, 12, 14, 16, 18, 20, 22, 24, 25, 26, 28, 30, 32, 33, 35, 38, 40]
+    // ── Offhand delay submenu (16–28, every integer) ──────
+    const offhandDelays = Array.from({ length: 13 }, (_, i) => 16 + i)
     const offhandLabel  = cfg.OFFHAND_WEAPON_NAME
       ? `Offhand Delay  [${cfg.OFFHAND_WEAPON_NAME}  ${(cfg.OFFHAND_WEAPON_DELAY / 10).toFixed(1)}s]`
       : `Offhand Delay  [${(cfg.OFFHAND_WEAPON_DELAY / 10).toFixed(1)}s]`

@@ -20,7 +20,7 @@ export const Config = {
   FOOTER_H:         10,
   HIT_ZONE_X:       33,
   NOTE_RADIUS:       5,
-  HIGHWAY_DURATION:  3.0,  // seconds of runway visible
+  HIGHWAY_DURATION:  8.0,  // seconds of runway visible
 
   // ── Font sizes (updated by setScale) ─────────────────────────
   FONT_XL: 14,

@@ -126,7 +126,6 @@ export class Overlay {
   private highwayH   = 0
   private highwayCY  = 0   // horizontal center-y
   private highwayCX  = 0   // vertical center-x
-  private swingBarY  = 0
   private footerY    = 0
   private hzX        = 0   // hit zone x (horizontal)
   private hzY        = 0   // hit zone y (vertical)
@@ -490,10 +489,9 @@ export class Overlay {
   private computeLayout(): void {
     const [w, h] = this.currentWindowSize()
     this.highwayY  = this.cfg.HEADER_H
-    this.highwayH  = h - this.cfg.HEADER_H - this.cfg.SWING_BAR_H - this.cfg.FOOTER_H
+    this.highwayH  = h - this.cfg.HEADER_H - this.cfg.FOOTER_H
     this.highwayCY = this.highwayY + Math.trunc(this.highwayH / 2)
     this.highwayCX = Math.trunc(w / 2)
-    this.swingBarY = h - this.cfg.FOOTER_H - this.cfg.SWING_BAR_H
     this.footerY   = h - this.cfg.FOOTER_H
 
     if (this.cfg.ORIENTATION === 'horizontal') {
@@ -613,7 +611,6 @@ export class Overlay {
     this.drawEffects()
 
     this.drawHeader()
-    this.drawSwingBar()
     this.drawFooter()
     this.drawJudgments()
     this.drawBanners()
