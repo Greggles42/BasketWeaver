@@ -93,7 +93,7 @@ export const Config = {
 
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
-  LANE_LINES: true,
+  LANE_LINES: false,
 
   VERT_WINDOW_WIDTH:   43,
   VERT_WINDOW_HEIGHT: 193,
@@ -113,8 +113,8 @@ export const Config = {
 
   // ── Scale base dimensions (at 100%) ──────────────────────────
   _BASE_W:   752,
-  _BASE_H:   200,
-  _BASE_HDR:  40,
+  _BASE_H:   210,
+  _BASE_HDR:  50,
   _BASE_SWG:  20,
   _BASE_FTR:  40,
   _BASE_HZX: 132,
@@ -125,6 +125,12 @@ export const Config = {
   _BASE_FLG:  24,
   _BASE_FMD:  18,
   _BASE_FSM:  13,
+
+  // ── Grading mode ─────────────────────────────────────────────
+  // When true, weave attempt grading is based on keystrokes that land in the
+  // weave window rather than EQ log fist-attack events. This avoids dual-wield
+  // proc failures counting as missed weaves.
+  KEYSTROKE_GRADING: false,
 
   // ── Weapon / haste ────────────────────────────────────────────
   BASE_WEAPON_DELAY:    20,  // EQ tenths-of-seconds

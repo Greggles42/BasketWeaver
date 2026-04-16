@@ -21,10 +21,12 @@ export interface GradeResult {
   grade: string
   mobName: string       // name of the target that died (set by caller)
   pctInGreen: number    // 0–1, fraction of mainhand rounds that had a weave attempt
-  roundsWeaved: number  // mainhand rounds where a fist attempt occurred
-  totalRounds: number   // total mainhand rounds completed
-  weaveAttempts: number // total fist punch attempts (log events, hit or miss)
-  weaveLanded: number   // fist attacks that dealt damage
+  roundsWeaved: number         // mainhand rounds where a fist attempt occurred (log-based)
+  keystrokeRoundsWeaved: number // mainhand rounds where a keystroke landed in the window
+  totalRounds: number          // total mainhand rounds completed
+  weaveAttempts: number        // total fist punch attempts (log events, hit or miss)
+  weaveLanded: number          // fist attacks that dealt damage
+  keystrokeGrading: boolean    // which mode produced pctInGreen/grade
   totalFistDamage: number
   fightDuration: number // ms
   addedDps: number      // damage per second from fist attacks
@@ -74,10 +76,25 @@ export class RhythmEngine {
   fistAttemptCount = 0
   fistAttackCount = 0
   totalFistDamage = 0
+  totalMeleeDamage = 0   // mainhand + fist combined
   mainhandClips = 0
 
-  private roundCount = 0
-  private roundsWithWeave = 0
+  get liveDps(): number {
+    if (!this.inCombat || this.combatStartTime <= 0) return 0
+    const elapsed = (performance.now() - this.combatStartTime) / 1000
+    return elapsed > 0 ? this.totalFistDamage / elapsed : 0
+  }
+
+  get liveTotalDps(): number {
+    if (!this.inCombat || this.combatStartTime <= 0) return 0
+    const elapsed = (performance.now() - this.combatStartTime) / 1000
+    return elapsed > 0 ? this.totalMeleeDamage / elapsed : 0
+  }
+
+  roundCount = 0
+  roundsWithWeave = 0
+  keystrokeRoundsWithWeave = 0
+  private roundHadKeystroke = false
   private roundHadFistAttempt = false
 
   private reactionTimeSum = 0
@@ -131,7 +148,8 @@ export class RhythmEngine {
     return this.makeGrade()
   }
 
-  onMainhandCrush(ts: number, _damage: number, _hit: boolean): void {
+  onMainhandCrush(ts: number, damage: number, _hit: boolean): void {
+    if (damage > 0) this.totalMeleeDamage += damage
     if (!this.inCombat) return
     if (this.roundOpen) {
       this.lastCrushTime = ts
@@ -141,6 +159,7 @@ export class RhythmEngine {
       this.lastMainhandTs = ts
       this.roundReactionCounted = false
       this.roundHadFistAttempt = false
+      this.roundHadKeystroke   = false
       this.roundFistDamages = []
       // swingTimerValid intentionally kept — the predicted swing just happened as expected.
       // Cleared only by onOutOfRange or combat end.
@@ -181,6 +200,7 @@ export class RhythmEngine {
     }
     if (hit && damage > 0) {
       this.totalFistDamage += damage
+      this.totalMeleeDamage += damage
       this.fistAttackCount++
       this.roundFistDamages.push(damage)
     }
@@ -213,6 +233,7 @@ export class RhythmEngine {
 
     if (!best) return [null, 0]
 
+    this.roundHadKeystroke = true
     best.state   = 'hit'
     best.hitTime = ts
     this.hitCount++
@@ -288,7 +309,9 @@ export class RhythmEngine {
   }
 
   makeGrade(): GradeResult {
-    const pctInGreen = this.roundCount > 0 ? this.roundsWithWeave / this.roundCount : 0.0
+    const useKeystroke = this.cfg.KEYSTROKE_GRADING
+    const weavedRounds = useKeystroke ? this.keystrokeRoundsWithWeave : this.roundsWithWeave
+    const pctInGreen   = this.roundCount > 0 ? weavedRounds / this.roundCount : 0.0
 
     let grade = 'F'
     for (const [threshold, letter] of GRADE_THRESHOLDS) {
@@ -305,9 +328,12 @@ export class RhythmEngine {
       : null
 
     return { grade, mobName: '', pctInGreen,
-      roundsWeaved: this.roundsWithWeave, totalRounds: this.roundCount,
+      roundsWeaved: this.roundsWithWeave,
+      keystrokeRoundsWeaved: this.keystrokeRoundsWithWeave,
+      totalRounds: this.roundCount,
       weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
-      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, avgReactionMs }
+      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, avgReactionMs,
+      keystrokeGrading: useKeystroke }
   }
 
   // ── Internal ─────────────────────────────────────────────────
@@ -351,6 +377,7 @@ export class RhythmEngine {
 
     this.roundCount++
     if (this.roundHadFistAttempt) this.roundsWithWeave++
+    if (this.roundHadKeystroke)   this.keystrokeRoundsWithWeave++
 
     this.lastRoundFistDamages = [...this.roundFistDamages]
     this.roundFistDamages = []
@@ -382,9 +409,10 @@ export class RhythmEngine {
   private resetScore(): void {
     this.score = 0; this.combo = 0; this.maxCombo = 0
     this.hitCount = 0; this.clippedCount = 0; this.missCount = 0
-    this.fistAttemptCount = 0; this.fistAttackCount = 0; this.totalFistDamage = 0; this.mainhandClips = 0
+    this.fistAttemptCount = 0; this.fistAttackCount = 0; this.totalFistDamage = 0; this.totalMeleeDamage = 0; this.mainhandClips = 0
     this.reactionTimeSum = 0; this.reactionTimeCount = 0; this.lastMainhandTs = 0; this.roundReactionCounted = false
-    this.roundCount = 0; this.roundsWithWeave = 0; this.roundHadFistAttempt = false
+    this.roundCount = 0; this.roundsWithWeave = 0; this.keystrokeRoundsWithWeave = 0
+    this.roundHadFistAttempt = false; this.roundHadKeystroke = false
     this.notes = []; this.nextId = 0
     this.roundOpen = false; this.notesAnchored = false
     this.lastRoundCloseTime = 0.0; this.nextSwingTime = 0.0

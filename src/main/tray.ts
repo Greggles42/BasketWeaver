@@ -16,9 +16,9 @@ const OPACITIES: Array<[string, number]> = [
   ['50%',  0.50], ['70%',  0.70], ['85%',  0.85], ['100%', 1.00],
 ]
 
-let highContrastEnabled  = false
-let fistMissSoundEnabled = false
-let laneLineEnabled      = true
+let highContrastEnabled    = false
+let fistMissSoundEnabled   = false
+let keystrokeGradingEnabled = false
 let recentFights: string[] = []
 
 export function updateFightHistory(fights: string[]): void {
@@ -194,12 +194,12 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         },
       },
       {
-        label:   'Lane Lines',
+        label:   'Keystroke Grading',
         type:    'checkbox',
-        checked: laneLineEnabled,
+        checked: keystrokeGradingEnabled,
         click:   () => {
-          laneLineEnabled = !laneLineEnabled
-          win.webContents.send(IPC.TOGGLE_LANE_LINES)
+          keystrokeGradingEnabled = !keystrokeGradingEnabled
+          cfg.KEYSTROKE_GRADING = keystrokeGradingEnabled
         },
       },
       { label: 'Opacity', submenu: opacityItems },

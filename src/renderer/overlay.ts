@@ -153,6 +153,9 @@ export class Overlay {
   private hitFlash    = 0
   private flashColor  = Config.C_PERFECT
   private scoreDisplay = 0
+  private dpsDisplayTotal = 0
+  private dpsDisplayFist  = 0
+  private dpsLastUpdate   = 0
   private particles:  Particle[] = []
   private rings:      Ring[]     = []
   private missDrops:  MissDrop[] = []
@@ -214,6 +217,9 @@ export class Overlay {
           this.swingLog = []
           this.clearRapidAttackMute()
           this.oorLastSoundTs = 0
+          this.dpsDisplayTotal = 0
+          this.dpsDisplayFist  = 0
+          this.dpsLastUpdate   = 0
         }
         this.lastCombatActivity = ts
         break
@@ -449,7 +455,8 @@ export class Overlay {
     const lines = this.fightHistory.map(r => {
       const mob   = r.mobName || 'Unknown'
       const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-      return `${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rnds  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
+      const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
+      return `${r.grade}  ${weaved}/${r.totalRounds} rnds  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
     })
     window.electronAPI?.sendFightHistory(lines)
   }
@@ -587,6 +594,14 @@ export class Overlay {
     const target = this.rhythm.score
     const gap = target - this.scoreDisplay
     if (gap > 0) this.scoreDisplay += Math.min(gap, gap * dt * 8 + 1)
+
+    if (t - this.dpsLastUpdate >= 1000) {
+      if (this.rhythm.roundCount >= 3) {
+        this.dpsDisplayTotal = Math.trunc(this.rhythm.liveTotalDps)
+        this.dpsDisplayFist  = Math.trunc(this.rhythm.liveDps)
+      }
+      this.dpsLastUpdate = t
+    }
 
     if (this.gradeScreen?.expired) this.gradeScreen = null
   }
@@ -1367,8 +1382,11 @@ export class Overlay {
     ctx.strokeStyle = cfg.C_TRACK_LINE; ctx.lineWidth = 1
     ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(w, h); ctx.stroke()
 
+    const dpsReady  = rhy.roundCount >= 3
+    const totalStr  = dpsReady ? `${this.dpsDisplayTotal} dps` : '— dps'
+    const fistStr   = dpsReady ? `+${this.dpsDisplayFist} dps` : '+— dps'
     const scoreText = rhy.inCombat
-      ? `${Math.trunc(this.scoreDisplay).toLocaleString()} pts  x${rhy.combo}`
+      ? `${totalStr}  ${rhy.roundsWithWeave} weaved  ${fistStr}`
       : '—'
     const statusColor = rhy.inCombat ? cfg.C_COMBAT : cfg.C_IDLE
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
@@ -1577,7 +1595,7 @@ export class Overlay {
 
     // Build the row list dynamically so row height always fits the canvas.
     const rows: Array<{ text: string; color: string; bold?: boolean; size: number }> = [
-      { text: `${r.grade}  ${r.roundsWeaved}/${r.totalRounds} rounds weaved`,
+      { text: `${r.grade}  ${r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''}`,
         color: gradeColor, bold: true, size: cfg.FONT_LG },
       { text: `Bonus attacks: ${r.weaveAttempts} attempts  ${r.weaveLanded} landed  +${r.addedDps.toFixed(0)} dps`,
         color: cfg.C_TEXT_DIM, size: cfg.FONT_SM },
@@ -1704,13 +1722,17 @@ export class Overlay {
     this.banners            = []
     this.hitFlash           = 0
     this.lastCombatActivity = 0
+    this.dpsDisplayTotal    = 0
+    this.dpsDisplayFist     = 0
+    this.dpsLastUpdate      = 0
     this.showBanner('Track reset', this.cfg.C_TEXT_DIM, 2000)
   }
 
   private copyToClipboard(): void {
     const r = this.lastGradeResult ?? this.rhythm.makeGrade()
     const reactionPart = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
-    const text = `Basketweaver: ${r.grade} ${r.roundsWeaved}/${r.totalRounds} rounds weaved | ` +
+    const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
+    const text = `Basketweaver: ${r.grade} ${weaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''} | ` +
       `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
       `Added DPS: ${r.addedDps.toFixed(0)}` + reactionPart
     navigator.clipboard.writeText(text).then(() => {
