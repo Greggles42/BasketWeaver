@@ -23,9 +23,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleHighContrast: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_HIGH_CONTRAST, () => cb()),
 
-  onSetScale: (cb: (pct: number) => void) =>
-    ipcRenderer.on(IPC.SET_SCALE, (_e, pct: number) => cb(pct)),
-
   onSetTargetPosition: (cb: (pct: number) => void) =>
     ipcRenderer.on(IPC.SET_TARGET_POSITION, (_e, pct: number) => cb(pct)),
 

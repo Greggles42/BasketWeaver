@@ -96,15 +96,6 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       })),
     ]
 
-    // ── Scale submenu ─────────────────────────────────────
-    const SCALES: Array<[string, number]> = [['25%', 25], ['50%', 50], ['75%', 75], ['100%', 100]]
-    const scaleItems = SCALES.map(([label, pct]) => new MenuItem({
-      label,
-      type:    'radio',
-      checked: cfg.WINDOW_SCALE === pct,
-      click:   () => win.webContents.send(IPC.SET_SCALE, pct),
-    }))
-
     // ── Target position submenu ───────────────────────────
     const TARGET_POSITIONS: Array<[string, number]> = [
       ['10%  (far left/top)',    10],
@@ -159,7 +150,6 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
               click: () => clipboard.writeText(line),
             })),
       },
-      { label: 'Window Size',          submenu: scaleItems },
       { label: 'Target Position',      submenu: targetPosItems },
       { label: 'Reset Window Position', click: () => onResetPosition() },
       { type: 'separator' },

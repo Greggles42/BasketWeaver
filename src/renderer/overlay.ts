@@ -421,17 +421,6 @@ export class Overlay {
     )
   }
 
-  applyScale(pct: number): void {
-    const { setScale } = require('../shared/config') as typeof import('../shared/config')
-    setScale(this.cfg, pct)
-    this.resizeCanvas()
-    this.computeLayout()
-    window.electronAPI?.resizeWindow(
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_WIDTH  : this.cfg.WINDOW_WIDTH,
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_HEIGHT : this.cfg.WINDOW_HEIGHT,
-    )
-  }
-
   applyTargetPosition(pct: number): void {
     this.cfg.TARGET_POSITION_PCT = pct
     // Keep HIT_ZONE_X in sync for any code that still reads it directly
@@ -1390,15 +1379,17 @@ export class Overlay {
       : '—'
     const statusColor = rhy.inCombat ? cfg.C_COMBAT : cfg.C_IDLE
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
+    ctx.textBaseline = 'middle'
     ctx.fillStyle = statusColor
-    ctx.fillText(rhy.inCombat ? '⚔ COMBAT' : '○ IDLE', 4, h / 2 + cfg.FONT_SM / 2)
+    ctx.fillText(rhy.inCombat ? '⚔ COMBAT' : '○ IDLE', 4, h / 2)
 
     // Pin icon at far right
     this.drawPinIcon(w - h, 0, h)
 
     ctx.fillStyle = cfg.C_TEXT
     const sw = ctx.measureText(scoreText).width
-    ctx.fillText(scoreText, w - h - sw - 4, h / 2 + cfg.FONT_SM / 2)
+    ctx.fillText(scoreText, w - h - sw - 4, h / 2)
+    ctx.textBaseline = 'alphabetic'
   }
 
   private drawPinIcon(x: number, y: number, size: number): void {

@@ -7,24 +7,23 @@
 export const Config = {
   // ── Window ──────────────────────────────────────────────────
   WINDOW_WIDTH:  376,
-  WINDOW_HEIGHT: 100,
+  WINDOW_HEIGHT: 104,
   FPS:           60,
   WINDOW_OPACITY: 0.88,
   ALWAYS_ON_TOP:  true,
   VISUAL_MODE:    2,    // 1=circles 2=window bars 3=static timeline 4=swing timer
-  WINDOW_SCALE:   50,   // current scale percentage (25/50/75/100)
 
   // ── Layout ───────────────────────────────────────────────────
-  HEADER_H:         10,
-  SWING_BAR_H:       5,
-  FOOTER_H:         10,
-  HIT_ZONE_X:       33,
-  NOTE_RADIUS:       5,
+  HEADER_H:         22,
+  SWING_BAR_H:      10,
+  FOOTER_H:         22,
+  HIT_ZONE_X:       67,
+  NOTE_RADIUS:      10,
   HIGHWAY_DURATION:  8.0,  // seconds of runway visible
 
-  // ── Font sizes (updated by setScale) ─────────────────────────
-  FONT_XL: 14,
-  FONT_LG: 10,
+  // ── Font sizes ───────────────────────────────────────────────
+  FONT_XL: 27,
+  FONT_LG: 12,
   FONT_MD: 10,
   FONT_SM: 10,
 
@@ -95,8 +94,8 @@ export const Config = {
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
   LANE_LINES: false,
 
-  VERT_WINDOW_WIDTH:   43,
-  VERT_WINDOW_HEIGHT: 193,
+  VERT_WINDOW_WIDTH:   86,
+  VERT_WINDOW_HEIGHT: 386,
 
   // ── Timing offsets ────────────────────────────────────────────
   TARGET_OFFSET:         0.000,
@@ -110,21 +109,6 @@ export const Config = {
   // 18 = hit zone sits 18% from the left (H) / 82% from the top (V),
   // leaving ~82% of the highway as runway ahead of it.
   TARGET_POSITION_PCT: 18,
-
-  // ── Scale base dimensions (at 100%) ──────────────────────────
-  _BASE_W:   752,
-  _BASE_H:   210,
-  _BASE_HDR:  50,
-  _BASE_SWG:  20,
-  _BASE_FTR:  40,
-  _BASE_HZX: 132,
-  _BASE_RAD:  20,
-  _BASE_VW:  172,
-  _BASE_VH:  772,
-  _BASE_FXL:  54,
-  _BASE_FLG:  24,
-  _BASE_FMD:  18,
-  _BASE_FSM:  13,
 
   // ── Grading mode ─────────────────────────────────────────────
   // When true, weave attempt grading is based on keystrokes that land in the
@@ -173,22 +157,3 @@ export const Config = {
 }
 
 export type ConfigType = typeof Config
-
-/** Apply a scale factor (25 / 50 / 75 / 100) to all size-related constants. */
-export function setScale(cfg: ConfigType, pct: number): void {
-  const s = pct / 100
-  cfg.WINDOW_SCALE       = pct
-  cfg.WINDOW_WIDTH       = Math.max(188, Math.trunc(cfg._BASE_W   * s))
-  cfg.WINDOW_HEIGHT      = Math.max(50,  Math.trunc(cfg._BASE_H   * s))
-  cfg.HEADER_H           = Math.max(14,  Math.trunc(cfg._BASE_HDR * s))
-  cfg.SWING_BAR_H        = Math.max(5,   Math.trunc(cfg._BASE_SWG * s))
-  cfg.FOOTER_H           = Math.max(14,  Math.trunc(cfg._BASE_FTR * s))
-  cfg.HIT_ZONE_X         = Math.max(10,  Math.trunc(cfg.WINDOW_WIDTH * cfg.TARGET_POSITION_PCT / 100))
-  cfg.NOTE_RADIUS        = Math.max(5,   Math.trunc(cfg._BASE_RAD * s))
-  cfg.VERT_WINDOW_WIDTH  = Math.max(43,  Math.trunc(cfg._BASE_VW  * s))
-  cfg.VERT_WINDOW_HEIGHT = Math.max(193, Math.trunc(cfg._BASE_VH  * s))
-  cfg.FONT_XL            = Math.max(14,  Math.trunc(cfg._BASE_FXL * s))
-  cfg.FONT_LG            = Math.max(10,  Math.trunc(cfg._BASE_FLG * s))
-  cfg.FONT_MD            = Math.max(10,  Math.trunc(cfg._BASE_FMD * s))
-  cfg.FONT_SM            = Math.max(10,  Math.trunc(cfg._BASE_FSM * s))
-}

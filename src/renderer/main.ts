@@ -3,7 +3,7 @@
  * Wires the Overlay to the canvas, keyboard input, and IPC events from main.
  */
 
-import { Config, setScale } from '../shared/config'
+import { Config } from '../shared/config'
 import type { GameEvent } from '../shared/events'
 import { Overlay } from './overlay'
 
@@ -15,7 +15,6 @@ declare global {
       onToggleAudio:        (cb: () => void) => void
       onToggleOrientation:  (cb: () => void) => void
       onToggleHighContrast: (cb: () => void) => void
-      onSetScale:             (cb: (pct: number) => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:           (cb: () => void) => void
       onToggleFistMissSound:  (cb: () => void) => void
@@ -69,12 +68,6 @@ window.electronAPI.onToggleOrientation(() => {
 
 window.electronAPI.onToggleHighContrast(() => {
   overlay.toggleHighContrast()
-})
-
-window.electronAPI.onSetScale((pct: number) => {
-  setScale(Config, pct)
-  overlay.applyScale(pct)
-  initCanvasSize()
 })
 
 window.electronAPI.onSetTargetPosition((pct: number) => {
