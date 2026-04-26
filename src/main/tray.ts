@@ -16,8 +16,8 @@ const OPACITIES: Array<[string, number]> = [
   ['50%',  0.50], ['70%',  0.70], ['85%',  0.85], ['100%', 1.00],
 ]
 
-let highContrastEnabled    = false
 let fistMissSoundEnabled   = false
+let laneLines              = false
 let keystrokeGradingEnabled = false
 let recentFights: string[] = []
 
@@ -25,7 +25,7 @@ export function updateFightHistory(fights: string[]): void {
   recentFights = fights
 }
 
-export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}): Tray {
+export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}, onSetOverlayStyle: (style: 'refined' | 'standard' | 'highcontrast') => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
   const icon = buildTrayIcon()
   const tray = new Tray(icon)
@@ -133,7 +133,12 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       label:   `${(d / 10).toFixed(1)}s  (delay ${d})`,
       type:    'radio',
       checked: cfg.OFFHAND_WEAPON_DELAY === d,
-      click:   () => { cfg.OFFHAND_WEAPON_DELAY = d; cfg.OFFHAND_WEAPON_NAME = ''; onSave() },
+      click:   () => {
+        cfg.OFFHAND_WEAPON_DELAY = d
+        cfg.OFFHAND_WEAPON_NAME  = ''
+        onSave()
+        win.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: d, name: '' })
+      },
     }))
 
     return Menu.buildFromTemplate([
@@ -166,12 +171,33 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         click:   () => win.webContents.send(IPC.TOGGLE_AUDIO),
       },
       {
-        label:   'High Contrast',
+        label:   'Orientation',
         type:    'checkbox',
-        checked: highContrastEnabled,
+        checked: cfg.ORIENTATION === 'vertical',
+        click:   () => win.webContents.send(IPC.TOGGLE_ORIENTATION),
+      },
+      {
+        label: 'Overlay Style',
+        submenu: (
+          [
+            ['Refined (default)', 'refined'],
+            ['Standard',          'standard'],
+            ['High Contrast',     'highcontrast'],
+          ] as Array<[string, 'refined' | 'standard' | 'highcontrast']>
+        ).map(([label, style]) => new MenuItem({
+          label,
+          type:    'radio',
+          checked: cfg.OVERLAY_STYLE === style,
+          click:   () => onSetOverlayStyle(style),
+        })),
+      },
+      {
+        label:   'Lane Lines',
+        type:    'checkbox',
+        checked: laneLines,
         click:   () => {
-          highContrastEnabled = !highContrastEnabled
-          win.webContents.send(IPC.TOGGLE_HIGH_CONTRAST)
+          laneLines = !laneLines
+          win.webContents.send(IPC.TOGGLE_LANE_LINES)
         },
       },
       {

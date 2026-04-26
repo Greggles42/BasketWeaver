@@ -30,6 +30,7 @@ export interface GradeResult {
   totalFistDamage: number
   fightDuration: number // ms
   addedDps: number      // damage per second from fist attacks
+  totalDps: number      // total melee DPS (mainhand + fist + misc) for the fight
   avgReactionMs: number | null  // ms from mainhand crush to first fist attempt, per round
 }
 
@@ -101,6 +102,12 @@ export class RhythmEngine {
   private reactionTimeCount = 0
   private lastMainhandTs = 0         // timestamp of most recent new mainhand round opening
   private roundReactionCounted = false  // true once we've recorded a reaction time for the current round
+
+  // ── Rolling interval calibration ─────────────────────────────
+  private measuredIntervals: number[] = []
+  private static readonly CALIB_BUFFER = 6   // how many recent intervals to keep
+  /** Set in closeRound() when the calibrated interval shifts >50ms; cleared by caller. */
+  public calibrationEvent: { interval: number } | null = null
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
@@ -205,6 +212,11 @@ export class RhythmEngine {
       this.roundFistDamages.push(damage)
     }
     return false
+  }
+
+  onMiscDamage(damage: number): void {
+    if (!this.inCombat || damage <= 0) return
+    this.totalMeleeDamage += damage
   }
 
   onOutOfRange(_ts: number): void {
@@ -322,6 +334,8 @@ export class RhythmEngine {
       ? performance.now() - this.combatStartTime : 0.0
     const addedDps = fightDuration > 0
       ? this.totalFistDamage / (fightDuration / 1000) : 0.0
+    const totalDps = fightDuration > 0
+      ? this.totalMeleeDamage / (fightDuration / 1000) : 0.0
 
     const avgReactionMs = this.reactionTimeCount > 0
       ? this.reactionTimeSum / this.reactionTimeCount
@@ -332,7 +346,7 @@ export class RhythmEngine {
       keystrokeRoundsWeaved: this.keystrokeRoundsWithWeave,
       totalRounds: this.roundCount,
       weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
-      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, avgReactionMs,
+      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, totalDps, avgReactionMs,
       keystrokeGrading: useKeystroke }
   }
 
@@ -344,16 +358,26 @@ export class RhythmEngine {
 
     let interval: number
     if (this.lastRoundCloseTime > 0) {
-      const measured = (roundEnd - this.lastRoundCloseTime) / 1000  // back to seconds
-      const known    = this.cfg.PUNCH_INTERVAL
-      // Reject the measurement if it looks like a skipped swing (unequip/re-equip gap).
-      // A genuine interval change never multiplies the interval by 1.6×+; a missed swing
-      // always does. Keep the existing interval so the timer doesn't drift.
-      const isSkippedSwing = measured > known * 1.6
-      interval = (measured >= 0.5 && measured <= 12.0 && !isSkippedSwing)
-        ? measured : known
+      const measured = (roundEnd - this.lastRoundCloseTime) / 1000  // seconds
+      // Accept plausible durations. Values > 6s are treated as OOR/skipped-swing
+      // outliers — long enough to cover any realistic haste-corrected weapon delay.
+      if (measured >= 0.5 && measured <= 6.0) {
+        this.measuredIntervals.push(measured)
+        if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
+          this.measuredIntervals.shift()
+      }
+      // Use rolling median when we have ≥2 samples; otherwise keep current interval.
+      // Median is robust — up to (n/2 - 1) outlier values can't corrupt the result.
+      interval = this.measuredIntervals.length >= 2
+        ? RhythmEngine.median(this.measuredIntervals)
+        : this.cfg.PUNCH_INTERVAL
     } else {
       interval = this.predictedInterval
+    }
+
+    // Signal a calibration banner when the interval shifts by more than 50 ms.
+    if (Math.abs(interval - this.cfg.PUNCH_INTERVAL) > 0.05) {
+      this.calibrationEvent = { interval }
     }
 
     this.lastRoundCloseTime = roundEnd
@@ -381,6 +405,21 @@ export class RhythmEngine {
 
     this.lastRoundFistDamages = [...this.roundFistDamages]
     this.roundFistDamages = []
+  }
+
+  /** Clear the rolling interval buffer — call after a /mystats haste update so
+   *  stale measurements from the old haste level don't pollute calibration. */
+  resetCalibration(): void {
+    this.measuredIntervals = []
+    this.calibrationEvent  = null
+  }
+
+  private static median(arr: number[]): number {
+    const sorted = [...arr].sort((a, b) => a - b)
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 !== 0
+      ? sorted[mid]
+      : (sorted[mid - 1] + sorted[mid]) / 2
   }
 
   private cancelActiveNotes(): void {
@@ -419,5 +458,6 @@ export class RhythmEngine {
     this.swingTimerValid = false
     this.lastRoundFistDamages = []; this.roundFistDamages = []
     this.lastKnownInterval = s(this.predictedInterval)
+    this.measuredIntervals = []; this.calibrationEvent = null
   }
 }

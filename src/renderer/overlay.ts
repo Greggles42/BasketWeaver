@@ -163,6 +163,8 @@ export class Overlay {
 
   private lastFrameTime = 0
   private lastCombatActivity = 0
+  private combatStartTs = 0
+  private swingTimerEverValid = false
 
   private highContrast = false
   private defaultColors: Partial<ConfigType> = {}
@@ -220,6 +222,8 @@ export class Overlay {
           this.dpsDisplayTotal = 0
           this.dpsDisplayFist  = 0
           this.dpsLastUpdate   = 0
+          this.combatStartTs        = performance.now()
+          this.swingTimerEverValid  = false
         }
         this.lastCombatActivity = ts
         break
@@ -298,6 +302,13 @@ export class Overlay {
         break
       }
 
+      case EvType.MISC_DAMAGE: {
+        const damage = ev.data?.damage as number ?? 0
+        this.rhythm.onMiscDamage(damage)
+        this.lastCombatActivity = ts
+        break
+      }
+
       case EvType.CURSOR_BLOCKED: {
         this.audio.play('error')
         const [hzx, hzy] = this.hitZoneCenter()
@@ -343,8 +354,7 @@ export class Overlay {
       case EvType.OFFHAND_DETECTED: {
         const name  = ev.data?.name  as string ?? ''
         const delay = ev.data?.delay as number ?? 16
-        this.cfg.OFFHAND_WEAPON_DELAY = delay
-        this.cfg.OFFHAND_WEAPON_NAME  = name
+        this.applyDynamicWeaveWindow(delay, name)
         ;(window as any).electronAPI?.saveSettings()
         const msg = `Offhand: ${name}  (${(delay / 10).toFixed(1)}s)`
         this.showBanner(msg, this.cfg.C_CLIP, 5000)
@@ -358,6 +368,7 @@ export class Overlay {
         this.cfg.PUNCH_INTERVAL = interval
         const fistDelay   = this.rhythm.effectiveOffhandDelay
         this.cfg.GOOD_WINDOW = Math.max(0.2, interval - fistDelay) / 2
+        this.rhythm.resetCalibration()
         this.audio.play('combat_start')
         const msg = `Haste sync: ${interval.toFixed(2)}s  (${hastePct.toFixed(0)}% haste)`
         this.showBanner(msg, this.cfg.C_GOOD, 4000)
@@ -437,15 +448,24 @@ export class Overlay {
     this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS
   }
 
+  /** Dynamic Weave Windows — update offhand delay and immediately recalculate
+   *  the safe weave window width (visual + scoring) using the post-haste value. */
+  applyDynamicWeaveWindow(delayTenths: number, name = ''): void {
+    this.cfg.OFFHAND_WEAPON_DELAY = delayTenths
+    this.cfg.OFFHAND_WEAPON_NAME  = name
+    const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
+    this.cfg.GOOD_WINDOW = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay) / 2
+  }
+
   private pushHistory(result: GradeResult): void {
     this.fightHistory.unshift(result)   // newest first
     if (this.fightHistory.length > 5) this.fightHistory.length = 5
     // Send formatted history to main process for the tray submenu.
     const lines = this.fightHistory.map(r => {
-      const mob   = r.mobName || 'Unknown'
-      const react = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      const mob    = r.mobName || 'Unknown'
       const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
-      return `${r.grade}  ${weaved}/${r.totalRounds} rnds  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
+      const react  = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      return `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
     })
     window.electronAPI?.sendFightHistory(lines)
   }
@@ -542,6 +562,14 @@ export class Overlay {
       this.lastCombatActivity = 0
     }
 
+    // Force restart if weave bars have never appeared within 5s of combat start
+    if (this.rhythm.swingTimerValid) this.swingTimerEverValid = true
+    if (this.rhythm.inCombat && !this.rhythm.swingTimerValid
+        && !this.swingTimerEverValid
+        && this.combatStartTs > 0 && t - this.combatStartTs > 5000) {
+      this.resetTrack()
+    }
+
     if (this.audioMutedRapidAttack && t > this.rapidAttackMuteUntil) {
       this.clearRapidAttackMute()
     }
@@ -549,6 +577,11 @@ export class Overlay {
     const prevMisses = this.rhythm.missCount
     this.rhythm.update(t)
     const newMisses = this.rhythm.missCount - prevMisses
+    if (this.rhythm.calibrationEvent) {
+      const iv = this.rhythm.calibrationEvent.interval
+      this.showBanner(`Auto-calibrated: ${iv.toFixed(2)}s`, this.cfg.C_GOOD, 3000)
+      this.rhythm.calibrationEvent = null
+    }
 
     const [hzx, hzy] = this.hitZoneCenter()
     const [mjx, mjy] = this.cfg.ORIENTATION === 'horizontal'
@@ -1401,8 +1434,9 @@ export class Overlay {
     const color = this.pinned ? cfg.C_COMBAT : cfg.C_TEXT_DIM
 
     // Pin head
+    const headCy = cy - r * 0.5
     ctx.beginPath()
-    ctx.arc(cx, cy - r * 0.5, r, 0, Math.PI * 2)
+    ctx.arc(cx, headCy, r, 0, Math.PI * 2)
     if (this.pinned) {
       ctx.fillStyle = color
       ctx.fill()
@@ -1412,11 +1446,17 @@ export class Overlay {
       ctx.stroke()
     }
 
+    // Center dimple
+    ctx.beginPath()
+    ctx.arc(cx, headCy, Math.max(1, r * 0.28), 0, Math.PI * 2)
+    ctx.fillStyle = this.pinned ? 'rgba(0,0,0,0.35)' : color
+    ctx.fill()
+
     // Needle
     ctx.strokeStyle = color
     ctx.lineWidth   = 1
     ctx.beginPath()
-    ctx.moveTo(cx, cy - r * 0.5 + r)
+    ctx.moveTo(cx, headCy + r)
     ctx.lineTo(cx + r * 0.5, cy + r * 1.0)
     ctx.stroke()
   }
@@ -1713,9 +1753,11 @@ export class Overlay {
     this.banners            = []
     this.hitFlash           = 0
     this.lastCombatActivity = 0
+    this.combatStartTs      = 0
     this.dpsDisplayTotal    = 0
     this.dpsDisplayFist     = 0
     this.dpsLastUpdate      = 0
+    this.swingTimerEverValid = false
     this.showBanner('Track reset', this.cfg.C_TEXT_DIM, 2000)
   }
 

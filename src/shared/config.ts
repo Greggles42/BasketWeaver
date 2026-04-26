@@ -93,6 +93,7 @@ export const Config = {
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
   LANE_LINES: false,
+  OVERLAY_STYLE: 'refined' as 'refined' | 'standard' | 'highcontrast',
 
   VERT_WINDOW_WIDTH:   86,
   VERT_WINDOW_HEIGHT: 386,
@@ -134,11 +135,14 @@ export const Config = {
   // ── EQ log regex patterns ─────────────────────────────────────
   // Riposte lines must be checked first — they can match crush/fist patterns
   // but are not normal swing-timer events and would corrupt interval tracking.
-  RIPOSTE_PATTERNS:      ['\\bbut you riposte\\b'],
+  RIPOSTE_PATTERNS:      ['\\bbut you riposte\\b', '\\bripostes\\b'],
   CRUSH_HIT_PATTERNS:    ['^You crush\\b'],
   CRUSH_MISS_PATTERNS:   ['^You try to crush\\b', '^You attempt to crush\\b'],
   FIST_HIT_PATTERNS:     ['^You (?:punch|strike)\\b'],
   FIST_MISS_PATTERNS:    ['^You try to (?:punch|strike)\\b', '^You attempt to (?:punch|strike)\\b'],
+  // Damage sources counted toward net DPS but not swing-timer events.
+  FLYING_KICK_PATTERNS:  ['^You flying kick\\b'],
+  PROC_HIT_PATTERNS:     ['^You hit\\b'],
   OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target'],
   CURSOR_BLOCKED_PATTERNS:  ['You cannot swap items when holding something'],
   COMBAT_START_PATTERNS: [

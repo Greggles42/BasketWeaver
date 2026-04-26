@@ -20,9 +20,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleOrientation: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_ORIENTATION, () => cb()),
 
-  onToggleHighContrast: (cb: () => void) =>
-    ipcRenderer.on(IPC.TOGGLE_HIGH_CONTRAST, () => cb()),
-
   onSetTargetPosition: (cb: (pct: number) => void) =>
     ipcRenderer.on(IPC.SET_TARGET_POSITION, (_e, pct: number) => cb(pct)),
 
@@ -34,6 +31,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onToggleLaneLines: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_LANE_LINES, () => cb()),
+
+  onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
+    ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 
   sendFightHistory: (fights: string[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),

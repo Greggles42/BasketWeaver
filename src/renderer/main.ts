@@ -6,6 +6,8 @@
 import { Config } from '../shared/config'
 import type { GameEvent } from '../shared/events'
 import { Overlay } from './overlay'
+import { RefinedOverlay } from './overlay-refined'
+import { HighContrastOverlay } from './overlay-highcontrast'
 
 declare global {
   interface Window {
@@ -14,10 +16,10 @@ declare global {
       onLogSelected:      (cb: (path: string) => void) => void
       onToggleAudio:        (cb: () => void) => void
       onToggleOrientation:  (cb: () => void) => void
-      onToggleHighContrast: (cb: () => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:           (cb: () => void) => void
       onToggleFistMissSound:  (cb: () => void) => void
+      onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       sendFightHistory:       (fights: string[]) => void
       quit:               () => void
       selectLog:          () => void
@@ -45,7 +47,23 @@ initCanvasSize()
 
 // ── Create overlay ────────────────────────────────────────────
 
-const overlay = new Overlay(canvas)
+const overlayStyle = new URLSearchParams(location.search).get('overlayStyle') ?? 'refined'
+
+const overlay: {
+  start(): void
+  handleGameEvent(ev: GameEvent): void
+  handleKey(key: string): void
+  toggleOrientation(): void
+  applyTargetPosition(pct: number): void
+  toggleLaneLines(): void
+  toggleFistMissSound(): void
+  pinned: boolean
+} = overlayStyle === 'highcontrast'
+  ? new HighContrastOverlay(canvas)
+  : overlayStyle === 'standard'
+    ? new Overlay(canvas)
+    : new RefinedOverlay(canvas)
+
 overlay.start()
 
 // ── IPC → overlay ─────────────────────────────────────────────
@@ -53,7 +71,10 @@ overlay.start()
 window.electronAPI.onGameEvent(ev => overlay.handleGameEvent(ev))
 
 window.electronAPI.onLogSelected(p => {
-  overlay.showBanner(`Log: ${p.replace(/\\/g, '/').split('/').pop()}`, Config.C_GOOD, 3000)
+  const filename = p.replace(/\\/g, '/').split('/').pop() ?? ''
+  const m = filename.match(/^eqlog_([^_]+)_/)
+  if (m) (overlay as any).charName = m[1]
+  ;(overlay as any).showBanner?.(`Log: ${filename}`, Config.C_GOOD, 3000)
 })
 
 window.electronAPI.onToggleAudio(() => {
@@ -66,18 +87,19 @@ window.electronAPI.onToggleOrientation(() => {
   initCanvasSize()
 })
 
-window.electronAPI.onToggleHighContrast(() => {
-  overlay.toggleHighContrast()
-})
-
 window.electronAPI.onSetTargetPosition((pct: number) => {
   overlay.applyTargetPosition(pct)
 })
 
-window.electronAPI.onResetTrack(() => overlay.resetTrack())
+window.electronAPI.onResetTrack(() => {
+  ;(overlay as any).resetTrack ? (overlay as any).resetTrack() : overlay.handleKey('r')
+})
 
 window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
 window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
+window.electronAPI.onSetOffhandDelay((delay, name) => {
+  ;(overlay as any).applyDynamicWeaveWindow?.(delay, name)
+})
 
 // ── Status requests from tray ─────────────────────────────────
 
@@ -154,7 +176,7 @@ window.addEventListener('mouseup', (e: MouseEvent) => {
   if (e.button !== 0) { dragPending = false; dragging = false; return }
   if (dragPending && !dragging) {
     // Released without moving — weapon-swap click at the original mousedown time.
-    overlay.handleMouseClick(clickDownTs, clickDownClientX, clickDownClientY)
+    ;(overlay as any).handleMouseClick?.(clickDownTs, clickDownClientX, clickDownClientY)
   }
   dragPending = false
   dragging    = false

@@ -60,11 +60,13 @@ export class LogReader {
   private static readonly MYSTATS_DMG_RE        = /^Dmg = [\d.]+ to [\d.]+, ave = ([\d.]+)/
   private static readonly MYSTATS_DPS_BASE_RE   = /^DPS = [\d.]+ to [\d.]+, ave = ([\d.]+)\s*$/
 
-  private crushHitRe:   RegExp[]
-  private crushMissRe:  RegExp[]
-  private riposteRe:    RegExp[]
-  private fistHitRe:    RegExp[]
-  private fistMissRe:   RegExp[]
+  private crushHitRe:    RegExp[]
+  private crushMissRe:   RegExp[]
+  private riposteRe:     RegExp[]
+  private fistHitRe:     RegExp[]
+  private fistMissRe:    RegExp[]
+  private flyingKickRe:  RegExp[]
+  private procHitRe:     RegExp[]
   private oorRe:           RegExp[]
   private cursorBlockedRe: RegExp[]
   private startRe:      RegExp[]
@@ -79,11 +81,13 @@ export class LogReader {
     const compile = (patterns: string[]) =>
       patterns.map(p => new RegExp(p, 'i'))
 
-    this.riposteRe   = compile(cfg.RIPOSTE_PATTERNS)
-    this.crushHitRe  = compile(cfg.CRUSH_HIT_PATTERNS)
-    this.crushMissRe = compile(cfg.CRUSH_MISS_PATTERNS)
-    this.fistHitRe   = compile(cfg.FIST_HIT_PATTERNS)
-    this.fistMissRe  = compile(cfg.FIST_MISS_PATTERNS)
+    this.riposteRe    = compile(cfg.RIPOSTE_PATTERNS)
+    this.crushHitRe   = compile(cfg.CRUSH_HIT_PATTERNS)
+    this.crushMissRe  = compile(cfg.CRUSH_MISS_PATTERNS)
+    this.fistHitRe    = compile(cfg.FIST_HIT_PATTERNS)
+    this.fistMissRe   = compile(cfg.FIST_MISS_PATTERNS)
+    this.flyingKickRe = compile(cfg.FLYING_KICK_PATTERNS)
+    this.procHitRe    = compile(cfg.PROC_HIT_PATTERNS)
     this.oorRe            = compile(cfg.OUT_OF_RANGE_PATTERNS)
     this.cursorBlockedRe  = compile(cfg.CURSOR_BLOCKED_PATTERNS)
     this.startRe     = compile(cfg.COMBAT_START_PATTERNS)
@@ -187,6 +191,25 @@ export class LogReader {
       this.ensureCombat(now)
       this.emit({ type: EvType.FIST_ATTACK, ts: now,
         data: { damage: 0, hit: false, line: content } })
+      return
+    }
+
+    // ── Flying kick ──────────────────────────────────────────
+    if (this.flyingKickRe.some(r => r.test(content))) {
+      this.ensureCombat(now)
+      const damage = parseDamage(content)
+      if (damage > 0)
+        this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+      return
+    }
+
+    // ── Item proc damage ─────────────────────────────────────
+    if (this.procHitRe.some(r => r.test(content))) {
+      if (this.inCombat) {
+        const damage = parseDamage(content)
+        if (damage > 0)
+          this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+      }
       return
     }
 

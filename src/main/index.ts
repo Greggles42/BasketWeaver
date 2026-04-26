@@ -57,6 +57,9 @@ function loadSettings(): void {
       const saved = JSON.parse(fs.readFileSync(p, 'utf8'))
       if (typeof saved.OFFHAND_WEAPON_DELAY === 'number') Config.OFFHAND_WEAPON_DELAY = saved.OFFHAND_WEAPON_DELAY
       if (typeof saved.OFFHAND_WEAPON_NAME  === 'string') Config.OFFHAND_WEAPON_NAME  = saved.OFFHAND_WEAPON_NAME
+      if (saved.OVERLAY_STYLE === 'refined' || saved.OVERLAY_STYLE === 'standard' || saved.OVERLAY_STYLE === 'highcontrast') {
+        Config.OVERLAY_STYLE = saved.OVERLAY_STYLE
+      }
       if (typeof saved.windowX === 'number' && typeof saved.windowY === 'number') {
         savedWindowPos = { x: saved.windowX, y: saved.windowY }
       }
@@ -70,10 +73,23 @@ export function saveSettings(): void {
     const data: Record<string, unknown> = {
       OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
       OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
+      OVERLAY_STYLE:        Config.OVERLAY_STYLE,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
   } catch {}
+}
+
+export function setOverlayStyle(style: 'refined' | 'standard' | 'highcontrast'): void {
+  Config.OVERLAY_STYLE = style
+  saveSettings()
+  if (!win) return
+  const devUrl = process.env['ELECTRON_RENDERER_URL']
+  if (devUrl) {
+    win.loadURL(`${devUrl}?overlayStyle=${style}`)
+  } else {
+    win.loadFile(path.join(__dirname, '../renderer/index.html'), { query: { overlayStyle: style } })
+  }
 }
 
 /** Returns true if the window center will land inside any display's work area. */
@@ -126,7 +142,7 @@ function createWindow(): void {
     alwaysOnTop: true,
     skipTaskbar: false,  // keep in taskbar so users can find it
     resizable:   false,
-    movable:     true,
+    movable:     false,
 
     // Renderer options
     webPreferences: {
@@ -142,10 +158,10 @@ function createWindow(): void {
   // Load the renderer — electron-vite sets ELECTRON_RENDERER_URL in dev mode
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (devUrl) {
-    win.loadURL(devUrl)
+    win.loadURL(`${devUrl}?overlayStyle=${Config.OVERLAY_STYLE}`)
     win.webContents.openDevTools({ mode: 'detach' })
   } else {
-    win.loadFile(path.join(__dirname, '../renderer/index.html'))
+    win.loadFile(path.join(__dirname, '../renderer/index.html'), { query: { overlayStyle: Config.OVERLAY_STYLE } })
   }
 
   win.on('moved', () => saveSettings())
@@ -290,7 +306,7 @@ app.whenReady().then(async () => {
       startReader(p)
       win?.webContents.send(IPC.LOG_SELECTED, p)
     }
-  }, resetWindowPosition)
+  }, resetWindowPosition, setOverlayStyle)
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()

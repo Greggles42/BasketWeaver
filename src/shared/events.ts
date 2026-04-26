@@ -16,6 +16,7 @@ export const enum EvType {
   WEAPON_DETECTED  = 'WEAPON_DETECTED',   // data: { name, delay }
   OFFHAND_DETECTED = 'OFFHAND_DETECTED', // data: { name, delay }
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
+  MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
 }
 
 export interface GameEvent {
@@ -27,14 +28,11 @@ export interface GameEvent {
 // ── IPC channel names ────────────────────────────────────────
 export const IPC = {
   GAME_EVENT:        'game-event',         // main → renderer: GameEvent
-  CONFIG_UPDATE:     'config-update',      // renderer → main: Partial<Config>
   SELECT_LOG:        'select-log',         // renderer/tray → main: open file picker
   LOG_SELECTED:      'log-selected',       // main → renderer: string (path)
   QUIT:              'quit',               // tray → main
   TOGGLE_AUDIO:          'toggle-audio',          // tray → renderer
   TOGGLE_ORIENTATION:    'toggle-orientation',    // tray → renderer
-  TOGGLE_HIGH_CONTRAST:  'toggle-high-contrast',  // tray → renderer
-  SET_SCALE:            'set-scale',             // tray → renderer: number (pct)
   SET_TARGET_POSITION:  'set-target-position',  // tray → renderer: number (pct)
   SET_OPACITY:       'set-opacity',        // tray → main: number (0–1)
   REQUEST_STATUS:    'request-status',     // tray → renderer
@@ -45,4 +43,6 @@ export const IPC = {
   TOGGLE_FIST_MISS_SOUND: 'toggle-fist-miss-sound',  // tray → renderer
   TOGGLE_LANE_LINES:      'toggle-lane-lines',        // tray → renderer
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: string[]
+  SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
+  SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }
 } as const

@@ -37,6 +37,7 @@ C:\TAKP\TAKPv22\eqlog_YourName_server.txt
 > In-game command: `/log on`
 
 Basketweaver remembers your log file and window position between sessions.
+Your character name is read from the log filename and displayed in the header.
 If the overlay ever ends up off-screen, use tray → **Reset Window Position** to
 snap it back to the center of your primary monitor.
 
@@ -64,38 +65,29 @@ your fist weapon. Default is 1.6s (delay 16 — standard monk fists).
 ## 2. Understanding the Overlay
 
 The overlay is a scrolling "highway" that sits on top of EverQuest.
-Notes approach from the right and travel left toward the hit zone.
+Weave windows approach from the right and travel left toward the hit zone.
+The default style is **Refined**; two alternate styles are available via tray →
+**Overlay Style**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Gabbiz                                              2.0s  100%  │ ← Header
+│ Taydar  [COMBAT]                                   2.00s  100%  │ ← Header
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ◉  ·  ·  ·  ·  ·  ·  [====GREEN BOX====]│  ·  ·  ●  ·  ·  · │ ← Highway
+│  ║  ·  ·  ·  ·  ·  ·  [====GREEN BOX====]│  ·  ·  ·  ·  ·  · │ ← Highway
 │                                           │                     │
-│  ↑                    ← notes travel ←   ↑          ↑          │
-│ Hit Zone                              Orange Bar   Blue Dot     │
-│                                       (mainhand    (next weave) │
-│                                        swing)                   │
+│  ↑                    ← windows travel ← ↑                     │
+│ Hit Zone                              Orange Bar                │
+│ (gold bar)                         (mainhand swing)             │
 ├─────────────────────────────────────────────────────────────────┤
-│  Score: 850   Combo x3   Acc: 87%                               │ ← Footer
+│  WEAVES 12  ·  NET DPS 245  ·  WEAVED DPS +148                 │ ← Footer
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ### Elements
 
-**◉ Hit Zone** (gold circle, left side)
+**║ Hit Zone** (gold vertical bar, left side)
 This is your timing target. Weave actions are judged here.
-
-**⊙ Pin Icon** (top-right corner of header)
-Locks the window position so it cannot be accidentally dragged.
-Orange/filled = position locked. Dim/hollow = window can be dragged.
-Click it to toggle.
-
-**● Blue Dot** (note)
-Each blue dot represents one upcoming weave opportunity.
-It travels left along the highway and should reach the hit zone
-while the green box is overlapping it.
 
 **[===GREEN BOX===]** (green rectangle)
 The safe weave window. This is the time between your mainhand swings
@@ -110,9 +102,26 @@ after this point — you won't have time before the next swing.
 
 **CURSOR! warning**
 If you try to swap weapons while holding an item on your cursor, EQ will
-block the swap. Basketweaver detects this, shows a **CURSOR!** indicator
-at the hit zone, displays a banner, and plays an error sound so you know
-to clear your cursor immediately.
+block the swap. Basketweaver detects this, shows a **CURSOR!** banner,
+and plays an error sound so you know to clear your cursor immediately.
+
+### Footer Stats
+
+| Stat | Description |
+|---|---|
+| **WEAVES** | Number of mainhand rounds where a fist weave was attempted |
+| **NET DPS** | Total melee DPS for the fight (mainhand + fist + procs) |
+| **WEAVED DPS** | DPS contributed specifically by fist weave attacks |
+
+### Overlay Styles
+
+Three visual styles are available via tray → **Overlay Style**:
+
+| Style | Description |
+|---|---|
+| **Refined** (default) | Dark arcade look — gold bar hit zone, green weave windows, subtle grid |
+| **Standard** | Original design — blue dot notes, circular hit zone, swing bar |
+| **High Contrast** | Black background, vivid yellow/cyan colors — good for streaming or low-vision use |
 
 ---
 
@@ -122,82 +131,68 @@ to clear your cursor immediately.
 
 ```
                         Time flows this way →→→→→→→→
-                        Notes scroll this way ←←←←←←
+                        Windows scroll this way ←←←←
 
  ──────────────────────────────────────────────────────────────────
   PAST       Hit Zone          Highway                     FUTURE
  ──────────────────────────────────────────────────────────────────
 
  Step 1: Green box approaching hit zone
- ·  ·  ·  ◉  ·  ·  ·  ·  ·  [====GREEN====]│  ·  ●  ·  ·  ·  ·
+ ·  ·  ·  ║  ·  ·  ·  ·  ·  [====GREEN====]│  ·  ·  ·  ·  ·  ·
 
  Step 2: GREEN BOX IS AT HIT ZONE — SWAP TO FIST NOW ✓
- ·  ·  ·  [=◉=============]│  ·  ·  ●  ·  ·  ·  ·  ·  ·  ·  ·
+ ·  ·  ·  [=║=============]│  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
 
  Step 3: Orange bar arrives — mainhand swings, window closes
- ·  ·  ·  ·  ·  ·  ·  ·  ·  │◉  ·  ·  ·  [====GREEN====]│  ·  ·
+ ·  ·  ·  ·  ·  ·  ·  ·  ·  │║  ·  ·  ·  [====GREEN====]│  ·  ·
 ```
 
 ### What Good Timing Looks Like
 
 When your fist punch lands inside the green window, the hit zone
-bursts into a **gold explosion** and you hear the punch sound.
-
-```
-  PERFECT WEAVE
-  ·  ·  [===◉===]│  ·  ·     ← Note hits hit zone inside green box
-               ✦✦✦✦✦           Gold explosion fires
-```
+flashes gold and you hear the punch sound.
 
 ### What a Miss Looks Like
 
-If the dual-wield check fails or your weave lands outside the window,
-small **grey drops** fall from the hit zone.
+If the weave window passes without a fist attack, a small
+**"— missed"** chip appears near the hit zone and fades out.
 
-```
-  MISSED / FAILED
-  ·  ·  ·  ·  ◉  ·  ·  ·    ← Note passes hit zone, no weave
-              ·  .            Grey drops fall
-             .    .
-```
+### What a Clip Looks Like
+
+If your fist attack lands outside the weave window (you swung through
+a window you already passed), a **red wash** floods the highway, the
+hit zone strobes red, and **CLIPPED** appears in red text. A harsh error
+sound plays. This means your offhand fired at the wrong time and may
+have clipped your mainhand swing timer.
 
 ### End-of-Fight Grade Screen
 
-The grade screen fires when your target dies (by your hand or anyone else's)
-or when you die. It shows your performance for that fight:
+The grade screen fires when your target dies or when you die. It shows
+your performance for that fight:
 
 ```
   ┌────────────────────────────────────────┐
   │    S   18/21 rounds weaved             │  ← Grade + rounds with a weave
-  │    Bonus attacks: 22 atts  19 landed   │
-  │    +148 dps                            │
-  │    142 ms avg reaction                 │  ← Crush → fist delay, per round
+  │        net 312 dps                     │  ← Total melee DPS
+  │        +148 dps from weaving           │  ← Added DPS from fist weaves
+  │        142 ms avg reaction             │  ← Crush → fist delay, per round
   └────────────────────────────────────────┘
 ```
 
 - **Grade** is based on what fraction of mainhand rounds had a fist weave attempt.
+- **Net DPS** is your total melee damage output divided by fight duration.
+- **+N dps from weaving** is the DPS contribution from fist attacks alone.
 - **Avg reaction** is the average time from your mainhand crush to the first fist
   attack in that round — measured per round, one sample per round.
 
-Press **Space** or click to dismiss.
+Press **Space** to dismiss.
 
-### Fight History
+### Fight History (Standard style only)
 
-Basketweaver keeps the last 5 fight results in memory. Open the history
-panel at any time with `L` or via tray → **Fight History**:
-
-```
-  ┌────────────────────────────────────────┐
-  │  Fight History                         │
-  │  1. S  18/21 rounds  +148dps  142ms   │
-  │  2. A  15/20 rounds  +121dps  —        │
-  │  3. B  12/18 rounds  + 89dps  188ms   │
-  │  V copy • click to dismiss             │
-  └────────────────────────────────────────┘
-```
-
-Press `V` to copy the full history to clipboard (useful for sharing
-parse results in Discord or guild chat). Click anywhere to close.
+When using the **Standard** overlay style, fight results are tracked and
+sent to the tray. Open tray → **Recent Fights** to view the last 5 results.
+Click any entry to copy it to the clipboard — useful for sharing parse
+results in Discord or guild chat.
 
 ---
 
@@ -235,7 +230,7 @@ Increase **Target Offset** (shifts the hit zone timing later):
 
 Right-click tray → **Target Offset** → try 25 ms, 50 ms steps
 
-Or with the keyboard while overlay is focused:
+Or with the keyboard (Standard style only):
 `]` — add 25 ms offset
 `[` — remove 25 ms offset
 
@@ -246,7 +241,7 @@ if your network adds delay between when you act and when EQ registers it:
 
 Right-click tray → **Latency Comp.** → try 25–75 ms
 
-Keyboard:
+Keyboard (Standard style only):
 `'` — add 25 ms latency comp
 `;` — remove 25 ms latency comp
 
@@ -257,7 +252,7 @@ Keyboard:
 | Green box arrives too early, weaves clip | Increase Latency Comp. |
 | Green box arrives too late, mainhand delays | Decrease Latency Comp. |
 | Notes never reach hit zone | Check your log file is updating (logging on?) |
-| Bars don't appear | Enter combat — bars only show during active fighting |
+| Windows don't appear | Enter combat — windows only show during active fighting |
 | Interval wrong after buff / zone | Use `↑` / `↓` keys or set Interval in tray |
 
 ---
@@ -317,22 +312,26 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Status** | Shows IN COMBAT or IDLE (read-only) |
 | **Select Log File…** | Choose a different EQ log file |
 | **Reset Track** | Hard reset — clears all state if overlay gets out of sync |
-| **Fight History** | Show the last 5 fight results in an overlay panel |
-| **Window Size** | Scale overlay to 25% / 50% / 75% / 100% |
-| **Target Position** | Move hit zone left/right on the highway |
+| **Recent Fights** | Last 5 fight results; click any entry to copy it to clipboard |
+| **Target Position** | Move the hit zone left or right on the highway |
 | **Reset Window Position** | Snap overlay to a safe central position on the primary monitor |
-| **Mainhand Delay** | Select your mainhand weapon |
+| **Mainhand Delay** | Select your mainhand weapon from the preset list |
 | **Offhand Delay** | Set your fist weapon delay manually |
 | **Interval** | Override the post-haste swing interval |
 | **Target Offset** | Fine-tune hit zone timing (ms) |
 | **Latency Comp.** | Compensate for network/input delay (ms) |
 | **Clip Window** | How long after a weave to suppress duplicate detections |
 | **Audio** | Toggle all sounds on / off |
-| **High Contrast** | Black background with vivid green weave window |
-| **Fist Sound on Miss** | Play a whiff sound when all swings in a round miss (on by default) |
-| **Lane Lines** | Show or hide the outer lane dividers on the highway (on by default) |
-| **Opacity** | Overlay transparency |
+| **Orientation** | Switch between horizontal and vertical highway layouts |
+| **Overlay Style** | Choose Refined (default), Standard, or High Contrast |
+| **Lane Lines** | Show or hide the outer lane dividers on the highway |
+| **Fist Sound on Miss** | Play a whiff sound when a round's swings all miss |
+| **Keystroke Grading** | Grade weaves by keystrokes rather than log-detected fist attacks |
+| **Opacity** | Overlay transparency (50% / 70% / 85% / 100%) |
 | **Quit Basketweaver** | Exit the app |
+
+> **Note:** Changing **Overlay Style** reloads the renderer. Your log
+> file reconnects automatically; other settings are preserved.
 
 ---
 
@@ -340,27 +339,34 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 
 These work when the Basketweaver window is in focus (click it once).
 
+### All Styles
+
 | Key | Action |
 |---|---|
 | `↑` / `↓` | Interval +0.25s / −0.25s |
-| `]` / `[` | Target Offset +25ms / −25ms |
-| `'` / `;` | Latency Comp. +25ms / −25ms |
-| `,` / `.` | Shift hit zone visually left / right |
+| `H` | Toggle orientation (horizontal ↔ vertical) |
 | `R` | Reset track (same as tray Reset Track) |
 | `M` | Toggle audio mute |
-| `L` | Open / close Fight History panel |
-| `V` | Copy fight history to clipboard (when history panel is open) |
 | `Space` | Dismiss grade screen |
 | `Escape` | Quit |
+
+### Standard Style Only
+
+| Key | Action |
+|---|---|
+| `]` / `[` | Target Offset +25ms / −25ms |
+| `'` / `;` | Latency Comp. +25ms / −25ms |
+| `,` / `.` | Shift hit zone visually left / right (no timing effect) |
+| `V` | Copy fight history to clipboard |
 
 ---
 
 ## 8. Troubleshooting
 
-**Overlay doesn't show bars**
-Bars only appear once you enter combat. Make sure logging is enabled
-(`/log on`) and the correct log file is selected. The header shows IDLE
-when no combat is detected.
+**Overlay doesn't show weave windows**
+Weave windows only appear once you enter combat. Make sure logging is
+enabled (`/log on`) and the correct log file is selected. The header
+shows IDLE when no combat is detected.
 
 **Interval seems wrong after zoning or getting a haste buff**
 Press `↑` or `↓` to nudge the interval, or run `/mystats` to let
@@ -368,7 +374,7 @@ Basketweaver re-sync automatically.
 
 **Weaves land but are consistently late/early by the same amount**
 Use **Target Offset** or **Latency Comp.** in the tray menu.
-Start with 25 ms steps and adjust until the gold explosion fires
+Start with 25 ms steps and adjust until the hit zone flashes gold
 reliably at the moment you click swap.
 
 **The track gets out of sync mid-fight**
@@ -394,6 +400,11 @@ audio. You can also toggle via tray → **Audio**.
 **App asks for a log file every time**
 If the previously saved log file is deleted or moved, the picker will
 open on launch. Select the new path and it will be remembered.
+
+**Recent Fights submenu always shows "No fights recorded yet"**
+Fight history tracking is only active when using the **Standard** overlay
+style. Switch to Standard via tray → **Overlay Style** if you need the
+fight history submenu populated.
 
 ---
 
