@@ -39,26 +39,13 @@ export class LogReader {
 
   private inCombat = false
 
-  // ── Mystats offhand-detection state machine ───────────────
-  // The calibration macro runs /mystats twice with different weapon combinations.
-  // We track which block we're in and capture the secondary weapon from the second block.
   private currentTarget   = ''   // most recent mob the player was attacking
   private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
   private lastHastePct    = -1   // dedup: last emitted haste value
   private lastHasteEmitTs = 0    // dedup: when it was emitted
 
-  private mystatsState: 'idle' | 'await_secondary' | 'reading_secondary' = 'idle'
-  private mystatsBlockNum = 0   // increments on each "---- Melee Primary:" line; reset after capture
-  private mystatsName   = ''
-  private mystatsDmgAve = 0
-
   // Extracts target name from "You crush/punch/strike X for N points"
   private static readonly TARGET_RE = /^You (?:crush|punch|strike) (.+?) for \d+/i
-
-  private static readonly MELEE_PRIMARY_RE     = /^---- Melee Primary: /i
-  private static readonly MELEE_SECONDARY_RE   = /^---- Melee Secondary: (.+?) ----/
-  private static readonly MYSTATS_DMG_RE        = /^Dmg = [\d.]+ to [\d.]+, ave = ([\d.]+)/
-  private static readonly MYSTATS_DPS_BASE_RE   = /^DPS = [\d.]+ to [\d.]+, ave = ([\d.]+)\s*$/
 
   private crushHitRe:    RegExp[]
   private crushMissRe:   RegExp[]
@@ -72,11 +59,13 @@ export class LogReader {
   private startRe:      RegExp[]
   private endRe:        RegExp[]
   private weaponRe:     Array<{ re: RegExp; name: string; delay: number }>
+  private missOnly:     boolean
 
-  constructor(path: string, cfg: ConfigType, onEvent: EventCallback) {
-    this.path    = path
-    this.cfg     = cfg
-    this.onEvent = onEvent
+  constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean } = {}) {
+    this.path     = path
+    this.cfg      = cfg
+    this.onEvent  = onEvent
+    this.missOnly = opts.missOnly ?? false
 
     const compile = (patterns: string[]) =>
       patterns.map(p => new RegExp(p, 'i'))
@@ -154,6 +143,18 @@ export class LogReader {
     if (!line) return
     const content = stripPrefix(line)
     const now = performance.now()
+
+    // ── missOnly mode: emit crush/fist misses only, ignore everything else ──
+    if (this.missOnly) {
+      if (this.crushMissRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+          data: { damage: 0, hit: false, line: content } })
+      } else if (this.fistMissRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.FIST_ATTACK, ts: now,
+          data: { damage: 0, hit: false, line: content } })
+      }
+      return
+    }
 
     // ── Riposte — ignore, not a swing-timer event ───────────
     if (this.riposteRe.some(r => r.test(content))) return
@@ -258,42 +259,6 @@ export class LogReader {
     if (this.startRe.some(r => r.test(content))) {
       this.ensureCombat(now)
       return
-    }
-
-    // ── Mystats offhand detection (weave calibration macro) ──────
-    // The macro runs /mystats twice. Each "---- Melee Primary:" line starts a new block.
-    // We capture the secondary weapon's delay from the second block only.
-    if (LogReader.MELEE_PRIMARY_RE.test(content)) {
-      this.mystatsBlockNum++
-      if (this.mystatsBlockNum === 2) {
-        this.mystatsState  = 'await_secondary'
-        this.mystatsName   = ''
-        this.mystatsDmgAve = 0
-      } else {
-        this.mystatsState = 'idle'
-      }
-    } else if (this.mystatsState === 'await_secondary') {
-      const m = LogReader.MELEE_SECONDARY_RE.exec(content)
-      if (m) {
-        this.mystatsName  = m[1].replace(/`/g, "'")
-        this.mystatsState = 'reading_secondary'
-      }
-    } else if (this.mystatsState === 'reading_secondary') {
-      const dmgM = LogReader.MYSTATS_DMG_RE.exec(content)
-      if (dmgM) {
-        this.mystatsDmgAve = parseFloat(dmgM[1])
-      } else {
-        const dpsM = LogReader.MYSTATS_DPS_BASE_RE.exec(content)
-        if (dpsM && this.mystatsDmgAve > 0) {
-          const delayTenths = Math.round((this.mystatsDmgAve / parseFloat(dpsM[1])) * 10)
-          this.emit({ type: EvType.OFFHAND_DETECTED, ts: now,
-            data: { name: this.mystatsName, delay: delayTenths } })
-          this.mystatsState  = 'idle'
-          this.mystatsName   = ''
-          this.mystatsDmgAve = 0
-          this.mystatsBlockNum = 0  // reset so next macro run starts fresh
-        }
-      }
     }
 
     // ── Weapon preset detection ─────────────────────────────

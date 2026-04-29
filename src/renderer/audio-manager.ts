@@ -313,6 +313,17 @@ export class AudioManager {
     }
   }
 
+  /** Play a sound bypassing the temporary mute (rapid-attack suppression).
+   *  Still respects the user's enabled toggle. Use for hit-confirmation
+   *  sounds that should always fire when the user's attack lands. */
+  playForce(name: string): void {
+    if (!this.enabled) return
+    const was = this.tempMuted
+    this.tempMuted = false
+    this.play(name)
+    this.tempMuted = was
+  }
+
   /**
    * Schedule the tick sound at the given performance.now() target time.
    * Uses AudioContext.currentTime arithmetic for precision — no busy-wait needed.

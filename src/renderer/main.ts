@@ -27,6 +27,8 @@ declare global {
       moveWindow:         (dx: number, dy: number) => void
       replyStatus:        (inCombat: boolean) => void
       saveSettings:       () => void
+      captureMouse:       () => void
+      releaseMouse:       () => void
     }
   }
 }
@@ -137,6 +139,21 @@ let clickDownTs    = 0
 let clickDownClientX = 0
 let clickDownClientY = 0
 
+// ── Mouse pass-through management ────────────────────────────
+// The main process starts with setIgnoreMouseEvents(true, { forward: true })
+// so all clicks pass to the game. We capture only while the mouse is over
+// the canvas, and release immediately after mouseup or mouseleave.
+
+canvas.addEventListener('mouseenter', () => {
+  window.electronAPI.captureMouse()
+})
+
+canvas.addEventListener('mouseleave', () => {
+  if (!dragging) window.electronAPI.releaseMouse()
+})
+
+// ── Drag / click ──────────────────────────────────────────────
+
 canvas.addEventListener('mousedown', (e: MouseEvent) => {
   if (e.button !== 0) return
   dragPending      = true
@@ -152,7 +169,7 @@ canvas.addEventListener('mousedown', (e: MouseEvent) => {
 
 window.addEventListener('mousemove', (e: MouseEvent) => {
   if (!dragPending && !dragging) return
-  if (!(e.buttons & 1)) { dragPending = false; dragging = false; return }  // button released outside window
+  if (!(e.buttons & 1)) { dragPending = false; dragging = false; window.electronAPI.releaseMouse(); return }
 
   if (!dragging) {
     const dx = e.screenX - dragStartX
@@ -170,14 +187,19 @@ window.addEventListener('mousemove', (e: MouseEvent) => {
   if (dx !== 0 || dy !== 0) window.electronAPI.moveWindow(dx, dy)
 })
 
-window.addEventListener('blur', () => { dragPending = false; dragging = false })
+window.addEventListener('blur', () => {
+  dragPending = false
+  dragging    = false
+  window.electronAPI.releaseMouse()
+})
 
 window.addEventListener('mouseup', (e: MouseEvent) => {
-  if (e.button !== 0) { dragPending = false; dragging = false; return }
+  if (e.button !== 0) { dragPending = false; dragging = false; window.electronAPI.releaseMouse(); return }
   if (dragPending && !dragging) {
     // Released without moving — weapon-swap click at the original mousedown time.
     ;(overlay as any).handleMouseClick?.(clickDownTs, clickDownClientX, clickDownClientY)
   }
   dragPending = false
   dragging    = false
+  window.electronAPI.releaseMouse()
 })

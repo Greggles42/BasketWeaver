@@ -13,6 +13,7 @@ import * as path from 'path'
 import { Config } from '../shared/config'
 import { IPC, type GameEvent } from '../shared/events'
 import { LogReader } from './log-reader'
+import { ZealReader } from './zeal-reader'
 import { createTray, updateFightHistory } from './tray'
 import { autoUpdater } from 'electron-updater'
 
@@ -60,6 +61,9 @@ function loadSettings(): void {
       if (saved.OVERLAY_STYLE === 'refined' || saved.OVERLAY_STYLE === 'standard' || saved.OVERLAY_STYLE === 'highcontrast') {
         Config.OVERLAY_STYLE = saved.OVERLAY_STYLE
       }
+      if (saved.TRACKING_SOURCE === 'log' || saved.TRACKING_SOURCE === 'zeal' || saved.TRACKING_SOURCE === 'hybrid') {
+        Config.TRACKING_SOURCE = saved.TRACKING_SOURCE
+      }
       if (typeof saved.windowX === 'number' && typeof saved.windowY === 'number') {
         savedWindowPos = { x: saved.windowX, y: saved.windowY }
       }
@@ -74,6 +78,7 @@ export function saveSettings(): void {
       OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
       OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
       OVERLAY_STYLE:        Config.OVERLAY_STYLE,
+      TRACKING_SOURCE:      Config.TRACKING_SOURCE,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
@@ -84,6 +89,8 @@ export function setOverlayStyle(style: 'refined' | 'standard' | 'highcontrast'):
   Config.OVERLAY_STYLE = style
   saveSettings()
   if (!win) return
+  // Re-apply pass-through after reload (renderer will re-capture on next hover)
+  win.setIgnoreMouseEvents(true, { forward: true })
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (devUrl) {
     win.loadURL(`${devUrl}?overlayStyle=${style}`)
@@ -118,6 +125,8 @@ export function resetWindowPosition(): void {
 
 let win:       BrowserWindow | null = null
 let stopLog:   (() => void) | null  = null
+let stopZeal:  (() => void) | null  = null
+let lastLogPath = ''
 
 function createWindow(): void {
   const { x: dx, y: dy, width: dw, height: dh } = screen.getPrimaryDisplay().workArea
@@ -169,10 +178,17 @@ function createWindow(): void {
   win.on('closed', () => { win = null })
 }
 
-// ── Start log reader ──────────────────────────────────────────
+// ── Reader management ─────────────────────────────────────────
+
+function stopAllReaders(): void {
+  if (stopLog)  { stopLog();  stopLog  = null }
+  if (stopZeal) { stopZeal(); stopZeal = null }
+}
 
 function startReader(logPath: string): void {
-  if (stopLog) { stopLog(); stopLog = null }
+  stopAllReaders()
+  lastLogPath = logPath
+  Config.TRACKING_SOURCE = 'log'
 
   const reader = new LogReader(logPath, Config, (ev: GameEvent) => {
     win?.webContents.send(IPC.GAME_EVENT, ev)
@@ -180,6 +196,53 @@ function startReader(logPath: string): void {
   stopLog = reader.start()
   saveLastLog(logPath)
   console.log(`[Basketweaver] Tailing: ${logPath}`)
+}
+
+function startZealReader(): void {
+  stopAllReaders()
+  Config.TRACKING_SOURCE = 'zeal'
+  saveSettings()
+
+  const reader = new ZealReader(Config, (ev: GameEvent) => {
+    win?.webContents.send(IPC.GAME_EVENT, ev)
+  })
+  stopZeal = reader.start()
+  console.log('[Basketweaver] Zeal pipe tracking active')
+}
+
+function startHybridReader(): void {
+  stopAllReaders()
+  Config.TRACKING_SOURCE = 'hybrid'
+  saveSettings()
+
+  const zealReader = new ZealReader(Config, (ev: GameEvent) => {
+    win?.webContents.send(IPC.GAME_EVENT, ev)
+  })
+  stopZeal = zealReader.start()
+
+  if (lastLogPath) {
+    const missReader = new LogReader(lastLogPath, Config, (ev: GameEvent) => {
+      win?.webContents.send(IPC.GAME_EVENT, ev)
+    }, { missOnly: true })
+    stopLog = missReader.start()
+  }
+  console.log('[Basketweaver] Hybrid tracking active (Zeal hits + Log misses)')
+}
+
+export function setTrackingSource(source: 'log' | 'zeal' | 'hybrid'): void {
+  if (source === 'zeal') {
+    startZealReader()
+  } else if (source === 'hybrid') {
+    startHybridReader()
+  } else {
+    if (lastLogPath) {
+      startReader(lastLogPath)
+    } else {
+      stopAllReaders()
+      Config.TRACKING_SOURCE = 'log'
+      saveSettings()
+    }
+  }
 }
 
 // ── File picker ───────────────────────────────────────────────
@@ -233,6 +296,12 @@ function setupIPC(): void {
     const [x, y] = win.getPosition()
     win.setPosition(x + dx, y + dy)
   })
+
+  // Mouse pass-through: by default the overlay ignores mouse input so clicks
+  // go to the game underneath. When the renderer detects hover it captures
+  // temporarily, then releases after mouseup or mouseleave.
+  ipcMain.on(IPC.CAPTURE_MOUSE, () => win?.setIgnoreMouseEvents(false))
+  ipcMain.on(IPC.RELEASE_MOUSE, () => win?.setIgnoreMouseEvents(true, { forward: true }))
 
   // Status reply from renderer (used by tray menu refresh)
   ipcMain.on(IPC.STATUS_REPLY, (_e, data: { inCombat: boolean }) => {
@@ -294,8 +363,14 @@ function setupAutoUpdater(): void {
 
 // ── App entry ─────────────────────────────────────────────────
 
+function recomputeGoodWindow(): void {
+  const fistDelay = Config.OFFHAND_WEAPON_DELAY / 10 / (1 + Config.HASTE_PCT / 100)
+  Config.GOOD_WINDOW = Math.max(0.1, Config.PUNCH_INTERVAL - fistDelay) / 2
+}
+
 app.whenReady().then(async () => {
   loadSettings()
+  recomputeGoodWindow()
   setupIPC()
   createWindow()
 
@@ -306,13 +381,27 @@ app.whenReady().then(async () => {
       startReader(p)
       win?.webContents.send(IPC.LOG_SELECTED, p)
     }
-  }, resetWindowPosition, setOverlayStyle)
+  }, resetWindowPosition, setOverlayStyle, setTrackingSource)
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()
 
   // Start the log reader once the window is ready
+  // Pass clicks through to the underlying game by default.
+  // The renderer toggles this off while the mouse is over the canvas.
+  win!.setIgnoreMouseEvents(true, { forward: true })
+
   win!.webContents.on('did-finish-load', () => {
+    if (Config.TRACKING_SOURCE === 'zeal') {
+      startZealReader()
+      return
+    }
+    if (Config.TRACKING_SOURCE === 'hybrid') {
+      const logPath = loadLastLog()
+      if (logPath) { lastLogPath = logPath; saveLastLog(logPath) }
+      startHybridReader()
+      return
+    }
     const logPath = loadLastLog()
     if (logPath) {
       startReader(logPath)
@@ -330,7 +419,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
-  if (stopLog) stopLog()
+  stopAllReaders()
   if (process.platform !== 'darwin') app.quit()
 })
 

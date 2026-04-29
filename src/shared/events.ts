@@ -14,9 +14,9 @@ export const enum EvType {
   CURSOR_BLOCKED  = 'CURSOR_BLOCKED',  // data: { line }
   HASTE_DETECTED  = 'HASTE_DETECTED',   // data: { haste_pct, interval, source }
   WEAPON_DETECTED  = 'WEAPON_DETECTED',   // data: { name, delay }
-  OFFHAND_DETECTED = 'OFFHAND_DETECTED', // data: { name, delay }
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
+  WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
 }
 
 export interface GameEvent {
@@ -45,4 +45,6 @@ export const IPC = {
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: string[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }
+  CAPTURE_MOUSE:          'capture-mouse',             // renderer → main: stop ignoring mouse events
+  RELEASE_MOUSE:          'release-mouse',             // renderer → main: resume ignoring mouse events (pass-through)
 } as const

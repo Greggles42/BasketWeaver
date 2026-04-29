@@ -264,7 +264,7 @@ export class Overlay {
           this.rapidAttackMuteUntil = crushTs + Overlay.RAPID_MUTE_MS
           this.audio.setTemporaryMute(true)
         }
-        if (!this.audioMutedRapidAttack) this.audio.play('crush')
+        this.audio.playForce('crush')
         this.oorLastSoundTs = 0   // back in range — next OOR episode gets its own sound
         break
       }
@@ -346,18 +346,9 @@ export class Overlay {
         const fistDelay   = this.rhythm.effectiveOffhandDelay
         this.cfg.GOOD_WINDOW    = Math.max(0.2, newInterval - fistDelay) / 2
         this.cfg.PUNCH_INTERVAL = newInterval
+        this.rhythm.resetCalibration()
         const msg = `Weapon: ${name}  (delay ${(delay / 10).toFixed(1)}s)`
         this.showBanner(msg, this.cfg.C_GOOD, 4000)
-        break
-      }
-
-      case EvType.OFFHAND_DETECTED: {
-        const name  = ev.data?.name  as string ?? ''
-        const delay = ev.data?.delay as number ?? 16
-        this.applyDynamicWeaveWindow(delay, name)
-        ;(window as any).electronAPI?.saveSettings()
-        const msg = `Offhand: ${name}  (${(delay / 10).toFixed(1)}s)`
-        this.showBanner(msg, this.cfg.C_CLIP, 5000)
         break
       }
 
@@ -372,6 +363,24 @@ export class Overlay {
         this.audio.play('combat_start')
         const msg = `Haste sync: ${interval.toFixed(2)}s  (${hastePct.toFixed(0)}% haste)`
         this.showBanner(msg, this.cfg.C_GOOD, 4000)
+        break
+      }
+      case EvType.WEAVE_SIGNAL: {
+        const offhandDelay = ev.data?.offhandDelay as number ?? this.cfg.OFFHAND_WEAPON_DELAY
+        this.applyDynamicWeaveWindow(offhandDelay)
+        const fistNow = now()
+        const adjTs   = ts - this.cfg.LATENCY_COMPENSATION * 1000
+        const isClip  = this.rhythm.onFistAttack(adjTs, 0, false, fistNow)
+        this.lastCombatActivity = ts
+        this.consecutiveCrushesWithoutFist = 0
+        if (this.audioMutedRapidAttack) this.clearRapidAttackMute()
+        if (isClip) {
+          this.showClipIndicator()
+        } else if (this.cfg.FIST_SOUND_ON_MISS) {
+          setTimeout(() => {
+            if (now() - this.lastFistHitTs > 300) this.audio.play('whiff')
+          }, 150)
+        }
         break
       }
     }

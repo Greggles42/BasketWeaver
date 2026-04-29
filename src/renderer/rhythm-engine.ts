@@ -130,9 +130,8 @@ export class RhythmEngine {
     this.cfg.PUNCH_INTERVAL = interval
     this.lastKnownInterval  = s(interval)
 
-    // Seed the swing timer from combat start so closeRound() can measure the
-    // first real interval against it.
-    this.lastRoundCloseTime = ts
+    // lastRoundCloseTime stays 0 (set by resetScore) so the first closeRound()
+    // produces no measurement — combatStart is not a swing boundary.
     this.nextSwingTime      = ts + s(interval)
     this.nextNoteTime       = ts + s(interval) + s(halfWindow)
     this.notesAnchored      = true
@@ -359,18 +358,29 @@ export class RhythmEngine {
     let interval: number
     if (this.lastRoundCloseTime > 0) {
       const measured = (roundEnd - this.lastRoundCloseTime) / 1000  // seconds
-      // Accept plausible durations. Values > 6s are treated as OOR/skipped-swing
-      // outliers — long enough to cover any realistic haste-corrected weapon delay.
-      if (measured >= 0.5 && measured <= 6.0) {
+      // Accept plausible single-swing durations only. Cap at 130% of the unhasted
+      // weapon delay — a skipped/OOR swing appears as ≥2× the real interval and
+      // would otherwise drag the median too low.
+      const maxPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) * 1.3
+      if (measured >= 0.5 && measured <= maxPlausible) {
         this.measuredIntervals.push(measured)
         if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
           this.measuredIntervals.shift()
       }
-      // Use rolling median when we have ≥2 samples; otherwise keep current interval.
+      // Use rolling median when we have ≥3 samples; otherwise keep current interval.
       // Median is robust — up to (n/2 - 1) outlier values can't corrupt the result.
-      interval = this.measuredIntervals.length >= 2
+      const raw = this.measuredIntervals.length >= 3
         ? RhythmEngine.median(this.measuredIntervals)
         : this.cfg.PUNCH_INTERVAL
+      // 125% haste cap: if the median implies haste > 125%, the buffer is corrupted
+      // (wrong weapon reference or proc counted as mainhand). Reject and reset.
+      const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 2.25
+      if (raw < minPlausible) {
+        this.measuredIntervals = []
+        interval = this.cfg.PUNCH_INTERVAL
+      } else {
+        interval = raw
+      }
     } else {
       interval = this.predictedInterval
     }

@@ -54,6 +54,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   saveSettings: () =>
     ipcRenderer.send(IPC.SAVE_SETTINGS),
+
+  captureMouse: () => ipcRenderer.send(IPC.CAPTURE_MOUSE),
+  releaseMouse: () => ipcRenderer.send(IPC.RELEASE_MOUSE),
 })
 
 // Listen for status requests from tray

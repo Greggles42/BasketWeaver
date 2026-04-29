@@ -94,6 +94,7 @@ export const Config = {
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
   LANE_LINES: false,
   OVERLAY_STYLE: 'refined' as 'refined' | 'standard' | 'highcontrast',
+  TRACKING_SOURCE: 'log' as 'log' | 'zeal' | 'hybrid',
 
   VERT_WINDOW_WIDTH:   86,
   VERT_WINDOW_HEIGHT: 386,
@@ -120,7 +121,7 @@ export const Config = {
   // ── Weapon / haste ────────────────────────────────────────────
   BASE_WEAPON_DELAY:    20,  // EQ tenths-of-seconds
   OFFHAND_WEAPON_DELAY: 16,  // EQ tenths-of-seconds (offhand/fist weapon)
-  OFFHAND_WEAPON_NAME:  '',  // display name, auto-detected from /mystats calibration
+  OFFHAND_WEAPON_NAME:  '',  // display name, set via tray Offhand Delay
   HASTE_PCT:             0.0,
 
   WEAPON_PRESETS: {
@@ -141,7 +142,16 @@ export const Config = {
   FIST_HIT_PATTERNS:     ['^You (?:punch|strike)\\b'],
   FIST_MISS_PATTERNS:    ['^You try to (?:punch|strike)\\b', '^You attempt to (?:punch|strike)\\b'],
   // Damage sources counted toward net DPS but not swing-timer events.
-  FLYING_KICK_PATTERNS:  ['^You flying kick\\b'],
+  // Kick variants: hits count as MISC_DAMAGE, misses are consumed silently (damage=0 → no emit).
+  FLYING_KICK_PATTERNS:  [
+    '^You flying kick\\b',
+    '^You kick\\b',
+    '^You roundkick\\b',
+    '^You try to kick\\b',
+    '^You attempt to kick\\b',
+    '^You try to roundkick\\b',
+    '^You attempt to roundkick\\b',
+  ],
   PROC_HIT_PATTERNS:     ['^You hit\\b'],
   OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target'],
   CURSOR_BLOCKED_PATTERNS:  ['You cannot swap items when holding something'],

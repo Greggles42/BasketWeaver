@@ -25,7 +25,7 @@ export function updateFightHistory(fights: string[]): void {
   recentFights = fights
 }
 
-export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}, onSetOverlayStyle: (style: 'refined' | 'standard' | 'highcontrast') => void = () => {}): Tray {
+export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}, onSetOverlayStyle: (style: 'refined' | 'standard' | 'highcontrast') => void = () => {}, onSetTrackingSource: (source: 'log' | 'zeal' | 'hybrid') => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
   const icon = buildTrayIcon()
   const tray = new Tray(icon)
@@ -219,6 +219,21 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         },
       },
       { label: 'Opacity', submenu: opacityItems },
+      {
+        label: 'Tracking Source',
+        submenu: (
+          [
+            ['Log File (default)',  'log'],
+            ['Zeal Pipe',           'zeal'],
+            ['Hybrid (Zeal + Log)', 'hybrid'],
+          ] as Array<[string, 'log' | 'zeal' | 'hybrid']>
+        ).map(([label, source]) => new MenuItem({
+          label,
+          type:    'radio',
+          checked: cfg.TRACKING_SOURCE === source,
+          click:   () => onSetTrackingSource(source),
+        })),
+      },
       { type: 'separator' },
       { label: 'Quit Basketweaver', click: onQuit },
     ] as Electron.MenuItemConstructorOptions[])
