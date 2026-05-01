@@ -1,7 +1,7 @@
 # Basketweaver — User Manual
 
-Basketweaver is a real-time timing overlay for EverQuest fistweaving monks.
-It draws a scrolling highway showing exactly when to swap to your fist weapon
+Basketweaver is a real-time timing overlay for EverQuest weapon-weaving.
+It draws a scrolling highway showing when to swap to your offhand weapon set
 so your offhand round lands without clipping your mainhand swing timer.
 
 Combat events can be read two ways: from your **EQ log file** (default), or
@@ -28,26 +28,32 @@ in how data reaches Basketweaver.
 
 ## 1. How It Works
 
-### The Fistweaving Technique
+### The Weaving Technique
 
-EverQuest monks deal their highest damage by wielding a slow, high-damage staff
-in their primary slot and briefly equipping a fast fist weapon in their secondary
-slot between mainhand swings. Each weapon fires on its own independent timer, so
-a precisely timed fist weave adds a full extra attack without interfering with the
-staff swing.
+The weaving technique is viable for any class that has dual wield and access to
+strong 2H weapons. The objective is to get a free "bonus" swing with an offhand
+weapon in between 2H weapon swings. This works because dual wield runs on an
+independent timer from your mainhand, and your primary weapon swing timer is not
+reset when you swap weapon sets.
 
-The challenge is timing: if you swap to the fist weapon too late — after your
-mainhand timer has already reset — the fist timer will collide with the mainhand
-timer and delay your next crush. This is called a **clip**, and it costs more DPS
-than not weaving at all.
+Done well, weaving has the potential to add approximately 20–30 DPS to a raid
+target over standard 2H weapon DPS.
+
+The challenge is timing: if you do not swap your weapon set back to your 2H setup
+before the mainhand timer resets, you will clip your attack — or swing a 1H weapon
+instead of your high-impact 2H weapon. This is called a **clip**, and it costs more
+DPS than not weaving at all.
+
+Basketweaver was designed with monks in mind but with additional development can
+scale to other classes.
 
 ### What Basketweaver Does
 
 Basketweaver watches every mainhand crush in real time and calculates exactly when
 your next swing will fire. It draws a scrolling **highway** overlay on top of
-EverQuest with a **green weave window** that shows the safe zone for your fist
+EverQuest with a **green weave window** that shows the safe zone for your weapon
 swap. The window approaches a fixed **hit zone** at the left of the highway — when
-the window reaches the hit zone, swap to your fist weapon.
+the window reaches the hit zone, swap to your offhand weapon set.
 
 Every event is timestamped at the moment it arrives in the app, not when it was
 written to disk, which keeps the overlay accurate even during log-flush delays.
@@ -164,7 +170,7 @@ is worse than skipping a weave because it actively delays mainhand damage.
 **Hit zone**
 The vertical bar on the left side of the highway that acts as the timing target.
 Weave actions are judged at this point. When the green window reaches the hit zone,
-swap to your fist weapon. The hit zone position can be moved left or right via tray
+swap to your offhand weapon set. The hit zone position can be moved left or right via tray
 → **Target Position** (cosmetic only — timing is not affected).
 
 **Target offset**
@@ -399,7 +405,7 @@ Three visual styles are available via tray → **Overlay Style**:
  Step 1: Green box approaching hit zone
  ·  ·  ·  ║  ·  ·  ·  ·  ·  [====GREEN====]│  ·  ·  ·  ·  ·  ·
 
- Step 2: GREEN BOX IS AT HIT ZONE — SWAP TO FIST NOW ✓
+ Step 2: GREEN BOX IS AT HIT ZONE — SWAP TO OFFHAND WEAPON SET NOW ✓
  ·  ·  ·  [=║=============]│  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
 
  Step 3: Orange bar arrives — mainhand swings, window closes
@@ -640,4 +646,4 @@ fight history submenu populated.
 
 ---
 
-*Basketweaver — built for monks, by monks.*
+*Basketweaver — designed with monks in mind, built to scale.*

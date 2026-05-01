@@ -142,10 +142,13 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
     }))
 
     return Menu.buildFromTemplate([
+      // ── Status ───────────────────────────────────────────
       { label: `Status: ${inCombat ? 'IN COMBAT' : 'IDLE'}`, enabled: false },
       { type: 'separator' },
-      { label: 'Select Log File…', click: () => onSelectLog() },
-      { label: 'Reset Track',      click: () => win.webContents.send(IPC.RESET_TRACK) },
+      // ── Actions ──────────────────────────────────────────
+      { label: 'Select Log File…',      click: () => onSelectLog() },
+      { label: 'Reset Track',           click: () => win.webContents.send(IPC.RESET_TRACK) },
+      { label: 'Reset Window Position', click: () => onResetPosition() },
       {
         label: 'Recent Fights',
         submenu: recentFights.length === 0
@@ -155,29 +158,23 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
               click: () => clipboard.writeText(line),
             })),
       },
-      { label: 'Target Position',      submenu: targetPosItems },
-      { label: 'Reset Window Position', click: () => onResetPosition() },
       { type: 'separator' },
-      { label: 'Mainhand Delay', submenu: presetItems },
-      { label: offhandLabel,     submenu: offhandItems },
-      { label: 'Interval',       submenu: intervalItems },
-      { label: 'Target Offset',  submenu: offsetItems },
-      { label: 'Latency Comp.',  submenu: latencyItems },
-      { label: 'Clip Window',    submenu: clipItems },
-      {
-        label:   'Audio',
-        type:    'checkbox',
-        checked: true,  // will be updated by toggle
-        click:   () => win.webContents.send(IPC.TOGGLE_AUDIO),
+      // ── Multi-option settings ─────────────────────────────
+      { label: 'Tracking Source',
+        submenu: (
+          [
+            ['Log File (default)',  'log'],
+            ['Zeal Pipe',           'zeal'],
+            ['Hybrid (Zeal + Log)', 'hybrid'],
+          ] as Array<[string, 'log' | 'zeal' | 'hybrid']>
+        ).map(([label, source]) => new MenuItem({
+          label,
+          type:    'radio',
+          checked: cfg.TRACKING_SOURCE === source,
+          click:   () => onSetTrackingSource(source),
+        })),
       },
-      {
-        label:   'Orientation',
-        type:    'checkbox',
-        checked: cfg.ORIENTATION === 'vertical',
-        click:   () => win.webContents.send(IPC.TOGGLE_ORIENTATION),
-      },
-      {
-        label: 'Overlay Style',
+      { label: 'Overlay Style',
         submenu: (
           [
             ['Refined (default)', 'refined'],
@@ -190,6 +187,28 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
           checked: cfg.OVERLAY_STYLE === style,
           click:   () => onSetOverlayStyle(style),
         })),
+      },
+      { label: 'Mainhand Delay',   submenu: presetItems },
+      { label: offhandLabel,       submenu: offhandItems },
+      { label: 'Interval',         submenu: intervalItems },
+      { label: 'Target Position',  submenu: targetPosItems },
+      { label: 'Target Offset',    submenu: offsetItems },
+      { label: 'Latency Comp.',    submenu: latencyItems },
+      { label: 'Clip Window',      submenu: clipItems },
+      { label: 'Opacity',          submenu: opacityItems },
+      { type: 'separator' },
+      // ── Toggles ───────────────────────────────────────────
+      {
+        label:   'Audio',
+        type:    'checkbox',
+        checked: true,
+        click:   () => win.webContents.send(IPC.TOGGLE_AUDIO),
+      },
+      {
+        label:   'Orientation',
+        type:    'checkbox',
+        checked: cfg.ORIENTATION === 'vertical',
+        click:   () => win.webContents.send(IPC.TOGGLE_ORIENTATION),
       },
       {
         label:   'Lane Lines',
@@ -217,22 +236,6 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
           keystrokeGradingEnabled = !keystrokeGradingEnabled
           cfg.KEYSTROKE_GRADING = keystrokeGradingEnabled
         },
-      },
-      { label: 'Opacity', submenu: opacityItems },
-      {
-        label: 'Tracking Source',
-        submenu: (
-          [
-            ['Log File (default)',  'log'],
-            ['Zeal Pipe',           'zeal'],
-            ['Hybrid (Zeal + Log)', 'hybrid'],
-          ] as Array<[string, 'log' | 'zeal' | 'hybrid']>
-        ).map(([label, source]) => new MenuItem({
-          label,
-          type:    'radio',
-          checked: cfg.TRACKING_SOURCE === source,
-          click:   () => onSetTrackingSource(source),
-        })),
       },
       { type: 'separator' },
       { label: 'Quit Basketweaver', click: onQuit },

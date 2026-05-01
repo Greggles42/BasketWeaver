@@ -524,6 +524,16 @@ export class HighContrastOverlay {
     const w = this.canvas.width
     const hy = this.highwayY, hh = this.highwayH
 
+    // Clip to the highway interior so windows and swing bars vanish cleanly at the left wall
+    ctx.save()
+    ctx.beginPath()
+    if (!vert) {
+      ctx.rect(5, hy, w - 10, hh)
+    } else {
+      ctx.rect(0, hy + 1, w, hh - 2)
+    }
+    ctx.clip()
+
     let rank = 0
     for (let k = 0; rank < 3 && k < 12; k++) {
       const swingTime = firstSwing + k * intervalMs
@@ -533,12 +543,13 @@ export class HighContrastOverlay {
 
       if (!vert) {
         if (x1 > w) break
-        if (x2 < 4) continue
+        if (x2 < 5) continue
+        const drawW = Math.max(3, x2 - x1)
         ctx.fillStyle   = `${HC.weaveFill}${fillsA[rank]})`
-        ctx.fillRect(Math.max(6, x1), hy + 6, Math.max(3, x2 - x1), hh - 12)
+        ctx.fillRect(x1, hy + 6, drawW, hh - 12)
         ctx.strokeStyle = `${HC.weaveStrk}${strokesA[rank]})`
         ctx.lineWidth = 1.5
-        ctx.strokeRect(Math.max(6, x1) + 0.5, hy + 6.5, Math.max(3, x2 - x1) - 1, hh - 13)
+        ctx.strokeRect(x1 + 0.5, hy + 6.5, drawW - 1, hh - 13)
         ctx.fillStyle = `${HC.swingBar}${orangeA[rank]})`
         ctx.fillRect(x1 - 2, hy + 2, 5, hh - 4)
       } else {
@@ -555,6 +566,7 @@ export class HighContrastOverlay {
       }
       rank++
     }
+    ctx.restore()
   }
 
   private drawCountdownBar(): void {
@@ -607,14 +619,27 @@ export class HighContrastOverlay {
   private drawMissChip(): void {
     if (this.missFlash <= 0) return
     const ctx = this.ctx
-    const w = this.canvas.width
     const hy = this.highwayY
-    ctx.fillStyle = `${HC.missChip}${this.missFlash})`
-    ctx.fillRect(w - 70, hy - 11, 60, 12)
-    ctx.font = '700 9px "Archivo", sans-serif'
-    ctx.fillStyle = `${HC.missText}${this.missFlash})`
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-    ctx.fillText('— MISS', w - 40, hy - 5)
+    const [hzx, hzy] = this.hzCenter()
+    const chipW = 52, chipH = 12
+    if (this.cfg.ORIENTATION === 'horizontal') {
+      const cx = hzx - chipW / 2
+      ctx.fillStyle = `${HC.missChip}${this.missFlash})`
+      ctx.fillRect(cx, hy - chipH - 2, chipW, chipH)
+      ctx.font = '700 9px "Archivo", sans-serif'
+      ctx.fillStyle = `${HC.missText}${this.missFlash})`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText('— MISS', hzx, hy - chipH / 2 - 2)
+    } else {
+      const cy = hzy - chipH / 2
+      const w = this.canvas.width
+      ctx.fillStyle = `${HC.missChip}${this.missFlash})`
+      ctx.fillRect(w - chipW - 4, cy, chipW, chipH)
+      ctx.font = '700 9px "Archivo", sans-serif'
+      ctx.fillStyle = `${HC.missText}${this.missFlash})`
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText('— MISS', w - chipW / 2 - 4, hzy)
+    }
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
   }
 
