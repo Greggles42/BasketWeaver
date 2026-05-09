@@ -67,6 +67,8 @@ function loadSettings(): void {
       if (typeof saved.windowX === 'number' && typeof saved.windowY === 'number') {
         savedWindowPos = { x: saved.windowX, y: saved.windowY }
       }
+      if (typeof saved.DYNAMIC_WEAVING    === 'boolean') Config.DYNAMIC_WEAVING    = saved.DYNAMIC_WEAVING
+      if (typeof saved.SHOW_OFFHAND_TIMER === 'boolean') Config.SHOW_OFFHAND_TIMER = saved.SHOW_OFFHAND_TIMER
     }
   } catch {}
 }
@@ -79,6 +81,8 @@ export function saveSettings(): void {
       OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
       OVERLAY_STYLE:        Config.OVERLAY_STYLE,
       TRACKING_SOURCE:      Config.TRACKING_SOURCE,
+      DYNAMIC_WEAVING:      Config.DYNAMIC_WEAVING,
+      SHOW_OFFHAND_TIMER:   Config.SHOW_OFFHAND_TIMER,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
@@ -189,6 +193,7 @@ function startReader(logPath: string): void {
   stopAllReaders()
   lastLogPath = logPath
   Config.TRACKING_SOURCE = 'log'
+  saveSettings()
 
   const reader = new LogReader(logPath, Config, (ev: GameEvent) => {
     win?.webContents.send(IPC.GAME_EVENT, ev)
@@ -261,6 +266,18 @@ async function pickLogFile(): Promise<string | null> {
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
+/** Handle a newly selected log file, respecting the current tracking mode. */
+function handleLogSelected(p: string): void {
+  lastLogPath = p
+  saveLastLog(p)
+  if (Config.TRACKING_SOURCE === 'hybrid') {
+    startHybridReader()
+  } else {
+    startReader(p)
+  }
+  win?.webContents.send(IPC.LOG_SELECTED, p)
+}
+
 // ── IPC handlers ──────────────────────────────────────────────
 
 function setupIPC(): void {
@@ -268,15 +285,12 @@ function setupIPC(): void {
 
   ipcMain.on(IPC.SELECT_LOG, async () => {
     const p = await pickLogFile()
-    if (p) {
-      startReader(p)
-      win?.webContents.send(IPC.LOG_SELECTED, p)
-    }
+    if (p) handleLogSelected(p)
   })
 
   ipcMain.on(IPC.SAVE_SETTINGS, () => saveSettings())
 
-  ipcMain.on(IPC.FIGHT_HISTORY_UPDATE, (_e, fights: string[]) => updateFightHistory(fights))
+  ipcMain.on(IPC.FIGHT_HISTORY_UPDATE, (_e, fights: { label: string, full: string }[]) => updateFightHistory(fights))
 
   ipcMain.on(IPC.SET_OPACITY, (_e, val: number) => {
     Config.WINDOW_OPACITY = val
@@ -377,10 +391,7 @@ app.whenReady().then(async () => {
   // Create tray
   createTray(win!, () => app.quit(), saveSettings, async () => {
     const p = await pickLogFile()
-    if (p) {
-      startReader(p)
-      win?.webContents.send(IPC.LOG_SELECTED, p)
-    }
+    if (p) handleLogSelected(p)
   }, resetWindowPosition, setOverlayStyle, setTrackingSource)
 
   // Check for updates (no-op in dev mode)
@@ -392,13 +403,25 @@ app.whenReady().then(async () => {
   win!.setIgnoreMouseEvents(true, { forward: true })
 
   win!.webContents.on('did-finish-load', () => {
+    // Sync saved settings to renderer (renderer has its own Config instance)
+    win!.webContents.send(IPC.SET_OFFHAND_DELAY, {
+      delay: Config.OFFHAND_WEAPON_DELAY,
+      name:  Config.OFFHAND_WEAPON_NAME,
+    })
+    if (!Config.DYNAMIC_WEAVING)    win!.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
+    if (!Config.SHOW_OFFHAND_TIMER) win!.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
+
     if (Config.TRACKING_SOURCE === 'zeal') {
       startZealReader()
       return
     }
     if (Config.TRACKING_SOURCE === 'hybrid') {
       const logPath = loadLastLog()
-      if (logPath) { lastLogPath = logPath; saveLastLog(logPath) }
+      if (logPath) {
+        lastLogPath = logPath
+        saveLastLog(logPath)
+        win?.webContents.send(IPC.LOG_SELECTED, logPath)
+      }
       startHybridReader()
       return
     }

@@ -18,9 +18,11 @@ declare global {
       onToggleOrientation:  (cb: () => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:           (cb: () => void) => void
-      onToggleFistMissSound:  (cb: () => void) => void
+      onToggleFistMissSound:    (cb: () => void) => void
+      onToggleDynamicWeaving:   (cb: () => void) => void
+      onToggleOffhandTimer:     (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
-      sendFightHistory:       (fights: string[]) => void
+      sendFightHistory:       (fights: { label: string, full: string }[]) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -59,6 +61,8 @@ const overlay: {
   applyTargetPosition(pct: number): void
   toggleLaneLines(): void
   toggleFistMissSound(): void
+  toggleDynamicWeaving(): void
+  toggleOffhandTimer(): void
   pinned: boolean
 } = overlayStyle === 'highcontrast'
   ? new HighContrastOverlay(canvas)
@@ -98,6 +102,8 @@ window.electronAPI.onResetTrack(() => {
 })
 
 window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
+window.electronAPI.onToggleDynamicWeaving(() => overlay.toggleDynamicWeaving())
+window.electronAPI.onToggleOffhandTimer(() => overlay.toggleOffhandTimer())
 window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
 window.electronAPI.onSetOffhandDelay((delay, name) => {
   ;(overlay as any).applyDynamicWeaveWindow?.(delay, name)

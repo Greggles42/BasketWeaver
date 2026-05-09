@@ -125,6 +125,7 @@ export class RefinedOverlay {
   private combatStartTs = 0
   private swingTimerEverValid = false
   private lastFistHitTs = 0
+  private lastFistAttackTs = 0
   private hasteCalibrated = false  // true when haste% was derived from measured swings, not /mystats
   private oorLastSoundTs = 0
   private consecutiveCrushesWithoutFist = 0
@@ -257,6 +258,7 @@ export class RefinedOverlay {
         const isClip  = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
         this.lastCombatActivity = ts
         this.consecutiveCrushesWithoutFist = 0
+        this.lastFistAttackTs = fistNow
         if (this.audioMutedRapidAttack) this.clearRapidAttackMute()
         const [hzx, hzy] = this.hzCenter()
         if (isClip) {
@@ -328,6 +330,7 @@ export class RefinedOverlay {
         const isClip  = this.rhythm.onFistAttack(adjTs, 0, false, fistNow)
         this.lastCombatActivity = ts
         this.consecutiveCrushesWithoutFist = 0
+        this.lastFistAttackTs = fistNow
         if (this.audioMutedRapidAttack) this.clearRapidAttackMute()
         if (isClip) {
           this.clipWarn = 1
@@ -369,13 +372,18 @@ export class RefinedOverlay {
   private pushHistory(result: GradeResult): void {
     this.fightHistory.unshift(result)
     if (this.fightHistory.length > 5) this.fightHistory.length = 5
-    const lines = this.fightHistory.map(r => {
+    const entries = this.fightHistory.map(r => {
       const mob    = r.mobName || 'Unknown'
       const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
-      const react  = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-      return `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
+      const reactShort = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      const reactFull  = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
+      const label = `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${reactShort}  [${mob}]`
+      const full  = `Basketweaver: ${r.grade} ${weaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''} | ` +
+        `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
+        `Added DPS: ${r.addedDps.toFixed(0)}${reactFull}`
+      return { label, full }
     })
-    window.electronAPI?.sendFightHistory(lines)
+    window.electronAPI?.sendFightHistory(entries)
   }
 
   private copyToClipboard(): void {
@@ -409,11 +417,14 @@ export class RefinedOverlay {
 
   toggleLaneLines(): void { this.cfg.LANE_LINES = !this.cfg.LANE_LINES }
   toggleFistMissSound(): void { this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS }
+  toggleDynamicWeaving(): void { this.cfg.DYNAMIC_WEAVING = !this.cfg.DYNAMIC_WEAVING }
+  toggleOffhandTimer(): void { this.cfg.SHOW_OFFHAND_TIMER = !this.cfg.SHOW_OFFHAND_TIMER }
   toggleHighContrast(): void { /* refined style does not use HC mode — see HighContrastOverlay */ }
 
   /** Dynamic Weave Windows — update offhand delay and immediately recalculate
    *  the safe weave window width (visual + scoring) using the post-haste value. */
   applyDynamicWeaveWindow(delayTenths: number, name = ''): void {
+    if (!this.cfg.DYNAMIC_WEAVING) return
     this.cfg.OFFHAND_WEAPON_DELAY = delayTenths
     this.cfg.OFFHAND_WEAPON_NAME  = name
     const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
@@ -460,9 +471,12 @@ export class RefinedOverlay {
 
     this.rhythm.update(t)
     if (this.rhythm.calibrationEvent) {
-      const iv = this.rhythm.calibrationEvent.interval
+      const iv           = this.rhythm.calibrationEvent.interval
       const derivedHaste = Math.max(0, (this.cfg.BASE_WEAPON_DELAY / 10 / iv - 1) * 100)
-      this.cfg.HASTE_PCT = derivedHaste
+      this.cfg.HASTE_PCT      = derivedHaste
+      this.cfg.PUNCH_INTERVAL = iv
+      const fistDelay         = this.rhythm.effectiveOffhandDelay
+      this.cfg.GOOD_WINDOW    = Math.max(0.2, iv - fistDelay) / 2
       this.hasteCalibrated = true
       this.banners.push(new Banner(`Auto-calibrated: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% haste)`, '#ffc844', 3000))
       this.rhythm.calibrationEvent = null
@@ -502,13 +516,50 @@ export class RefinedOverlay {
     this.drawHighway()
     this.drawHeader()
     this.drawFooter()
-    this.drawWeaveWindows()
+    this.drawDynamicWeaveWindows()
     this.drawHitZone()
     this.drawParticles()
     this.drawMissFlash()
     this.drawClipWarn()
+    this.drawOffhandSwingTimer()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
+  }
+
+  private drawOffhandSwingTimer(): void {
+    if (!this.cfg.SHOW_OFFHAND_TIMER) return
+    const rhy = this.rhythm
+    if (!rhy.inCombat) return
+    const t          = now()
+    const offhandSec = rhy.effectiveOffhandDelay
+    if (offhandSec <= 0) return
+
+    const ctx  = this.ctx
+    const w    = this.canvas.width
+    const barH = 3
+    const barY = this.highwayY + this.highwayH - barH
+
+    ctx.fillStyle = 'rgba(14,16,30,0.55)'
+    ctx.fillRect(0, barY, w, barH)
+
+    if (this.lastFistAttackTs <= 0) return
+
+    const elapsed  = (t - this.lastFistAttackTs) / 1000
+    const fraction = Math.max(0, 1 - elapsed / offhandSec)
+    if (fraction <= 0) return
+
+    const barW = Math.max(1, Math.trunc(w * fraction))
+    let color: string
+    if (fraction > 0.5) {
+      color = 'rgba(40,110,190,0.60)'
+    } else if (fraction > 0.15) {
+      color = 'rgba(60,175,240,0.75)'
+    } else {
+      color = 'rgba(100,235,255,0.90)'
+    }
+
+    ctx.fillStyle = color
+    ctx.fillRect(0, barY, barW, barH)
   }
 
   private drawHighway(): void {
@@ -607,6 +658,206 @@ export class RefinedOverlay {
     ctx.fillStyle = PAL.textDim
     ctx.fillText('WEAVED DPS', w - 10 - wvw - 6, fy)
     ctx.textAlign = 'left'
+  }
+
+  private drawDynamicWeaveWindows(): void {
+    if (!this.rhythm.inCombat || !this.rhythm.swingTimerValid) return
+    const ctx = this.ctx
+    const t = now()
+    const intervalMs = this.cfg.PUNCH_INTERVAL * 1000
+    const offhandMs  = this.rhythm.effectiveOffhandDelay * 1000
+    const weaveMs    = Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
+
+    const nextSwing = this.rhythm.roundOpen
+      ? this.rhythm.lastCrushTime + intervalMs
+      : this.rhythm.nextSwingTime
+
+    let firstSwing = nextSwing
+    while (firstSwing - intervalMs > t - intervalMs) firstSwing -= intervalMs
+
+    const offhandReadyTs = this.lastFistAttackTs > 0
+      ? this.lastFistAttackTs + offhandMs
+      : 0
+    const nextReady  = offhandReadyTs > 0 ? offhandReadyTs : t - 1
+    const orderSet   = this.lastFistAttackTs > 0
+
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const w = this.canvas.width
+    const hy = this.highwayY, hh = this.highwayH
+    ctx.save()
+    ctx.beginPath()
+    if (!vert) ctx.rect(5, hy, w - 10, hh)
+    else        ctx.rect(0, hy + 1, w, hh - 2)
+    ctx.clip()
+
+    // Static mode: draw green windows for all visible swings, no red zones
+    if (!this.cfg.DYNAMIC_WEAVING) {
+      for (let k = 0; k < 30; k++) {
+        const swingTime = firstSwing + k * intervalMs
+        const safeEnd   = swingTime + weaveMs
+        const [sx, sy]  = this.projectAt(swingTime, t)
+        if (!vert) {
+          if (sx > w) break
+          if (sx < -10) continue
+          ctx.fillStyle = `${PAL.swingBar}0.75)`
+          ctx.fillRect(sx - 1.5, hy - 4, 4, hh + 8)
+          const [sfx] = this.projectAt(safeEnd, t)
+          if (sfx > sx) {
+            const gw = Math.max(3, sfx - sx)
+            ctx.fillStyle   = `${PAL.weaveFill}0.85)`
+            ctx.fillRect(sx, hy + 10, gw, hh - 20)
+            ctx.strokeStyle = `${PAL.weaveStroke}1.0)`
+            ctx.lineWidth = 1.25
+            ctx.strokeRect(sx + 0.5, hy + 10.5, gw - 1, hh - 21)
+          }
+        } else {
+          if (sy < hy - 30) break
+          if (sy > hy + hh + 20) continue
+          ctx.fillStyle = `${PAL.swingBar}0.75)`
+          ctx.fillRect(6 - 4, sy - 1.5, w - 12 + 8, 4)
+          const [, sfy] = this.projectAt(safeEnd, t)
+          if (sfy < sy) {
+            const gh = Math.max(3, sy - sfy)
+            ctx.fillStyle   = `${PAL.weaveFill}0.85)`
+            ctx.fillRect(6, sfy, w - 12, gh)
+            ctx.strokeStyle = `${PAL.weaveStroke}1.0)`
+            ctx.lineWidth = 1.25
+            ctx.strokeRect(6.5, sfy + 0.5, w - 13, gh - 1)
+          }
+        }
+      }
+      ctx.restore()
+      return
+    }
+
+    // Orange markers: draw every visible swing so they fill the track.
+    // Weave windows: draw the next eligible window + anticipated 2nd-round window.
+    let windowsDrawn = 0
+    let projectedNextReady = nextReady  // projected offhand ready time for window lookahead
+
+    for (let k = 0; k < 30; k++) {
+      const swingTime = firstSwing + k * intervalMs
+      const safeEnd   = swingTime + weaveMs    // deadline to punch and stay ready for next swing
+      const windowEnd = swingTime + intervalMs  // full window extent = next mainhand swing
+      const winStart  = Math.max(swingTime, projectedNextReady)
+
+      const [sx, sy] = this.projectAt(swingTime, t)
+
+      if (!vert) {
+        if (sx > w + 30) break
+        if (sx < this.hzX - w) continue
+
+        ctx.fillStyle = `${PAL.swingBar}0.75)`
+        ctx.fillRect(sx - 1.5, hy - 4, 4, hh + 8)
+
+        if (windowsDrawn < 2 && winStart < windowEnd) {
+          const isAnticipated = windowsDrawn === 1
+          if (isAnticipated) ctx.globalAlpha = 0.45
+
+          const [wx  ] = this.projectAt(winStart,  t)
+          const [sfx ] = this.projectAt(safeEnd,   t)
+          const [wndx] = this.projectAt(windowEnd, t)
+          const hasWait = projectedNextReady > swingTime
+
+          // Wait zone
+          if (hasWait) {
+            const waitW = Math.max(0, wx - sx)
+            if (waitW > 0) {
+              ctx.fillStyle = 'rgba(100,120,180,0.22)'
+              ctx.fillRect(sx, hy + 10, waitW, hh - 20)
+            }
+          }
+
+          // Green safe zone (winStart → safeEnd)
+          if (winStart < safeEnd) {
+            const greenW = Math.max(3, sfx - wx)
+            ctx.fillStyle   = `${PAL.weaveFill}0.85)`
+            ctx.fillRect(wx, hy + 10, greenW, hh - 20)
+            ctx.strokeStyle = `${PAL.weaveStroke}1.0)`
+            ctx.lineWidth = 1.25
+            ctx.strokeRect(wx + 0.5, hy + 10.5, greenW - 1, hh - 21)
+          }
+
+          // Discouraged zone (safeEnd → windowEnd)
+          if (orderSet) {
+            const discW = Math.max(2, wndx - sfx)
+            ctx.fillStyle   = 'rgba(140,30,20,0.22)'
+            ctx.fillRect(sfx, hy + 10, discW, hh - 20)
+            ctx.strokeStyle = 'rgba(200,50,30,0.45)'
+            ctx.lineWidth = 1.25
+            ctx.strokeRect(sfx + 0.5, hy + 10.5, discW - 1, hh - 21)
+          }
+
+          // Cyan ready-line
+          if (hasWait && wx > sx && wx < sfx) {
+            ctx.strokeStyle = 'rgba(80,210,255,0.90)'
+            ctx.lineWidth = 1.5
+            ctx.beginPath(); ctx.moveTo(wx, hy + 6); ctx.lineTo(wx, hy + hh - 6); ctx.stroke()
+          }
+
+          if (isAnticipated) ctx.globalAlpha = 1.0
+          if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
+          windowsDrawn++
+        }
+      } else {
+        if (sy < hy - 30) break
+        if (sy > hy + hh + 20) continue
+
+        ctx.fillStyle = `${PAL.swingBar}0.75)`
+        ctx.fillRect(6 - 4, sy - 1.5, w - 12 + 8, 4)
+
+        if (windowsDrawn < 2 && winStart < windowEnd) {
+          const isAnticipated = windowsDrawn === 1
+          if (isAnticipated) ctx.globalAlpha = 0.45
+
+          const [, wy  ] = this.projectAt(winStart,  t)
+          const [, sfy ] = this.projectAt(safeEnd,   t)
+          const [, wndy] = this.projectAt(windowEnd, t)
+          const hasWait = projectedNextReady > swingTime
+
+          // Wait zone
+          if (hasWait) {
+            const waitH = Math.max(0, sy - wy)
+            if (waitH > 0) {
+              ctx.fillStyle = 'rgba(100,120,180,0.22)'
+              ctx.fillRect(6, wy, w - 12, waitH)
+            }
+          }
+
+          // Green safe zone (winStart → safeEnd)
+          if (winStart < safeEnd) {
+            const greenH = Math.max(3, wy - sfy)
+            ctx.fillStyle   = `${PAL.weaveFill}0.85)`
+            ctx.fillRect(6, sfy, w - 12, greenH)
+            ctx.strokeStyle = `${PAL.weaveStroke}1.0)`
+            ctx.lineWidth = 1.25
+            ctx.strokeRect(6.5, sfy + 0.5, w - 13, greenH - 1)
+          }
+
+          // Discouraged zone (safeEnd → windowEnd)
+          if (orderSet) {
+            const discH = Math.max(2, sfy - wndy)
+            ctx.fillStyle   = 'rgba(140,30,20,0.22)'
+            ctx.fillRect(6, wndy, w - 12, discH)
+            ctx.strokeStyle = 'rgba(200,50,30,0.45)'
+            ctx.lineWidth = 1.25
+            ctx.strokeRect(6.5, wndy + 0.5, w - 13, discH - 1)
+          }
+
+          // Cyan ready-line
+          if (hasWait && wy < sy && wy > sfy) {
+            ctx.strokeStyle = 'rgba(80,210,255,0.90)'
+            ctx.lineWidth = 1.5
+            ctx.beginPath(); ctx.moveTo(6, wy); ctx.lineTo(w - 6, wy); ctx.stroke()
+          }
+
+          if (isAnticipated) ctx.globalAlpha = 1.0
+          if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
+          windowsDrawn++
+        }
+      }
+    }
+    ctx.restore()
   }
 
   private drawWeaveWindows(): void {

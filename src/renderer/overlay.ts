@@ -172,6 +172,7 @@ export class Overlay {
   pinned = true
   private oorLastSoundTs = 0
   private lastFistHitTs  = 0
+  private lastFistAttackTs = 0
   private static readonly HC_COLORS = {
     C_BG:     '#000000',
     C_HEADER: '#000000',
@@ -277,6 +278,7 @@ export class Overlay {
         const isClip  = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
         this.lastCombatActivity = ts
         this.consecutiveCrushesWithoutFist = 0
+        this.lastFistAttackTs = fistNow
         if (this.audioMutedRapidAttack) {
           this.clearRapidAttackMute()
         }
@@ -457,9 +459,18 @@ export class Overlay {
     this.cfg.FIST_SOUND_ON_MISS = !this.cfg.FIST_SOUND_ON_MISS
   }
 
+  toggleDynamicWeaving(): void {
+    this.cfg.DYNAMIC_WEAVING = !this.cfg.DYNAMIC_WEAVING
+  }
+
+  toggleOffhandTimer(): void {
+    this.cfg.SHOW_OFFHAND_TIMER = !this.cfg.SHOW_OFFHAND_TIMER
+  }
+
   /** Dynamic Weave Windows — update offhand delay and immediately recalculate
    *  the safe weave window width (visual + scoring) using the post-haste value. */
   applyDynamicWeaveWindow(delayTenths: number, name = ''): void {
+    if (!this.cfg.DYNAMIC_WEAVING) return
     this.cfg.OFFHAND_WEAPON_DELAY = delayTenths
     this.cfg.OFFHAND_WEAPON_NAME  = name
     const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
@@ -470,13 +481,18 @@ export class Overlay {
     this.fightHistory.unshift(result)   // newest first
     if (this.fightHistory.length > 5) this.fightHistory.length = 5
     // Send formatted history to main process for the tray submenu.
-    const lines = this.fightHistory.map(r => {
+    const entries = this.fightHistory.map(r => {
       const mob    = r.mobName || 'Unknown'
       const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
-      const react  = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-      return `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${react}  [${mob}]`
+      const reactShort = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      const reactFull  = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
+      const label = `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${reactShort}  [${mob}]`
+      const full  = `Basketweaver: ${r.grade} ${weaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''} | ` +
+        `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
+        `Added DPS: ${r.addedDps.toFixed(0)}${reactFull}`
+      return { label, full }
     })
-    window.electronAPI?.sendFightHistory(lines)
+    window.electronAPI?.sendFightHistory(entries)
   }
 
   toggleHighContrast(): void {
@@ -587,8 +603,13 @@ export class Overlay {
     this.rhythm.update(t)
     const newMisses = this.rhythm.missCount - prevMisses
     if (this.rhythm.calibrationEvent) {
-      const iv = this.rhythm.calibrationEvent.interval
-      this.showBanner(`Auto-calibrated: ${iv.toFixed(2)}s`, this.cfg.C_GOOD, 3000)
+      const iv           = this.rhythm.calibrationEvent.interval
+      const derivedHaste = Math.max(0, (this.cfg.BASE_WEAPON_DELAY / 10 / iv - 1) * 100)
+      this.cfg.HASTE_PCT      = derivedHaste
+      this.cfg.PUNCH_INTERVAL = iv
+      const fistDelay         = this.rhythm.effectiveOffhandDelay
+      this.cfg.GOOD_WINDOW    = Math.max(0.1, iv - fistDelay) / 2
+      this.showBanner(`Auto-calibrated: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% haste)`, this.cfg.C_GOOD, 3000)
       this.rhythm.calibrationEvent = null
     }
 
@@ -651,10 +672,11 @@ export class Overlay {
     this.drawHighway()
     this.drawResyncingNotice()
 
-    this.drawWindowBar()
+    this.drawDynamicWeaveWindows()
     this.drawNotes()
     this.drawHitZone()
     this.drawEffects()
+    this.drawOffhandSwingTimer()
 
     this.drawHeader()
     this.drawFooter()
@@ -1035,6 +1057,181 @@ export class Overlay {
     }
   }
 
+  // ── Dynamic weave windows ────────────────────────────────────
+
+  private drawDynamicWeaveWindows(): void {
+    if (!this.cfg.DYNAMIC_WEAVING) { this.drawWindowBar(); return }
+
+    const ctx  = this.ctx2d
+    const cfg  = this.cfg
+    const rhy  = this.rhythm
+    const t    = now()
+    const vert = cfg.ORIENTATION === 'vertical'
+    const w    = this.canvas.width
+    const h    = this.canvas.height
+    const hy   = this.highwayY
+    const hh   = this.highwayH
+
+    if (!rhy.inCombat || !rhy.swingTimerValid) return
+
+    const intervalMs = cfg.PUNCH_INTERVAL * 1000
+    const offhandMs  = rhy.effectiveOffhandDelay * 1000
+    const weaveMs    = Math.max(50, (cfg.PUNCH_INTERVAL - rhy.effectiveOffhandDelay) * 1000)
+
+    const nextSwing = rhy.roundOpen
+      ? rhy.lastCrushTime + intervalMs
+      : rhy.nextSwingTime
+
+    const offhandReadyTs = this.lastFistAttackTs > 0
+      ? this.lastFistAttackTs + offhandMs
+      : 0
+    const nextReady = offhandReadyTs > 0 ? offhandReadyTs : t - 1
+
+    const orderSet = this.lastFistAttackTs > 0
+
+    const hc = this.highContrast
+    const GREEN_FILL  = hc ? 'rgba(0,210,0,0.88)'     : 'rgba(25,90,50,0.50)'
+    const GREEN_STRK  = hc ? 'rgba(0,255,0,1.0)'      : 'rgba(60,200,90,0.70)'
+    const WAIT_FILL   = hc ? 'rgba(100,120,200,0.25)'  : 'rgba(80,90,160,0.18)'
+    const DISC_FILL   = hc ? 'rgba(160,30,20,0.30)'    : 'rgba(120,30,20,0.22)'
+    const DISC_STRK   = hc ? 'rgba(220,60,40,0.55)'    : 'rgba(180,50,30,0.38)'
+    const CYAN_COL    = hc ? 'rgba(80,210,255,0.95)'   : 'rgba(80,210,255,0.80)'
+    const strokeW     = hc ? 2 : 1
+
+    // Layout constants
+    const barW = vert ? Math.max(6, w - 8) : 0
+    const barX = vert ? (w - barW) / 2 : 0
+    const barH = vert ? 0 : Math.max(6, hh - 8)
+    const barY = vert ? 0 : hy + (hh - barH) / 2
+
+    // Orange markers: draw every visible swing so they fill the track.
+    // Weave windows: draw the next eligible window + anticipated 2nd-round window.
+    let windowsDrawn = 0
+    let projectedNextReady = nextReady  // projected offhand ready time for window lookahead
+
+    for (let k = 0; k < 30; k++) {
+      const swingTime = nextSwing + (k - 1) * intervalMs
+      // safeEnd  = deadline to punch and still be ready for the *next* mainhand swing
+      // windowEnd = next mainhand swing = full window extent
+      const safeEnd   = swingTime + weaveMs
+      const windowEnd = swingTime + intervalMs
+      const winStart  = Math.max(swingTime, projectedNextReady)
+
+      const [swingX, swingY] = this.noteScreenPos(swingTime, t)
+
+      if (vert) {
+        if (swingY < hy) break
+        if (swingY > h + 10) continue
+
+        ctx.fillStyle = 'rgba(255,140,20,0.75)'
+        ctx.fillRect(barX - 2, swingY - 1, barW + 4, 3)
+
+        if (windowsDrawn < 2 && winStart < windowEnd) {
+          const isAnticipated = windowsDrawn === 1
+          if (isAnticipated) ctx.globalAlpha = 0.45
+
+          const [, winY ] = this.noteScreenPos(winStart,  t)
+          const [, safeY] = this.noteScreenPos(safeEnd,   t)
+          const [, wndY ] = this.noteScreenPos(windowEnd, t)
+          const hasWait   = projectedNextReady > swingTime
+
+          // Wait zone (offhand still on cooldown after swing)
+          if (hasWait) {
+            const waitH = Math.max(0, swingY - winY)
+            if (waitH > 0) {
+              ctx.fillStyle = WAIT_FILL
+              ctx.fillRect(barX, winY, barW, waitH)
+            }
+          }
+
+          // Green safe zone (winStart → safeEnd)
+          if (winStart < safeEnd) {
+            const greenH = Math.max(4, winY - safeY)
+            ctx.fillStyle = GREEN_FILL
+            ctx.beginPath(); ctx.roundRect(barX, safeY, barW, greenH, 3); ctx.fill()
+            ctx.strokeStyle = GREEN_STRK; ctx.lineWidth = strokeW
+            ctx.beginPath(); ctx.roundRect(barX, safeY, barW, greenH, 3); ctx.stroke()
+          }
+
+          // Discouraged zone (safeEnd → windowEnd) — only when a rhythm is established
+          if (orderSet) {
+            const discH = Math.max(2, safeY - wndY)
+            ctx.fillStyle = DISC_FILL
+            ctx.beginPath(); ctx.roundRect(barX, wndY, barW, discH, 3); ctx.fill()
+            ctx.strokeStyle = DISC_STRK; ctx.lineWidth = strokeW
+            ctx.beginPath(); ctx.roundRect(barX, wndY, barW, discH, 3); ctx.stroke()
+          }
+
+          // Cyan ready-line when offhand opens mid-window
+          if (hasWait && winY > safeY && winY < swingY) {
+            ctx.strokeStyle = CYAN_COL; ctx.lineWidth = 1.5
+            ctx.beginPath(); ctx.moveTo(barX - 4, winY); ctx.lineTo(barX + barW + 4, winY); ctx.stroke()
+          }
+
+          if (isAnticipated) ctx.globalAlpha = 1.0
+          // Project from earliest punch in the green zone; if there's no green zone
+          // (offhand already on cooldown past the safe deadline), keep projectedNextReady
+          // at the actual offhand ready time so the next window calculates correctly.
+          if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
+          windowsDrawn++
+        }
+      } else {
+        if (swingX > w) break
+        if (swingX < -10) continue
+
+        ctx.fillStyle = 'rgba(255,140,20,0.75)'
+        ctx.fillRect(swingX - 1, barY - 2, 3, barH + 4)
+
+        if (windowsDrawn < 2 && winStart < windowEnd) {
+          const isAnticipated = windowsDrawn === 1
+          if (isAnticipated) ctx.globalAlpha = 0.45
+
+          const [winX ] = this.noteScreenPos(winStart,  t)
+          const [safeX] = this.noteScreenPos(safeEnd,   t)
+          const [wndX ] = this.noteScreenPos(windowEnd, t)
+          const hasWait = projectedNextReady > swingTime
+
+          // Wait zone
+          if (hasWait) {
+            const waitW = Math.max(0, winX - swingX)
+            if (waitW > 0) {
+              ctx.fillStyle = WAIT_FILL
+              ctx.fillRect(swingX, barY, waitW, barH)
+            }
+          }
+
+          // Green safe zone (winStart → safeEnd)
+          if (winStart < safeEnd) {
+            const greenW = Math.max(4, safeX - winX)
+            ctx.fillStyle = GREEN_FILL
+            ctx.beginPath(); ctx.roundRect(winX, barY, greenW, barH, 3); ctx.fill()
+            ctx.strokeStyle = GREEN_STRK; ctx.lineWidth = strokeW
+            ctx.beginPath(); ctx.roundRect(winX, barY, greenW, barH, 3); ctx.stroke()
+          }
+
+          // Discouraged zone (safeEnd → windowEnd)
+          if (orderSet) {
+            const discW = Math.max(2, wndX - safeX)
+            ctx.fillStyle = DISC_FILL
+            ctx.beginPath(); ctx.roundRect(safeX, barY, discW, barH, 3); ctx.fill()
+            ctx.strokeStyle = DISC_STRK; ctx.lineWidth = strokeW
+            ctx.beginPath(); ctx.roundRect(safeX, barY, discW, barH, 3); ctx.stroke()
+          }
+
+          // Cyan ready-line
+          if (hasWait && winX > swingX && winX < safeX) {
+            ctx.strokeStyle = CYAN_COL; ctx.lineWidth = 1.5
+            ctx.beginPath(); ctx.moveTo(winX, barY - 4); ctx.lineTo(winX, barY + barH + 4); ctx.stroke()
+          }
+
+          if (isAnticipated) ctx.globalAlpha = 1.0
+          if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
+          windowsDrawn++
+        }
+      }
+    }
+  }
+
   // ── Effects ───────────────────────────────────────────────────
 
   private drawEffects(): void {
@@ -1397,6 +1594,44 @@ export class Overlay {
       const tw = ctx.measureText(`${rem.toFixed(1)}s`).width
       ctx.fillText(`${rem.toFixed(1)}s`, barX + barW - tw - 2, barY + barH / 2 + cfg.FONT_SM / 2)
     }
+  }
+
+  // ── Offhand swing timer strip ─────────────────────────────────
+
+  private drawOffhandSwingTimer(): void {
+    if (!this.cfg.SHOW_OFFHAND_TIMER) return
+    const rhy = this.rhythm
+    if (!rhy.inCombat) return
+    const t          = now()
+    const offhandSec = rhy.effectiveOffhandDelay
+    if (offhandSec <= 0) return
+
+    const ctx  = this.ctx2d
+    const w    = this.canvas.width
+    const barH = 3
+    const barY = this.highwayY + this.highwayH - barH
+
+    ctx.fillStyle = 'rgba(14,16,30,0.55)'
+    ctx.fillRect(0, barY, w, barH)
+
+    if (this.lastFistAttackTs <= 0) return
+
+    const elapsed  = (t - this.lastFistAttackTs) / 1000
+    const fraction = Math.max(0, 1 - elapsed / offhandSec)
+    if (fraction <= 0) return
+
+    const barW = Math.max(1, Math.trunc(w * fraction))
+    let color: string
+    if (fraction > 0.5) {
+      color = 'rgba(40,110,190,0.60)'
+    } else if (fraction > 0.15) {
+      color = 'rgba(60,175,240,0.75)'
+    } else {
+      color = 'rgba(100,235,255,0.90)'
+    }
+
+    ctx.fillStyle = color
+    ctx.fillRect(0, barY, barW, barH)
   }
 
   // ── Header ────────────────────────────────────────────────────

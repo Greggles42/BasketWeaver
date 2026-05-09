@@ -26,6 +26,8 @@ in how data reaches Basketweaver.
 
 ---
 
+---
+
 ## 1. How It Works
 
 ### The Weaving Technique
@@ -145,8 +147,7 @@ Example: 2.0 s staff at 60% haste → `2.0 / 1.60 = 1.25 s` interval.
 **Offhand / fist weapon delay**
 The delay of your secondary (fist) weapon, also haste-adjusted. This determines
 how long the fist timer needs to count down before firing. A shorter fist delay
-means a narrower safe weave window. Set via tray → **Offhand Delay** or
-set via tray → **Offhand Delay**.
+means a narrower safe weave window. Set via tray → **Offhand Delay**.
 
 **Weave window**
 The safe period between mainhand swings during which the fist weapon can fire
@@ -344,6 +345,7 @@ The default style is **Refined**; two alternate styles are available via tray �
 │  ↑                    ← windows travel ← ↑                     │
 │ Hit Zone                              Orange Bar                │
 │ (gold bar)                         (mainhand swing)             │
+│━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                             │ ← Offhand timer
 ├─────────────────────────────────────────────────────────────────┤
 │  WEAVES 12  ·  NET DPS 245  ·  WEAVED DPS +148                 │ ← Footer
 └─────────────────────────────────────────────────────────────────┘
@@ -355,15 +357,28 @@ The default style is **Refined**; two alternate styles are available via tray �
 This is your timing target. Weave actions are judged here.
 
 **[===GREEN BOX===]** (green rectangle)
-The safe weave window. This is the time between your mainhand swings
-during which it is safe to initiate a fist weave. Width =
-`mainhand interval − fist weapon delay`. Swap weapons while this
-box is at the hit zone.
+The safe weave window. When **Dynamic Weaving** is enabled (default),
+the window is divided into zones:
+- **Blue wait zone** — the offhand weapon is still on cooldown from
+  your last weave; weaving now would queue too early.
+- **Green safe zone** — offhand weapon is ready and you still have
+  time to swing before the next mainhand fires. **Swap here.**
+- **Red discouraged zone** — you can still get the swing off but you
+  are cutting it close; missing the green zone is not ideal.
+
+When Dynamic Weaving is disabled the window reverts to a single solid
+bar (legacy behaviour).
 
 **│ Orange Bar** (thin vertical line at left edge of green box)
 Marks the exact moment your mainhand will swing next. When the orange bar
 reaches the hit zone, your mainhand fires. Do **not** initiate a weave
 after this point — you won't have time before the next swing.
+
+**━━━ Offhand Swing Timer** (thin bar at the bottom of the highway)
+A progress bar that shows how long until your offhand weapon is ready to
+fire again. It shrinks from full width toward zero as the cooldown counts
+down. Colour shifts from **blue → cyan → bright cyan** as the weapon
+approaches ready. Toggleable via tray → **Offhand Swing Timer**.
 
 **CURSOR! warning**
 If you try to swap weapons while holding an item on your cursor, EQ will
@@ -452,12 +467,12 @@ your performance for that fight:
 
 Press **Space** to dismiss.
 
-### Fight History (Standard style only)
+### Fight History
 
-When using the **Standard** overlay style, fight results are tracked and
-sent to the tray. Open tray → **Recent Fights** to view the last 5 results.
-Click any entry to copy it to the clipboard — useful for sharing parse
-results in Discord or guild chat.
+Fight results are tracked across all overlay styles and sent to the tray.
+Open tray → **Recent Fights** to view the last 5 results. The menu entry
+shows a compact summary; clicking it copies a full detailed line to the
+clipboard — useful for sharing parse results in Discord or guild chat.
 
 ---
 
@@ -531,27 +546,29 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 | **Status** | Shows IN COMBAT or IDLE (read-only) |
 | **Select Log File…** | Choose a different EQ log file |
 | **Reset Track** | Hard reset — clears all state if overlay gets out of sync |
-| **Recent Fights** | Last 5 fight results; click any entry to copy it to clipboard |
-| **Target Position** | Move the hit zone left or right on the highway |
+| **Recent Fights** | Last 5 fight results; click any entry to copy full stats to clipboard |
 | **Reset Window Position** | Snap overlay to a safe central position on the primary monitor |
+| **Tracking Source** | Switch between **Log File** (default), **Zeal Pipe**, or **Hybrid** event tracking |
+| **Overlay Style** | Choose Refined (default), Standard, or High Contrast |
 | **Mainhand Delay** | Select your mainhand weapon from the preset list |
 | **Offhand Delay** | Set your fist weapon delay manually |
 | **Interval** | Override the post-haste swing interval |
+| **Target Position** | Move the hit zone left or right on the highway |
 | **Target Offset** | Fine-tune hit zone timing (ms) |
 | **Latency Comp.** | Compensate for network/input delay (ms) |
 | **Clip Window** | How long after a weave to suppress duplicate detections |
+| **Opacity** | Overlay transparency (50% / 70% / 85% / 100%) |
 | **Audio** | Toggle all sounds on / off |
 | **Orientation** | Switch between horizontal and vertical highway layouts |
-| **Overlay Style** | Choose Refined (default), Standard, or High Contrast |
-| **Lane Lines** | Show or hide the outer lane dividers on the highway |
-| **Fist Sound on Miss** | Play a whiff sound when a round's swings all miss |
+| **Fist Sound on Miss** | Play a whiff sound when a fist weave misses (enabled by default) |
+| **Dynamic Weaving** | Show color-coded weave window zones (green/blue/red) based on offhand cooldown |
+| **Offhand Swing Timer** | Show a thin bar at the bottom of the highway indicating offhand weapon readiness |
 | **Keystroke Grading** | Grade weaves by keystrokes rather than log-detected fist attacks |
-| **Opacity** | Overlay transparency (50% / 70% / 85% / 100%) |
-| **Tracking Source** | Switch between **Log File** (default) and **Zeal Pipe** event tracking |
 | **Quit Basketweaver** | Exit the app |
 
-> **Note:** Changing **Overlay Style** reloads the renderer. Your log
-> file reconnects automatically; other settings are preserved.
+> **Note:** Changing **Overlay Style** reloads the renderer. Your log file
+> reconnects automatically and persisted settings (offhand delay, tracking source,
+> dynamic weaving, offhand timer, window position) are restored.
 
 ---
 
@@ -640,9 +657,9 @@ unloaded, it will stop sending pipe data. Reload Zeal in-game and
 Basketweaver will reconnect within 2 seconds.
 
 **Recent Fights submenu always shows "No fights recorded yet"**
-Fight history tracking is only active when using the **Standard** overlay
-style. Switch to Standard via tray → **Overlay Style** if you need the
-fight history submenu populated.
+Fight history is recorded after each combat engagement ends (mob death or player
+death). If it is empty, no fights have completed since the app launched. History
+is not persisted between sessions.
 
 ---
 

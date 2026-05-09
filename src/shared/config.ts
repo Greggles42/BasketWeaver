@@ -93,6 +93,8 @@ export const Config = {
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
   LANE_LINES: false,
+  DYNAMIC_WEAVING: true,
+  SHOW_OFFHAND_TIMER: true,
   OVERLAY_STYLE: 'refined' as 'refined' | 'standard' | 'highcontrast',
   TRACKING_SOURCE: 'log' as 'log' | 'zeal' | 'hybrid',
 

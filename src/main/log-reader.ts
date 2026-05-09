@@ -19,6 +19,11 @@ import { parseHaste, calcInterval } from './haste-calc'
 const PREFIX_RE = /^\[.+?\]\s*/
 const DAMAGE_RE = /for\s+(\d+)\s+point/i
 
+// /mystats lines that describe the offhand/secondary weapon slot.
+// Matched lines are skipped during weapon and haste detection so only
+// the mainhand weapon delay and the character haste value are extracted.
+const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
+
 function stripPrefix(line: string): string {
   const m = PREFIX_RE.exec(line)
   return m ? line.slice(m[0].length) : line
@@ -260,6 +265,10 @@ export class LogReader {
       this.ensureCombat(now)
       return
     }
+
+    // Offhand/secondary slot lines from /mystats — skip weapon and haste detection
+    // so only the mainhand weapon delay and the character haste value are extracted.
+    if (OFFHAND_LINE_RE.test(content)) return
 
     // ── Weapon preset detection ─────────────────────────────
     for (const { re, name, delay } of this.weaponRe) {

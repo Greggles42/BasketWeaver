@@ -16,12 +16,11 @@ const OPACITIES: Array<[string, number]> = [
   ['50%',  0.50], ['70%',  0.70], ['85%',  0.85], ['100%', 1.00],
 ]
 
-let fistMissSoundEnabled   = false
-let laneLines              = false
+let fistMissSoundEnabled    = Config.FIST_SOUND_ON_MISS
 let keystrokeGradingEnabled = false
-let recentFights: string[] = []
+let recentFights: { label: string, full: string }[] = []
 
-export function updateFightHistory(fights: string[]): void {
+export function updateFightHistory(fights: { label: string, full: string }[]): void {
   recentFights = fights
 }
 
@@ -153,9 +152,9 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         label: 'Recent Fights',
         submenu: recentFights.length === 0
           ? [{ label: 'No fights recorded yet', enabled: false }]
-          : recentFights.map(line => ({
-              label: line,
-              click: () => clipboard.writeText(line),
+          : recentFights.map(({ label, full }) => ({
+              label,
+              click: () => clipboard.writeText(full),
             })),
       },
       { type: 'separator' },
@@ -211,21 +210,30 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         click:   () => win.webContents.send(IPC.TOGGLE_ORIENTATION),
       },
       {
-        label:   'Lane Lines',
-        type:    'checkbox',
-        checked: laneLines,
-        click:   () => {
-          laneLines = !laneLines
-          win.webContents.send(IPC.TOGGLE_LANE_LINES)
-        },
-      },
-      {
         label:   'Fist Sound on Miss',
         type:    'checkbox',
         checked: fistMissSoundEnabled,
         click:   () => {
           fistMissSoundEnabled = !fistMissSoundEnabled
           win.webContents.send(IPC.TOGGLE_FIST_MISS_SOUND)
+        },
+      },
+      {
+        label:   'Dynamic Weaving',
+        type:    'checkbox',
+        checked: cfg.DYNAMIC_WEAVING,
+        click:   () => {
+          cfg.DYNAMIC_WEAVING = !cfg.DYNAMIC_WEAVING
+          win.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
+        },
+      },
+      {
+        label:   'Offhand Swing Timer',
+        type:    'checkbox',
+        checked: cfg.SHOW_OFFHAND_TIMER,
+        click:   () => {
+          cfg.SHOW_OFFHAND_TIMER = !cfg.SHOW_OFFHAND_TIMER
+          win.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
         },
       },
       {

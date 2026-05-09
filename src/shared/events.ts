@@ -40,9 +40,11 @@ export const IPC = {
   WINDOW_DRAG_START: 'window-drag-start',  // renderer → main
   SAVE_SETTINGS:     'save-settings',      // renderer → main: persist config to disk
   RESET_TRACK:            'reset-track',             // tray → renderer: hard reset engine state
-  TOGGLE_FIST_MISS_SOUND: 'toggle-fist-miss-sound',  // tray → renderer
+  TOGGLE_FIST_MISS_SOUND:   'toggle-fist-miss-sound',   // tray → renderer
+  TOGGLE_DYNAMIC_WEAVING:   'toggle-dynamic-weaving',   // tray → renderer
+  TOGGLE_OFFHAND_TIMER:     'toggle-offhand-timer',      // tray → renderer
   TOGGLE_LANE_LINES:      'toggle-lane-lines',        // tray → renderer
-  FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: string[]
+  FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: { label: string, full: string }[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }
   CAPTURE_MOUSE:          'capture-mouse',             // renderer → main: stop ignoring mouse events

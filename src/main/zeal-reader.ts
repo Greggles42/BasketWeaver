@@ -57,6 +57,10 @@ const ZEAL_HIT_RE = /^(flying kick|crush|punch|strike|kick|bash|slash|pierce|hit
 // "missed TARGET" — Zeal's miss format for YouMissOther
 const ZEAL_MISS_RE = /^missed\s+(.+)/i
 
+// /mystats (LOG.Skills) lines that describe the offhand/secondary weapon slot.
+// Matched lines are skipped so only mainhand weapon + haste are extracted.
+const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
+
 function parseDamageShort(text: string): number {
   const m = /for\s+(\d+)/i.exec(text)
   return m ? parseInt(m[1], 10) : 0
@@ -323,6 +327,13 @@ export class ZealReader {
       // ── Too far away ───────────────────────────────────────────
       case LOG.TooFarAwayMelee:
         this.emit({ type: EvType.OUT_OF_RANGE, ts: now, data: { line: text } })
+        return
+
+      // ── /mystats output — extract mainhand weapon + haste only ──
+      //    Offhand/secondary slot lines are ignored so they cannot
+      //    corrupt BASE_WEAPON_DELAY or trigger false haste events.
+      case LOG.Skills:
+        if (!OFFHAND_LINE_RE.test(text)) this.processTextPatterns(text, now)
         return
 
       // ── Diagnostic: log item/loot/merchant events to see if Bandolier

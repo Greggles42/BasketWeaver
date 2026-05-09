@@ -29,13 +29,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleFistMissSound: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_FIST_MISS_SOUND, () => cb()),
 
+  onToggleDynamicWeaving: (cb: () => void) =>
+    ipcRenderer.on(IPC.TOGGLE_DYNAMIC_WEAVING, () => cb()),
+
+  onToggleOffhandTimer: (cb: () => void) =>
+    ipcRenderer.on(IPC.TOGGLE_OFFHAND_TIMER, () => cb()),
+
   onToggleLaneLines: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_LANE_LINES, () => cb()),
 
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 
-  sendFightHistory: (fights: string[]) =>
+  sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
 
   // ── Renderer → main ─────────────────────────────────────
