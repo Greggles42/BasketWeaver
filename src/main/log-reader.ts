@@ -64,6 +64,10 @@ export class LogReader {
   private startRe:      RegExp[]
   private endRe:        RegExp[]
   private weaponRe:     Array<{ re: RegExp; name: string; delay: number }>
+  private avatarGainedRe: RegExp[]
+  private avatarLostRe:   RegExp[]
+  private savageryGainedRe: RegExp[]
+  private savageryLostRe:   RegExp[]
   private missOnly:     boolean
 
   constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean } = {}) {
@@ -86,6 +90,11 @@ export class LogReader {
     this.cursorBlockedRe  = compile(cfg.CURSOR_BLOCKED_PATTERNS)
     this.startRe     = compile(cfg.COMBAT_START_PATTERNS)
     this.endRe       = compile(cfg.COMBAT_END_PATTERNS)
+
+    this.avatarGainedRe   = compile(cfg.AVATAR_GAINED_PATTERNS)
+    this.avatarLostRe     = compile(cfg.AVATAR_LOST_PATTERNS)
+    this.savageryGainedRe = compile(cfg.SAVAGERY_GAINED_PATTERNS)
+    this.savageryLostRe   = compile(cfg.SAVAGERY_LOST_PATTERNS)
 
     this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
@@ -149,7 +158,7 @@ export class LogReader {
     const content = stripPrefix(line)
     const now = performance.now()
 
-    // ── missOnly mode: emit crush/fist misses only, ignore everything else ──
+    // ── missOnly mode: emit crush/fist misses and buff changes, ignore everything else ──
     if (this.missOnly) {
       if (this.crushMissRe.some(r => r.test(content))) {
         this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
@@ -157,6 +166,14 @@ export class LogReader {
       } else if (this.fistMissRe.some(r => r.test(content))) {
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
+      } else if (this.avatarGainedRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: true } })
+      } else if (this.avatarLostRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: false } })
+      } else if (this.savageryGainedRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
+      } else if (this.savageryLostRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
       }
       return
     }
@@ -263,6 +280,26 @@ export class LogReader {
     // ── Combat start (being attacked, casting) ──────────────
     if (this.startRe.some(r => r.test(content))) {
       this.ensureCombat(now)
+      return
+    }
+
+    // ── Avatar buff tracking ────────────────────────────────────
+    if (this.avatarGainedRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: true } })
+      return
+    }
+    if (this.avatarLostRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: false } })
+      return
+    }
+
+    // ── Savagery buff tracking ──────────────────────────────────
+    if (this.savageryGainedRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
+      return
+    }
+    if (this.savageryLostRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
       return
     }
 

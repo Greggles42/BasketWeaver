@@ -173,6 +173,24 @@ export const Config = {
   ],
   // Mob-death patterns — trigger grade screen + end-combat sound
   MOB_DEATH_PATTERNS: [] as string[],   // handled in code, not regex
+  // ── Buff tracking patterns ────────────────────────────────────
+  // Avatar (any tier: Avatar / Primal Avatar / Ancient: Ferine Avatar)
+  AVATAR_GAINED_PATTERNS: [
+    'Your body screams with the power of an [Aa]vatar',
+    'Your body screams with the power of a feral [Aa]vatar',
+  ],
+  AVATAR_LOST_PATTERNS: [
+    '^The Avatar departs\\.',
+    '^The ferine Avatar departs\\.',
+  ],
+  // Savagery (Beastlord discipline)
+  SAVAGERY_GAINED_PATTERNS: [
+    'Your lips curl into a feral snarl as you descend into savagery',
+  ],
+  SAVAGERY_LOST_PATTERNS: [
+    '^The savagery fades\\.',
+  ],
+
   // Silent-end patterns — stop combat tracking, no grade/sound
   COMBAT_END_PATTERNS: [
     '\\bYou have been slain\\b',    // you died

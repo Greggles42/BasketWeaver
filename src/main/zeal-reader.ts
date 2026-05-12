@@ -121,14 +121,22 @@ export class ZealReader {
   private weaponRe: Array<{ re: RegExp; name: string; delay: number }>
   private oorRe: RegExp[]
   private cursorBlockedRe: RegExp[]
+  private avatarGainedRe: RegExp[]
+  private avatarLostRe: RegExp[]
+  private savageryGainedRe: RegExp[]
+  private savageryLostRe: RegExp[]
 
   constructor(cfg: ConfigType, onEvent: EventCallback) {
     this.cfg     = cfg
     this.onEvent = onEvent
 
     const compile = (patterns: string[]) => patterns.map(p => new RegExp(p, 'i'))
-    this.oorRe          = compile(cfg.OUT_OF_RANGE_PATTERNS)
+    this.oorRe           = compile(cfg.OUT_OF_RANGE_PATTERNS)
     this.cursorBlockedRe = compile(cfg.CURSOR_BLOCKED_PATTERNS)
+    this.avatarGainedRe  = compile(cfg.AVATAR_GAINED_PATTERNS)
+    this.avatarLostRe    = compile(cfg.AVATAR_LOST_PATTERNS)
+    this.savageryGainedRe = compile(cfg.SAVAGERY_GAINED_PATTERNS)
+    this.savageryLostRe   = compile(cfg.SAVAGERY_LOST_PATTERNS)
     this.weaponRe       = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
       name,
@@ -366,6 +374,26 @@ export class ZealReader {
     // Cursor blocking weapon swap
     if (this.cursorBlockedRe.some(r => r.test(text))) {
       this.emit({ type: EvType.CURSOR_BLOCKED, ts: now, data: { line: text } })
+      return
+    }
+
+    // Avatar buff tracking
+    if (this.avatarGainedRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: true } })
+      return
+    }
+    if (this.avatarLostRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: false } })
+      return
+    }
+
+    // Savagery buff tracking
+    if (this.savageryGainedRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
+      return
+    }
+    if (this.savageryLostRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
       return
     }
 

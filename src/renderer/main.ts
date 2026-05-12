@@ -21,6 +21,8 @@ declare global {
       onToggleFistMissSound:    (cb: () => void) => void
       onToggleDynamicWeaving:   (cb: () => void) => void
       onToggleOffhandTimer:     (cb: () => void) => void
+      onToggleLaneLines:        (cb: () => void) => void
+      onTogglePin:              (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       quit:               () => void
@@ -105,6 +107,14 @@ window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
 window.electronAPI.onToggleDynamicWeaving(() => overlay.toggleDynamicWeaving())
 window.electronAPI.onToggleOffhandTimer(() => overlay.toggleOffhandTimer())
 window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
+window.electronAPI.onTogglePin(() => {
+  overlay.pinned = !overlay.pinned
+  if (overlay.pinned) {
+    window.electronAPI.releaseMouse()
+  } else {
+    window.electronAPI.captureMouse()
+  }
+})
 window.electronAPI.onSetOffhandDelay((delay, name) => {
   ;(overlay as any).applyDynamicWeaveWindow?.(delay, name)
 })
@@ -155,7 +165,7 @@ canvas.addEventListener('mouseenter', () => {
 })
 
 canvas.addEventListener('mouseleave', () => {
-  if (!dragging) window.electronAPI.releaseMouse()
+  if (!dragging && overlay.pinned) window.electronAPI.releaseMouse()
 })
 
 // ── Drag / click ──────────────────────────────────────────────

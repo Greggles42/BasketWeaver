@@ -18,6 +18,7 @@ const OPACITIES: Array<[string, number]> = [
 
 let fistMissSoundEnabled    = Config.FIST_SOUND_ON_MISS
 let keystrokeGradingEnabled = false
+let windowPinned            = true   // mirrors overlay.pinned default
 let recentFights: { label: string, full: string }[] = []
 
 export function updateFightHistory(fights: { label: string, full: string }[]): void {
@@ -31,13 +32,17 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
   tray.setToolTip('Basketweaver')
 
   function rebuild() {
-    tray.popUpContextMenu(buildMenu())
+    try {
+      tray.popUpContextMenu(buildMenu())
+    } catch (err) {
+      console.error('[Basketweaver] Tray menu error:', err)
+    }
   }
 
   function buildMenu(): Menu {
     // Dynamic status (polled from renderer)
     let inCombat = false
-    win.webContents.send(IPC.REQUEST_STATUS)
+    if (!win.isDestroyed()) win.webContents.send(IPC.REQUEST_STATUS)
     ipcMain.once(IPC.STATUS_REPLY, (_e, data: { inCombat: boolean }) => {
       inCombat = data.inCombat
     })
@@ -148,6 +153,15 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       { label: 'Select Log File…',      click: () => onSelectLog() },
       { label: 'Reset Track',           click: () => win.webContents.send(IPC.RESET_TRACK) },
       { label: 'Reset Window Position', click: () => onResetPosition() },
+      {
+        label:   'Freeze Window Position',
+        type:    'checkbox',
+        checked: windowPinned,
+        click:   () => {
+          windowPinned = !windowPinned
+          win.webContents.send(IPC.TOGGLE_PIN)
+        },
+      },
       {
         label: 'Recent Fights',
         submenu: recentFights.length === 0

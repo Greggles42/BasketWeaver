@@ -133,6 +133,8 @@ export class RefinedOverlay {
   private rapidAttackMuteUntil = 0
   private static readonly RAPID_CRUSH_THRESHOLD = 4
   private static readonly RAPID_MUTE_MS = 6000
+  private avatarActive = false
+  private savageryActive = false
 
   pinned = true
   charName = ''
@@ -345,6 +347,13 @@ export class RefinedOverlay {
         }
         break
       }
+      case EvType.BUFF_CHANGED: {
+        const buff   = ev.data?.buff   as string
+        const active = ev.data?.active as boolean
+        if (buff === 'avatar')   this.avatarActive   = active
+        if (buff === 'savagery') this.savageryActive = active
+        break
+      }
     }
   }
 
@@ -375,8 +384,8 @@ export class RefinedOverlay {
     const entries = this.fightHistory.map(r => {
       const mob    = r.mobName || 'Unknown'
       const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
-      const reactShort = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-      const reactFull  = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
+      const reactShort = r.avgReactionMs != null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      const reactFull  = r.avgReactionMs != null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
       const label = `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${reactShort}  [${mob}]`
       const full  = `Basketweaver: ${r.grade} ${weaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''} | ` +
         `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
@@ -603,6 +612,25 @@ export class RefinedOverlay {
     this.roundRect(58, 5, pw, 14, 7); ctx.fill()
     ctx.fillStyle = color
     ctx.fillText(phase, 64, 12)
+
+    // Buff indicators (Avatar, Savagery)
+    let buffX = 58 + pw + 5
+    ctx.font = '600 9px "JetBrains Mono", monospace'
+    if (this.avatarActive) {
+      const bw = ctx.measureText('AVT').width + 10
+      ctx.fillStyle = this.rgba('#a855f7', 0.18)
+      this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
+      ctx.fillStyle = '#a855f7'
+      ctx.fillText('AVT', buffX + 5, 12)
+      buffX += bw + 4
+    }
+    if (this.savageryActive) {
+      const bw = ctx.measureText('SAV').width + 10
+      ctx.fillStyle = this.rgba('#f97316', 0.18)
+      this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
+      ctx.fillStyle = '#f97316'
+      ctx.fillText('SAV', buffX + 5, 12)
+    }
 
     // Right-side
     ctx.textAlign = 'right'

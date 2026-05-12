@@ -17,6 +17,7 @@ export const enum EvType {
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
   WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
+  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery', active: boolean }
 }
 
 export interface GameEvent {
@@ -44,6 +45,7 @@ export const IPC = {
   TOGGLE_DYNAMIC_WEAVING:   'toggle-dynamic-weaving',   // tray → renderer
   TOGGLE_OFFHAND_TIMER:     'toggle-offhand-timer',      // tray → renderer
   TOGGLE_LANE_LINES:      'toggle-lane-lines',        // tray → renderer
+  TOGGLE_PIN:             'toggle-pin',               // tray → renderer
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: { label: string, full: string }[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }

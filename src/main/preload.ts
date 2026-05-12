@@ -38,6 +38,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleLaneLines: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_LANE_LINES, () => cb()),
 
+  onTogglePin: (cb: () => void) =>
+    ipcRenderer.on(IPC.TOGGLE_PIN, () => cb()),
+
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 

@@ -116,6 +116,8 @@ export class HighContrastOverlay {
   private rapidAttackMuteUntil = 0
   private static readonly RAPID_CRUSH_THRESHOLD = 4
   private static readonly RAPID_MUTE_MS = 6000
+  private avatarActive = false
+  private savageryActive = false
 
   pinned = true
   charName = ''
@@ -316,6 +318,13 @@ export class HighContrastOverlay {
         }
         break
       }
+      case EvType.BUFF_CHANGED: {
+        const buff   = ev.data?.buff   as string
+        const active = ev.data?.active as boolean
+        if (buff === 'avatar')   this.avatarActive   = active
+        if (buff === 'savagery') this.savageryActive = active
+        break
+      }
     }
   }
 
@@ -346,8 +355,8 @@ export class HighContrastOverlay {
     const entries = this.fightHistory.map(r => {
       const mob    = r.mobName || 'Unknown'
       const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
-      const reactShort = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-      const reactFull  = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
+      const reactShort = r.avgReactionMs != null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      const reactFull  = r.avgReactionMs != null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
       const label = `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${reactShort}  [${mob}]`
       const full  = `Basketweaver: ${r.grade} ${weaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''} | ` +
         `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
@@ -537,6 +546,27 @@ export class HighContrastOverlay {
     ctx.textAlign = 'center'
     ctx.fillText(phase, 86 + 34, 20)
     ctx.textAlign = 'left'
+
+    // Buff indicators (Avatar, Savagery)
+    let buffX = 86 + 68 + 6
+    ctx.font = '800 9px "Archivo", sans-serif'
+    if (this.avatarActive) {
+      ctx.fillStyle = '#a855f7'
+      ctx.fillRect(buffX, 8, 32, 16)
+      ctx.fillStyle = '#fff'
+      ctx.textAlign = 'center'
+      ctx.fillText('AVT', buffX + 16, 20)
+      ctx.textAlign = 'left'
+      buffX += 36
+    }
+    if (this.savageryActive) {
+      ctx.fillStyle = '#f97316'
+      ctx.fillRect(buffX, 8, 32, 16)
+      ctx.fillStyle = '#fff'
+      ctx.textAlign = 'center'
+      ctx.fillText('SAV', buffX + 16, 20)
+      ctx.textAlign = 'left'
+    }
 
     // Stats right
     ctx.font = '800 15px "Archivo", sans-serif'

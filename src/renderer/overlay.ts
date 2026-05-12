@@ -170,6 +170,8 @@ export class Overlay {
   private defaultColors: Partial<ConfigType> = {}
 
   pinned = true
+  private avatarActive = false
+  private savageryActive = false
   private oorLastSoundTs = 0
   private lastFistHitTs  = 0
   private lastFistAttackTs = 0
@@ -385,6 +387,13 @@ export class Overlay {
         }
         break
       }
+      case EvType.BUFF_CHANGED: {
+        const buff   = ev.data?.buff   as string
+        const active = ev.data?.active as boolean
+        if (buff === 'avatar')   this.avatarActive   = active
+        if (buff === 'savagery') this.savageryActive = active
+        break
+      }
     }
   }
 
@@ -484,8 +493,8 @@ export class Overlay {
     const entries = this.fightHistory.map(r => {
       const mob    = r.mobName || 'Unknown'
       const weaved = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
-      const reactShort = r.avgReactionMs !== null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
-      const reactFull  = r.avgReactionMs !== null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
+      const reactShort = r.avgReactionMs != null ? `${r.avgReactionMs.toFixed(0)}ms` : '—'
+      const reactFull  = r.avgReactionMs != null ? ` | Avg reaction: ${r.avgReactionMs.toFixed(0)}ms` : ''
       const label = `${r.grade}  ${weaved}/${r.totalRounds} rnds  ${r.weaveAttempts}att/${r.weaveLanded}hit  +${r.addedDps.toFixed(0)}dps  ${reactShort}  [${mob}]`
       const full  = `Basketweaver: ${r.grade} ${weaved}/${r.totalRounds} rounds weaved${r.keystrokeGrading ? ' (key)' : ''} | ` +
         `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
@@ -1658,51 +1667,25 @@ export class Overlay {
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
     ctx.textBaseline = 'middle'
     ctx.fillStyle = statusColor
-    ctx.fillText(rhy.inCombat ? '⚔ COMBAT' : '○ IDLE', 4, h / 2)
+    const statusLabel = rhy.inCombat ? '⚔ COMBAT' : '○ IDLE'
+    ctx.fillText(statusLabel, 4, h / 2)
 
-    // Pin icon at far right
-    this.drawPinIcon(w - h, 0, h)
+    // Buff indicators (Avatar, Savagery)
+    let buffX = 4 + ctx.measureText(statusLabel).width + 6
+    if (this.avatarActive) {
+      ctx.fillStyle = '#a855f7'
+      ctx.fillText('AVT', buffX, h / 2)
+      buffX += ctx.measureText('AVT').width + 6
+    }
+    if (this.savageryActive) {
+      ctx.fillStyle = '#f97316'
+      ctx.fillText('SAV', buffX, h / 2)
+    }
 
     ctx.fillStyle = cfg.C_TEXT
     const sw = ctx.measureText(scoreText).width
-    ctx.fillText(scoreText, w - h - sw - 4, h / 2)
+    ctx.fillText(scoreText, w - sw - 4, h / 2)
     ctx.textBaseline = 'alphabetic'
-  }
-
-  private drawPinIcon(x: number, y: number, size: number): void {
-    const ctx = this.ctx2d
-    const cfg = this.cfg
-    const cx  = x + size / 2
-    const cy  = y + size / 2
-    const r   = Math.max(2, size * 0.24)
-    const color = this.pinned ? cfg.C_COMBAT : cfg.C_TEXT_DIM
-
-    // Pin head
-    const headCy = cy - r * 0.5
-    ctx.beginPath()
-    ctx.arc(cx, headCy, r, 0, Math.PI * 2)
-    if (this.pinned) {
-      ctx.fillStyle = color
-      ctx.fill()
-    } else {
-      ctx.strokeStyle = color
-      ctx.lineWidth = 1
-      ctx.stroke()
-    }
-
-    // Center dimple
-    ctx.beginPath()
-    ctx.arc(cx, headCy, Math.max(1, r * 0.28), 0, Math.PI * 2)
-    ctx.fillStyle = this.pinned ? 'rgba(0,0,0,0.35)' : color
-    ctx.fill()
-
-    // Needle
-    ctx.strokeStyle = color
-    ctx.lineWidth   = 1
-    ctx.beginPath()
-    ctx.moveTo(cx, headCy + r)
-    ctx.lineTo(cx + r * 0.5, cy + r * 1.0)
-    ctx.stroke()
   }
 
   // ── Footer ────────────────────────────────────────────────────
@@ -1900,13 +1883,6 @@ export class Overlay {
 
   /** Called from the renderer when a canvas click is confirmed (not a drag). */
   handleMouseClick(ts: number, x = -1, y = -1): void {
-    // Check if the click landed on the pin icon (top-right header area)
-    const pinSize = this.cfg.HEADER_H
-    const pinX    = this.canvas.width - pinSize
-    if (x >= pinX && y >= 0 && y < pinSize) {
-      this.pinned = !this.pinned
-      return
-    }
     this.doClickHit(ts)
     this.gradeScreen?.dismiss()
   }
