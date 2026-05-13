@@ -261,7 +261,10 @@ export class RhythmEngine {
   }
 
   get effectiveOffhandDelay(): number {
-    return (this.cfg.OFFHAND_WEAPON_DELAY / 10.0) / (1.0 + this.cfg.HASTE_PCT / 100.0)
+    // Derive from current PUNCH_INTERVAL using the weapon delay ratio — this is algebraically
+    // equivalent to the haste formula but doesn't depend on HASTE_PCT being accurately known.
+    // Both mainhand and offhand share the same haste multiplier, so the ratio is constant.
+    return this.cfg.PUNCH_INTERVAL * this.cfg.OFFHAND_WEAPON_DELAY / this.cfg.BASE_WEAPON_DELAY
   }
 
   adjustInterval(delta: number): void {
