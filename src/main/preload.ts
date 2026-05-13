@@ -41,6 +41,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTogglePin: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_PIN, () => cb()),
 
+  onClearBuffs: (cb: () => void) =>
+    ipcRenderer.on(IPC.CLEAR_BUFFS, () => cb()),
+
+  onToggleBuffSound: (cb: () => void) =>
+    ipcRenderer.on(IPC.TOGGLE_BUFF_SOUND, () => cb()),
+
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 

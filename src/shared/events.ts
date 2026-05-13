@@ -46,6 +46,8 @@ export const IPC = {
   TOGGLE_OFFHAND_TIMER:     'toggle-offhand-timer',      // tray → renderer
   TOGGLE_LANE_LINES:      'toggle-lane-lines',        // tray → renderer
   TOGGLE_PIN:             'toggle-pin',               // tray → renderer
+  CLEAR_BUFFS:            'clear-buffs',              // tray → renderer
+  TOGGLE_BUFF_SOUND:      'toggle-buff-sound',        // tray → renderer
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: { label: string, full: string }[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }

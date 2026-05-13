@@ -23,6 +23,8 @@ declare global {
       onToggleOffhandTimer:     (cb: () => void) => void
       onToggleLaneLines:        (cb: () => void) => void
       onTogglePin:              (cb: () => void) => void
+      onClearBuffs:             (cb: () => void) => void
+      onToggleBuffSound:        (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       quit:               () => void
@@ -107,6 +109,22 @@ window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
 window.electronAPI.onToggleDynamicWeaving(() => overlay.toggleDynamicWeaving())
 window.electronAPI.onToggleOffhandTimer(() => overlay.toggleOffhandTimer())
 window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
+// ── Buff sounds — preload wav files ──────────────────────────
+const audio: import('./audio-manager').AudioManager | undefined = (overlay as any).audio
+if (audio) {
+  audio.loadFile('avatar',   '/sounds/avatar.wav',   0.8)
+  audio.loadFile('savagery', '/sounds/savagery.wav')
+}
+
+window.electronAPI.onClearBuffs(() => {
+  ;(overlay as any).avatarActive   = false
+  ;(overlay as any).savageryActive = false
+})
+
+window.electronAPI.onToggleBuffSound(() => {
+  if (audio) audio.buffSoundEnabled = !audio.buffSoundEnabled
+})
+
 window.electronAPI.onTogglePin(() => {
   overlay.pinned = !overlay.pinned
   if (overlay.pinned) {

@@ -19,6 +19,7 @@ const OPACITIES: Array<[string, number]> = [
 let fistMissSoundEnabled    = Config.FIST_SOUND_ON_MISS
 let keystrokeGradingEnabled = false
 let windowPinned            = true   // mirrors overlay.pinned default
+let buffSoundEnabled        = true
 let recentFights: { label: string, full: string }[] = []
 
 export function updateFightHistory(fights: { label: string, full: string }[]): void {
@@ -152,6 +153,16 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       // ── Actions ──────────────────────────────────────────
       { label: 'Select Log File…',      click: () => onSelectLog() },
       { label: 'Reset Track',           click: () => win.webContents.send(IPC.RESET_TRACK) },
+      { label: 'Clear Buffs (AVT/SAV)', click: () => win.webContents.send(IPC.CLEAR_BUFFS) },
+      {
+        label:   'Buff Notification Sounds',
+        type:    'checkbox',
+        checked: buffSoundEnabled,
+        click:   () => {
+          buffSoundEnabled = !buffSoundEnabled
+          win.webContents.send(IPC.TOGGLE_BUFF_SOUND)
+        },
+      },
       { label: 'Reset Window Position', click: () => onResetPosition() },
       {
         label:   'Freeze Window Position',

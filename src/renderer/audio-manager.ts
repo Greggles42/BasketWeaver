@@ -12,8 +12,11 @@ import type { ConfigType } from '../shared/config'
 export class AudioManager {
   private ctx: AudioContext | null = null
   enabled = true
+  buffSoundEnabled = true
   private tempMuted = false
   private cfg: ConfigType
+  private fileBuffers: Map<string, AudioBuffer> = new Map()
+  private fileGains:   Map<string, number>      = new Map()
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
@@ -322,6 +325,39 @@ export class AudioManager {
     this.tempMuted = false
     this.play(name)
     this.tempMuted = was
+  }
+
+  /** Fetch and decode a .wav file, caching the result. gain defaults to 1.0. */
+  async loadFile(name: string, url: string, gain = 1.0): Promise<void> {
+    try {
+      const ctx  = this.getCtx()
+      const resp = await fetch(url)
+      const buf  = await resp.arrayBuffer()
+      const decoded = await ctx.decodeAudioData(buf)
+      this.fileBuffers.set(name, decoded)
+      this.fileGains.set(name, gain)
+    } catch (e) {
+      console.warn(`[Audio] loadFile(${name}) failed:`, e)
+    }
+  }
+
+  /** Play a preloaded file buffer. Respects enabled and buffSoundEnabled flags. */
+  playFileSound(name: string): void {
+    if (!this.enabled || !this.buffSoundEnabled) return
+    const buf = this.fileBuffers.get(name)
+    if (!buf) return
+    try {
+      const ctx       = this.getCtx()
+      const src       = ctx.createBufferSource()
+      const gainNode  = ctx.createGain()
+      gainNode.gain.value = this.fileGains.get(name) ?? 1.0
+      src.buffer = buf
+      src.connect(gainNode)
+      gainNode.connect(ctx.destination)
+      src.start(ctx.currentTime)
+    } catch (e) {
+      console.warn(`[Audio] playFileSound(${name}) failed:`, e)
+    }
   }
 
   /**

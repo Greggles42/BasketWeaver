@@ -350,8 +350,20 @@ export class RefinedOverlay {
       case EvType.BUFF_CHANGED: {
         const buff   = ev.data?.buff   as string
         const active = ev.data?.active as boolean
-        if (buff === 'avatar')   this.avatarActive   = active
-        if (buff === 'savagery') this.savageryActive = active
+        if (buff === 'avatar') {
+          this.avatarActive = active
+          if (active) {
+            this.banners.push(new Banner('Avatar ON', '#a855f7', 4000))
+            this.audio.playFileSound('avatar')
+          }
+        }
+        if (buff === 'savagery') {
+          this.savageryActive = active
+          if (active) {
+            this.banners.push(new Banner('Savagery ON', '#f97316', 4000))
+            this.audio.playFileSound('savagery')
+          }
+        }
         break
       }
     }
