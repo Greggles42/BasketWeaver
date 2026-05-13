@@ -110,6 +110,7 @@ export class HighContrastOverlay {
   private swingTimerEverValid = false
   private hasteCalibrated = false  // true when haste% was derived from measured swings, not /mystats
   private oorLastSoundTs = 0
+  private lastOhSnapTs = 0
   private lastFistAttackTs = 0
   private consecutiveCrushesWithoutFist = 0
   private audioMutedRapidAttack = false
@@ -337,6 +338,14 @@ export class HighContrastOverlay {
         }
         break
       }
+      case EvType.CRIT_HIT: {
+        const damage = (ev.data?.damage as number) ?? 0
+        if (damage > 400) {
+          this.audio.playFileSound('epic')
+          this.banners.push(new Banner('MONSTER CRIT', '#ff4444', 3000))
+        }
+        break
+      }
     }
   }
 
@@ -458,6 +467,14 @@ export class HighContrastOverlay {
       this.hasteCalibrated = true
       this.banners.push(new Banner(`AUTO-CAL: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% HASTE)`, '#ff9f44', 3000))
       this.rhythm.calibrationEvent = null
+    }
+    if (this.rhythm.roundEndDamage !== null) {
+      if (this.rhythm.roundEndDamage > 600 && t - this.lastOhSnapTs > 1000) {
+        this.audio.playFileSound('oh_snap')
+        this.banners.push(new Banner('HUGE ROUND!!!', '#ffd700', 3000))
+        this.lastOhSnapTs = t
+      }
+      this.rhythm.roundEndDamage = null
     }
 
     this.hitFlash  = Math.max(0, this.hitFlash  - dt * 3.5)

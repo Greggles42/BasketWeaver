@@ -173,6 +173,7 @@ export class Overlay {
   private avatarActive = false
   private savageryActive = false
   private oorLastSoundTs = 0
+  private lastOhSnapTs = 0
   private lastFistHitTs  = 0
   private lastFistAttackTs = 0
   private static readonly HC_COLORS = {
@@ -406,6 +407,14 @@ export class Overlay {
         }
         break
       }
+      case EvType.CRIT_HIT: {
+        const damage = (ev.data?.damage as number) ?? 0
+        if (damage > 400) {
+          this.audio.playFileSound('epic')
+          this.showBanner('Monster Crit', '#ff4444', 3000)
+        }
+        break
+      }
     }
   }
 
@@ -632,6 +641,14 @@ export class Overlay {
       this.cfg.GOOD_WINDOW    = Math.max(0.1, iv - fistDelay) / 2
       this.showBanner(`Auto-calibrated: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% haste)`, this.cfg.C_GOOD, 3000)
       this.rhythm.calibrationEvent = null
+    }
+    if (this.rhythm.roundEndDamage !== null) {
+      if (this.rhythm.roundEndDamage > 600 && t - this.lastOhSnapTs > 1000) {
+        this.audio.playFileSound('oh_snap')
+        this.showBanner('Huge Round!!!', '#ffd700', 3000)
+        this.lastOhSnapTs = t
+      }
+      this.rhythm.roundEndDamage = null
     }
 
     const [hzx, hzy] = this.hitZoneCenter()

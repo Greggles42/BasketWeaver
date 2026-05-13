@@ -68,6 +68,7 @@ export class LogReader {
   private avatarLostRe:   RegExp[]
   private savageryGainedRe: RegExp[]
   private savageryLostRe:   RegExp[]
+  private critHitRe:    RegExp[]
   private missOnly:     boolean
 
   constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean } = {}) {
@@ -95,6 +96,7 @@ export class LogReader {
     this.avatarLostRe     = compile(cfg.AVATAR_LOST_PATTERNS)
     this.savageryGainedRe = compile(cfg.SAVAGERY_GAINED_PATTERNS)
     this.savageryLostRe   = compile(cfg.SAVAGERY_LOST_PATTERNS)
+    this.critHitRe        = compile(cfg.CRIT_HIT_PATTERNS)
 
     this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
@@ -233,6 +235,16 @@ export class LogReader {
         if (damage > 0)
           this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
       }
+      return
+    }
+
+    // ── Critical hit notification ────────────────────────────
+    // Format: "You deliver a Crippling Blow! (450)" — damage in parens
+    if (this.critHitRe.some(r => r.test(content))) {
+      const m = /\((\d+)\)/.exec(content)
+      const damage = m ? parseInt(m[1], 10) : 0
+      if (damage > 0)
+        this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage } })
       return
     }
 

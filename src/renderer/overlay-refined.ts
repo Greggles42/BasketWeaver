@@ -121,6 +121,7 @@ export class RefinedOverlay {
   private dpsDisplayFist = 0
   private dpsLastUpdate = 0
   private lastFrameTime = 0
+  private lastOhSnapTs = 0
   private lastCombatActivity = 0
   private combatStartTs = 0
   private swingTimerEverValid = false
@@ -366,6 +367,14 @@ export class RefinedOverlay {
         }
         break
       }
+      case EvType.CRIT_HIT: {
+        const damage = (ev.data?.damage as number) ?? 0
+        if (damage > 400) {
+          this.audio.playFileSound('epic')
+          this.banners.push(new Banner('Monster Crit', '#ff4444', 3000))
+        }
+        break
+      }
     }
   }
 
@@ -501,6 +510,14 @@ export class RefinedOverlay {
       this.hasteCalibrated = true
       this.banners.push(new Banner(`Auto-calibrated: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% haste)`, '#ffc844', 3000))
       this.rhythm.calibrationEvent = null
+    }
+    if (this.rhythm.roundEndDamage !== null) {
+      if (this.rhythm.roundEndDamage > 600 && t - this.lastOhSnapTs > 1000) {
+        this.audio.playFileSound('oh_snap')
+        this.banners.push(new Banner('Huge Round!!!', '#ffd700', 3000))
+        this.lastOhSnapTs = t
+      }
+      this.rhythm.roundEndDamage = null
     }
 
     // Decay

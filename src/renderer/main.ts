@@ -114,6 +114,8 @@ const audio: import('./audio-manager').AudioManager | undefined = (overlay as an
 if (audio) {
   audio.loadFile('avatar',   './sounds/avatar.wav',   0.6)
   audio.loadFile('savagery', './sounds/savagery.wav')
+  audio.loadFile('oh_snap',  './sounds/oh snap.wav')
+  audio.loadFile('epic',     './sounds/epic.wav')
 }
 
 window.electronAPI.onClearBuffs(() => {

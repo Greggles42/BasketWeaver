@@ -67,6 +67,10 @@ export class RhythmEngine {
   lastRoundFistDamages: number[] = []
   private roundFistDamages: number[] = []
 
+  private roundMainhandDamage = 0
+  /** Set in closeRound() to the total mainhand damage dealt that round; cleared by overlay. */
+  public roundEndDamage: number | null = null
+
   score = 0
   combo = 0
   maxCombo = 0
@@ -158,6 +162,7 @@ export class RhythmEngine {
     if (damage > 0) this.totalMeleeDamage += damage
     if (!this.inCombat) return
     if (this.roundOpen) {
+      if (damage > 0) this.roundMainhandDamage += damage
       this.lastCrushTime = ts
     } else {
       this.roundOpen = true
@@ -167,6 +172,7 @@ export class RhythmEngine {
       this.roundHadFistAttempt = false
       this.roundHadKeystroke   = false
       this.roundFistDamages = []
+      this.roundMainhandDamage = damage > 0 ? damage : 0
       // swingTimerValid intentionally kept — the predicted swing just happened as expected.
       // Cleared only by onOutOfRange or combat end.
     }
@@ -418,6 +424,8 @@ export class RhythmEngine {
 
     this.lastRoundFistDamages = [...this.roundFistDamages]
     this.roundFistDamages = []
+    this.roundEndDamage = this.roundMainhandDamage
+    this.roundMainhandDamage = 0
   }
 
   /** Clear the rolling interval buffer — call after a /mystats haste update so
@@ -470,6 +478,7 @@ export class RhythmEngine {
     this.lastRoundCloseTime = 0.0; this.nextSwingTime = 0.0
     this.swingTimerValid = false
     this.lastRoundFistDamages = []; this.roundFistDamages = []
+    this.roundMainhandDamage = 0; this.roundEndDamage = null
     this.lastKnownInterval = s(this.predictedInterval)
     this.measuredIntervals = []; this.calibrationEvent = null
   }

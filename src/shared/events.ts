@@ -18,6 +18,7 @@ export const enum EvType {
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
   WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
   BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery', active: boolean }
+  CRIT_HIT        = 'CRIT_HIT',        // data: { damage: number }
 }
 
 export interface GameEvent {

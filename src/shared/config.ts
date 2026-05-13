@@ -191,6 +191,12 @@ export const Config = {
     '^The savagery fades\\.',
   ],
 
+  // Critical hit notification lines — separate from the damage line
+  CRIT_HIT_PATTERNS: [
+    'You deliver a Crippling Blow',
+    'You deliver a critical hit',
+  ],
+
   // Silent-end patterns — stop combat tracking, no grade/sound
   COMBAT_END_PATTERNS: [
     '\\bYou have been slain\\b',    // you died
