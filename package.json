@@ -1,6 +1,6 @@
 {
   "name": "basketweaver",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "EverQuest fistweaving timing overlay",
   "author": "Basketweaver",
   "main": "out/main/index.js",
@@ -30,12 +30,18 @@
     "directories": {
       "output": "dist"
     },
+    "extraResources": [
+      {
+        "from": "src/icon/basketweaver-icon-256.png",
+        "to": "icon.png"
+      }
+    ],
     "files": [
       "out/**/*"
     ],
     "win": {
       "target": "nsis",
-      "icon": "resources/icon.ico",
+      "icon": "src/icon/basketweaver-icon-256.png",
       "forceCodeSigning": false,
       "artifactName": "Basketweaver-Setup-${version}.exe"
     },

@@ -54,4 +54,9 @@ export const IPC = {
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }
   CAPTURE_MOUSE:          'capture-mouse',             // renderer → main: stop ignoring mouse events
   RELEASE_MOUSE:          'release-mouse',             // renderer → main: resume ignoring mouse events (pass-through)
+  OPEN_SETTINGS:          'open-settings',
+  SETTINGS_GET:           'settings-get',
+  SETTINGS_SET:           'settings-set',
+  SET_VOLUMES:            'set-volumes',
+  SET_THRESHOLDS:         'set-thresholds',
 } as const

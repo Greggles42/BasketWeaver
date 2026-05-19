@@ -26,6 +26,8 @@ declare global {
       onClearBuffs:             (cb: () => void) => void
       onToggleBuffSound:        (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
+      onSetVolumes:           (cb: (master: number, proc: number, epic: number) => void) => void
+      onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       quit:               () => void
       selectLog:          () => void
@@ -137,6 +139,19 @@ window.electronAPI.onTogglePin(() => {
 })
 window.electronAPI.onSetOffhandDelay((delay, name) => {
   ;(overlay as any).applyDynamicWeaveWindow?.(delay, name)
+})
+
+window.electronAPI.onSetVolumes((master, proc, epic) => {
+  if (audio) {
+    audio.masterVolume = master
+    audio.procVolume   = proc
+    audio.epicVolume   = epic
+  }
+})
+
+window.electronAPI.onSetThresholds((critDamage, hugeRound) => {
+  Config.CRIT_DAMAGE_THRESHOLD = critDamage
+  Config.HUGE_ROUND_THRESHOLD  = hugeRound
 })
 
 // ── Status requests from tray ─────────────────────────────────

@@ -90,6 +90,20 @@ export const Config = {
   FX_VOLUME:    0.62,
   FIST_SOUND_ON_MISS: true,
 
+  // ── Audio volumes (0–1, 1.0 = unity) ─────────────────────────
+  VOLUME_MASTER: 1.0,
+  VOLUME_PROC:   1.0,
+  VOLUME_EPIC:   1.0,
+
+  // ── Sound trigger thresholds ─────────────────────────────────
+  CRIT_DAMAGE_THRESHOLD:  400,   // min crit damage for epic.wav
+  HUGE_ROUND_THRESHOLD:   600,   // min round damage for oh_snap.wav
+
+  // ── Runtime toggle states (tracked in main process) ──────────
+  BUFF_SOUND_ENABLED: true,
+  AUDIO_ENABLED:      true,
+  WINDOW_PINNED:      true,
+
   // ── Orientation ──────────────────────────────────────────────
   ORIENTATION: 'horizontal' as 'horizontal' | 'vertical',
   LANE_LINES: false,

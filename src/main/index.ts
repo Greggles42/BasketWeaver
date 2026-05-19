@@ -69,6 +69,14 @@ function loadSettings(): void {
       }
       if (typeof saved.DYNAMIC_WEAVING    === 'boolean') Config.DYNAMIC_WEAVING    = saved.DYNAMIC_WEAVING
       if (typeof saved.SHOW_OFFHAND_TIMER === 'boolean') Config.SHOW_OFFHAND_TIMER = saved.SHOW_OFFHAND_TIMER
+      if (typeof saved.VOLUME_MASTER         === 'number')  Config.VOLUME_MASTER         = saved.VOLUME_MASTER
+      if (typeof saved.VOLUME_PROC           === 'number')  Config.VOLUME_PROC           = saved.VOLUME_PROC
+      if (typeof saved.VOLUME_EPIC           === 'number')  Config.VOLUME_EPIC           = saved.VOLUME_EPIC
+      if (typeof saved.CRIT_DAMAGE_THRESHOLD === 'number')  Config.CRIT_DAMAGE_THRESHOLD = saved.CRIT_DAMAGE_THRESHOLD
+      if (typeof saved.HUGE_ROUND_THRESHOLD  === 'number')  Config.HUGE_ROUND_THRESHOLD  = saved.HUGE_ROUND_THRESHOLD
+      if (typeof saved.BUFF_SOUND_ENABLED    === 'boolean') Config.BUFF_SOUND_ENABLED    = saved.BUFF_SOUND_ENABLED
+      if (typeof saved.AUDIO_ENABLED         === 'boolean') Config.AUDIO_ENABLED         = saved.AUDIO_ENABLED
+      if (typeof saved.WINDOW_PINNED         === 'boolean') Config.WINDOW_PINNED         = saved.WINDOW_PINNED
     }
   } catch {}
 }
@@ -83,6 +91,14 @@ export function saveSettings(): void {
       TRACKING_SOURCE:      Config.TRACKING_SOURCE,
       DYNAMIC_WEAVING:      Config.DYNAMIC_WEAVING,
       SHOW_OFFHAND_TIMER:   Config.SHOW_OFFHAND_TIMER,
+      VOLUME_MASTER:         Config.VOLUME_MASTER,
+      VOLUME_PROC:           Config.VOLUME_PROC,
+      VOLUME_EPIC:           Config.VOLUME_EPIC,
+      CRIT_DAMAGE_THRESHOLD: Config.CRIT_DAMAGE_THRESHOLD,
+      HUGE_ROUND_THRESHOLD:  Config.HUGE_ROUND_THRESHOLD,
+      BUFF_SOUND_ENABLED:    Config.BUFF_SOUND_ENABLED,
+      AUDIO_ENABLED:         Config.AUDIO_ENABLED,
+      WINDOW_PINNED:         Config.WINDOW_PINNED,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
@@ -125,9 +141,50 @@ export function resetWindowPosition(): void {
   saveSettings()
 }
 
+export function createSettingsWindow(): void {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus()
+    return
+  }
+
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.png')
+    : path.join(__dirname, '../../src/icon/basketweaver-icon-256.png')
+
+  settingsWin = new BrowserWindow({
+    width:  540,
+    height: 740,
+    title:  'Basketweaver Settings',
+    icon:   iconPath,
+    resizable:   false,
+    minimizable: true,
+    maximizable: false,
+    skipTaskbar: false,
+    webPreferences: {
+      preload:          path.join(__dirname, '../preload/settings.js'),
+      contextIsolation: true,
+      nodeIntegration:  false,
+    },
+  })
+
+  settingsWin.setMenu(null)
+
+  const devUrl = process.env['ELECTRON_RENDERER_URL']
+  if (devUrl) {
+    // Derive the settings page URL from the index URL
+    const base = devUrl.replace(/[?#].*$/, '').replace(/\/[^/]*\.html$/, '')
+    settingsWin.loadURL(`${base}/settings.html`)
+  } else {
+    settingsWin.loadFile(path.join(__dirname, '../renderer/settings.html'))
+  }
+
+  settingsWin.on('closed', () => { settingsWin = null })
+}
+
 // ── App lifecycle ─────────────────────────────────────────────
 
 let win:       BrowserWindow | null = null
+let settingsWin: BrowserWindow | null = null
 let stopLog:   (() => void) | null  = null
 let stopZeal:  (() => void) | null  = null
 let lastLogPath = ''
@@ -143,11 +200,16 @@ function createWindow(): void {
     ? savedWindowPos
     : { x: defaultX, y: defaultY }
 
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.png')
+    : path.join(__dirname, '../../src/icon/basketweaver-icon-256.png')
+
   win = new BrowserWindow({
     width:  w,
     height: h,
     x: usePos.x,
     y: usePos.y,
+    icon: iconPath,
 
     // Overlay properties
     frame:       false,
@@ -321,6 +383,141 @@ function setupIPC(): void {
   ipcMain.on(IPC.STATUS_REPLY, (_e, data: { inCombat: boolean }) => {
     // Forwarded — tray listener handles this
   })
+
+  ipcMain.handle(IPC.SETTINGS_GET, () => ({
+    APP_VERSION:              app.getVersion(),
+    VOLUME_MASTER:            Config.VOLUME_MASTER,
+    VOLUME_PROC:              Config.VOLUME_PROC,
+    VOLUME_EPIC:              Config.VOLUME_EPIC,
+    CRIT_DAMAGE_THRESHOLD:    Config.CRIT_DAMAGE_THRESHOLD,
+    HUGE_ROUND_THRESHOLD:     Config.HUGE_ROUND_THRESHOLD,
+    TRACKING_SOURCE:          Config.TRACKING_SOURCE,
+    OVERLAY_STYLE:            Config.OVERLAY_STYLE,
+    BASE_WEAPON_DELAY:        Config.BASE_WEAPON_DELAY,
+    OFFHAND_WEAPON_DELAY:     Config.OFFHAND_WEAPON_DELAY,
+    PUNCH_INTERVAL:           Config.PUNCH_INTERVAL,
+    TARGET_POSITION_PCT:      Config.TARGET_POSITION_PCT,
+    TARGET_OFFSET:            Config.TARGET_OFFSET,
+    LATENCY_COMPENSATION:     Config.LATENCY_COMPENSATION,
+    CLIP_AUTO:                Config.CLIP_AUTO,
+    CLIP_DETECTION_WINDOW:    Config.CLIP_DETECTION_WINDOW,
+    WINDOW_OPACITY:           Config.WINDOW_OPACITY,
+    ORIENTATION:              Config.ORIENTATION,
+    DYNAMIC_WEAVING:          Config.DYNAMIC_WEAVING,
+    SHOW_OFFHAND_TIMER:       Config.SHOW_OFFHAND_TIMER,
+    KEYSTROKE_GRADING:        Config.KEYSTROKE_GRADING,
+    FIST_SOUND_ON_MISS:       Config.FIST_SOUND_ON_MISS,
+    BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
+    AUDIO_ENABLED:            Config.AUDIO_ENABLED,
+    WINDOW_PINNED:            Config.WINDOW_PINNED,
+  }))
+
+  ipcMain.on(IPC.SETTINGS_SET, (_e, { key, value }: { key: string; value: unknown }) => {
+    switch (key) {
+      case 'VOLUME_MASTER':
+      case 'VOLUME_PROC':
+      case 'VOLUME_EPIC':
+        (Config as any)[key] = value
+        win?.webContents.send(IPC.SET_VOLUMES, {
+          master: Config.VOLUME_MASTER,
+          proc:   Config.VOLUME_PROC,
+          epic:   Config.VOLUME_EPIC,
+        })
+        break
+
+      case 'CRIT_DAMAGE_THRESHOLD':
+      case 'HUGE_ROUND_THRESHOLD':
+        (Config as any)[key] = value
+        win?.webContents.send(IPC.SET_THRESHOLDS, {
+          critDamage: Config.CRIT_DAMAGE_THRESHOLD,
+          hugeRound:  Config.HUGE_ROUND_THRESHOLD,
+        })
+        break
+
+      case 'TRACKING_SOURCE':
+        setTrackingSource(value as 'log' | 'zeal' | 'hybrid')
+        return  // setTrackingSource already calls saveSettings
+
+      case 'OVERLAY_STYLE':
+        setOverlayStyle(value as 'refined' | 'standard' | 'highcontrast')
+        return  // setOverlayStyle already calls saveSettings
+
+      case 'OFFHAND_WEAPON_DELAY':
+        Config.OFFHAND_WEAPON_DELAY = value as number
+        Config.OFFHAND_WEAPON_NAME  = ''
+        win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: value, name: '' })
+        break
+
+      case 'TARGET_POSITION_PCT':
+        win?.webContents.send(IPC.SET_TARGET_POSITION, value)
+        break
+
+      case 'WINDOW_OPACITY':
+        Config.WINDOW_OPACITY = value as number
+        win?.setOpacity(value as number)
+        break
+
+      case 'AUDIO_ENABLED':
+        if (Config.AUDIO_ENABLED !== value) {
+          Config.AUDIO_ENABLED = value as boolean
+          win?.webContents.send(IPC.TOGGLE_AUDIO)
+        }
+        break
+
+      case 'BUFF_SOUND_ENABLED':
+        if (Config.BUFF_SOUND_ENABLED !== value) {
+          Config.BUFF_SOUND_ENABLED = value as boolean
+          win?.webContents.send(IPC.TOGGLE_BUFF_SOUND)
+        }
+        break
+
+      case 'FIST_SOUND_ON_MISS':
+        if (Config.FIST_SOUND_ON_MISS !== value) {
+          Config.FIST_SOUND_ON_MISS = value as boolean
+          win?.webContents.send(IPC.TOGGLE_FIST_MISS_SOUND)
+        }
+        break
+
+      case 'DYNAMIC_WEAVING':
+        if (Config.DYNAMIC_WEAVING !== value) {
+          Config.DYNAMIC_WEAVING = value as boolean
+          win?.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
+        }
+        break
+
+      case 'SHOW_OFFHAND_TIMER':
+        if (Config.SHOW_OFFHAND_TIMER !== value) {
+          Config.SHOW_OFFHAND_TIMER = value as boolean
+          win?.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
+        }
+        break
+
+      case 'ORIENTATION_VERTICAL': {
+        const newOri = (value as boolean) ? 'vertical' : 'horizontal'
+        if (Config.ORIENTATION !== newOri) {
+          Config.ORIENTATION = newOri
+          win?.webContents.send(IPC.TOGGLE_ORIENTATION)
+        }
+        break
+      }
+
+      case 'WINDOW_PINNED':
+        if (Config.WINDOW_PINNED !== value) {
+          Config.WINDOW_PINNED = value as boolean
+          win?.webContents.send(IPC.TOGGLE_PIN)
+        }
+        break
+
+      default:
+        // Simple Config update (BASE_WEAPON_DELAY, PUNCH_INTERVAL, TARGET_OFFSET,
+        // LATENCY_COMPENSATION, CLIP_AUTO, CLIP_DETECTION_WINDOW, KEYSTROKE_GRADING, etc.)
+        if (key in Config) (Config as any)[key] = value
+    }
+    saveSettings()
+  })
+
+  ipcMain.on(IPC.OPEN_SETTINGS, () => createSettingsWindow())
+  ipcMain.on('close-settings', () => settingsWin?.close())
 }
 
 // ── Auto-updater ──────────────────────────────────────────────
@@ -392,7 +589,7 @@ app.whenReady().then(async () => {
   createTray(win!, () => app.quit(), saveSettings, async () => {
     const p = await pickLogFile()
     if (p) handleLogSelected(p)
-  }, resetWindowPosition, setOverlayStyle, setTrackingSource)
+  }, resetWindowPosition, setOverlayStyle, setTrackingSource, createSettingsWindow)
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()
@@ -410,6 +607,19 @@ app.whenReady().then(async () => {
     })
     if (!Config.DYNAMIC_WEAVING)    win!.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
     if (!Config.SHOW_OFFHAND_TIMER) win!.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
+
+    // Sync audio volumes and thresholds to renderer
+    win!.webContents.send(IPC.SET_VOLUMES, {
+      master: Config.VOLUME_MASTER,
+      proc:   Config.VOLUME_PROC,
+      epic:   Config.VOLUME_EPIC,
+    })
+    win!.webContents.send(IPC.SET_THRESHOLDS, {
+      critDamage: Config.CRIT_DAMAGE_THRESHOLD,
+      hugeRound:  Config.HUGE_ROUND_THRESHOLD,
+    })
+    // Sync pinned state
+    if (!Config.WINDOW_PINNED) win!.webContents.send(IPC.TOGGLE_PIN)
 
     if (Config.TRACKING_SOURCE === 'zeal') {
       startZealReader()

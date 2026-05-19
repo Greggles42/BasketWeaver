@@ -50,6 +50,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 
+  onSetVolumes: (cb: (master: number, proc: number, epic: number) => void) =>
+    ipcRenderer.on(IPC.SET_VOLUMES, (_e, d: { master: number; proc: number; epic: number }) =>
+      cb(d.master, d.proc, d.epic)),
+
+  onSetThresholds: (cb: (critDamage: number, hugeRound: number) => void) =>
+    ipcRenderer.on(IPC.SET_THRESHOLDS, (_e, d: { critDamage: number; hugeRound: number }) =>
+      cb(d.critDamage, d.hugeRound)),
+
   sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
 

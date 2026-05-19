@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basketweaver Settings</title>
+  <style>
+    :root {
+      --bg:      #0a0c16;
+      --surface: #0e101e;
+      --border:  #1e2240;
+      --text:    #d2d7f0;
+      --dim:     #5a6482;
+      --accent:  #40a8ff;
+      --gold:    #ffd700;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    .app-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .app-header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--gold);
+      letter-spacing: 0.03em;
+    }
+
+    #appVersion {
+      font-size: 12px;
+      color: var(--dim);
+    }
+
+    /* ── Scrollable body ────────────────────────────── */
+    .scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px 20px;
+    }
+
+    .scroll-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .scroll-body::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    .scroll-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* ── Sections ───────────────────────────────────── */
+    .section {
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Row layout ─────────────────────────────────── */
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      min-height: 28px;
+    }
+
+    .row label {
+      width: 190px;
+      flex-shrink: 0;
+      color: var(--text);
+    }
+
+    .row .hint {
+      font-size: 11px;
+      color: var(--dim);
+      margin-left: 4px;
+    }
+
+    .row input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .row .val {
+      width: 36px;
+      text-align: right;
+      color: var(--gold);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .row input[type="number"] {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 3px 8px;
+      font-size: 13px;
+    }
+
+    .row input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .row select {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 3px 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .row select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* ── Radio groups ───────────────────────────────── */
+    .radio-group {
+      display: flex;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .radio-group label {
+      width: auto;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .radio-group input[type="radio"] {
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    /* ── Checkbox grid ──────────────────────────────── */
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+    }
+
+    .checkbox-grid label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      padding: 3px 0;
+    }
+
+    .checkbox-grid input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── Custom delay sub-rows ─────────────────────── */
+    .row-sub {
+      padding-left: 16px;
+    }
+    .row-sub label {
+      color: var(--dim);
+    }
+    .row-sub input[type="number"] {
+      width: 90px;
+      flex: none;
+    }
+    .row-sub .sec-hint {
+      font-size: 12px;
+      color: var(--gold);
+      width: 40px;
+      flex-shrink: 0;
+    }
+
+    /* ── Footer close button ────────────────────────── */
+    .footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    .btn-close {
+      background: var(--border);
+      color: var(--text);
+      border: 1px solid var(--dim);
+      border-radius: 4px;
+      padding: 5px 18px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-close:hover {
+      background: #2a2f50;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-header">
+    <h1>Basketweaver Settings</h1>
+    <span id="appVersion"></span>
+  </div>
+
+  <div class="scroll-body">
+
+    <!-- ── Audio Volumes ─────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Audio Volumes</div>
+
+      <div class="row">
+        <label for="volumeMaster">Master Volume</label>
+        <input type="range" id="volumeMaster" min="0" max="100" step="1" />
+        <span class="val" id="volumeMasterVal">100</span>
+      </div>
+
+      <div class="row">
+        <label for="volumeProc">Buff / Proc Sounds</label>
+        <input type="range" id="volumeProc" min="0" max="100" step="1" />
+        <span class="val" id="volumeProcVal">100</span>
+      </div>
+
+      <div class="row">
+        <label for="volumeEpic">Epic / Huge Round</label>
+        <input type="range" id="volumeEpic" min="0" max="100" step="1" />
+        <span class="val" id="volumeEpicVal">100</span>
+      </div>
+    </div>
+
+    <!-- ── Sound Triggers ────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Sound Triggers</div>
+
+      <div class="row">
+        <label for="critThreshold">Crit Damage <span class="hint">(epic.wav)</span></label>
+        <input type="number" id="critThreshold" min="0" max="9999" step="1" />
+      </div>
+
+      <div class="row">
+        <label for="hugeRoundThreshold">Huge Round <span class="hint">(oh snap)</span></label>
+        <input type="number" id="hugeRoundThreshold" min="0" max="9999" step="1" />
+      </div>
+    </div>
+
+    <!-- ── Tracking Source ───────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Tracking Source</div>
+
+      <div class="row">
+        <label>Source</label>
+        <div class="radio-group" id="trackingSource">
+          <label><input type="radio" name="tracking" value="log" /> Log File</label>
+          <label><input type="radio" name="tracking" value="zeal" /> Zeal Pipe</label>
+          <label><input type="radio" name="tracking" value="hybrid" /> Hybrid</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Overlay Style ─────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Overlay Style</div>
+
+      <div class="row">
+        <label>Style</label>
+        <div class="radio-group" id="overlayStyle">
+          <label><input type="radio" name="style" value="refined" /> Refined</label>
+          <label><input type="radio" name="style" value="standard" /> Standard</label>
+          <label><input type="radio" name="style" value="highcontrast" /> High Contrast</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Weapon & Timing ───────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Weapon &amp; Timing</div>
+
+      <div class="row">
+        <label for="mainhandDelay">Mainhand Delay</label>
+        <select id="mainhandDelay"></select>
+      </div>
+      <div class="row row-sub" id="mainhandCustomRow" style="display:none">
+        <label for="mainhandCustom">Custom (EQ tenths)</label>
+        <input type="number" id="mainhandCustom" min="1" max="99" step="1" placeholder="e.g. 28" />
+        <span class="sec-hint" id="mainhandCustomSec"></span>
+      </div>
+
+      <div class="row">
+        <label for="offhandDelay">Offhand Delay</label>
+        <select id="offhandDelay"></select>
+      </div>
+      <div class="row row-sub" id="offhandCustomRow" style="display:none">
+        <label for="offhandCustom">Custom (EQ tenths)</label>
+        <input type="number" id="offhandCustom" min="1" max="99" step="1" placeholder="e.g. 14" />
+        <span class="sec-hint" id="offhandCustomSec"></span>
+      </div>
+
+      <div class="row">
+        <label for="punchInterval">Punch Interval</label>
+        <select id="punchInterval"></select>
+      </div>
+
+      <div class="row">
+        <label for="targetOffset">Target Offset</label>
+        <select id="targetOffset"></select>
+      </div>
+
+      <div class="row">
+        <label for="latencyComp">Latency Comp.</label>
+        <select id="latencyComp"></select>
+      </div>
+
+      <div class="row">
+        <label for="clipWindow">Clip Window</label>
+        <select id="clipWindow"></select>
+      </div>
+    </div>
+
+    <!-- ── Display ───────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Display</div>
+
+      <div class="row">
+        <label for="targetPosition">Target Position</label>
+        <select id="targetPosition"></select>
+      </div>
+
+      <div class="row">
+        <label for="opacity">Opacity</label>
+        <input type="range" id="opacity" min="50" max="100" step="1" />
+        <span class="val" id="opacityVal">88</span>
+      </div>
+    </div>
+
+    <!-- ── Options ───────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Options</div>
+
+      <div class="checkbox-grid">
+        <label><input type="checkbox" id="audioEnabled" /> Audio Enabled</label>
+        <label><input type="checkbox" id="buffSoundEnabled" /> Buff Sound Enabled</label>
+        <label><input type="checkbox" id="fistMissSound" /> Fist Sound on Miss</label>
+        <label><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
+        <label><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
+        <label><input type="checkbox" id="keystrokeGrading" /> Keystroke Grading</label>
+        <label><input type="checkbox" id="orientationVertical" /> Vertical Orientation</label>
+        <label><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <button class="btn-close" id="btnClose">Close</button>
+  </div>
+
+  <script type="module" src="./settings.ts"></script>
+</body>
+</html>

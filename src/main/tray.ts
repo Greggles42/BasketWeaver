@@ -3,7 +3,7 @@
  * Port of tray_icon.py, using Electron's native Tray + Menu API.
  */
 
-import { Tray, Menu, MenuItem, nativeImage, BrowserWindow, ipcMain, clipboard } from 'electron'
+import { Tray, Menu, MenuItem, nativeImage, BrowserWindow, ipcMain, clipboard, app } from 'electron'
 import * as path from 'path'
 import { IPC } from '../shared/events'
 import { Config } from '../shared/config'
@@ -16,17 +16,13 @@ const OPACITIES: Array<[string, number]> = [
   ['50%',  0.50], ['70%',  0.70], ['85%',  0.85], ['100%', 1.00],
 ]
 
-let fistMissSoundEnabled    = Config.FIST_SOUND_ON_MISS
-let keystrokeGradingEnabled = false
-let windowPinned            = true   // mirrors overlay.pinned default
-let buffSoundEnabled        = true
 let recentFights: { label: string, full: string }[] = []
 
 export function updateFightHistory(fights: { label: string, full: string }[]): void {
   recentFights = fights
 }
 
-export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}, onSetOverlayStyle: (style: 'refined' | 'standard' | 'highcontrast') => void = () => {}, onSetTrackingSource: (source: 'log' | 'zeal' | 'hybrid') => void = () => {}): Tray {
+export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}, onSetOverlayStyle: (style: 'refined' | 'standard' | 'highcontrast') => void = () => {}, onSetTrackingSource: (source: 'log' | 'zeal' | 'hybrid') => void = () => {}, onOpenSettings: () => void = () => {}): Tray {
   // Create a simple 16×16 canvas-based tray icon
   const icon = buildTrayIcon()
   const tray = new Tray(icon)
@@ -147,6 +143,9 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
     }))
 
     return Menu.buildFromTemplate([
+      // ── Settings ─────────────────────────────────────────
+      { label: 'Settings…',  click: () => onOpenSettings() },
+      { type: 'separator' },
       // ── Status ───────────────────────────────────────────
       { label: `Status: ${inCombat ? 'IN COMBAT' : 'IDLE'}`, enabled: false },
       { type: 'separator' },
@@ -157,9 +156,9 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       {
         label:   'Buff Notification Sounds',
         type:    'checkbox',
-        checked: buffSoundEnabled,
+        checked: Config.BUFF_SOUND_ENABLED,
         click:   () => {
-          buffSoundEnabled = !buffSoundEnabled
+          Config.BUFF_SOUND_ENABLED = !Config.BUFF_SOUND_ENABLED
           win.webContents.send(IPC.TOGGLE_BUFF_SOUND)
         },
       },
@@ -167,9 +166,9 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       {
         label:   'Freeze Window Position',
         type:    'checkbox',
-        checked: windowPinned,
+        checked: Config.WINDOW_PINNED,
         click:   () => {
-          windowPinned = !windowPinned
+          Config.WINDOW_PINNED = !Config.WINDOW_PINNED
           win.webContents.send(IPC.TOGGLE_PIN)
         },
       },
@@ -237,9 +236,9 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       {
         label:   'Fist Sound on Miss',
         type:    'checkbox',
-        checked: fistMissSoundEnabled,
+        checked: Config.FIST_SOUND_ON_MISS,
         click:   () => {
-          fistMissSoundEnabled = !fistMissSoundEnabled
+          Config.FIST_SOUND_ON_MISS = !Config.FIST_SOUND_ON_MISS
           win.webContents.send(IPC.TOGGLE_FIST_MISS_SOUND)
         },
       },
@@ -264,13 +263,13 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       {
         label:   'Keystroke Grading',
         type:    'checkbox',
-        checked: keystrokeGradingEnabled,
+        checked: Config.KEYSTROKE_GRADING,
         click:   () => {
-          keystrokeGradingEnabled = !keystrokeGradingEnabled
-          cfg.KEYSTROKE_GRADING = keystrokeGradingEnabled
+          Config.KEYSTROKE_GRADING = !Config.KEYSTROKE_GRADING
         },
       },
       { type: 'separator' },
+      { label: `Basketweaver v${app.getVersion()}`, enabled: false },
       { label: 'Quit Basketweaver', click: onQuit },
     ] as Electron.MenuItemConstructorOptions[])
   }
@@ -281,26 +280,10 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
   return tray
 }
 
-/** Generate a simple 16×16 PNG icon as a nativeImage. */
+/** Load the app icon as a nativeImage for the system tray. */
 function buildTrayIcon(): Electron.NativeImage {
-  // 16×16 RGBA buffer — navy bg, blue ring, gold dot
-  const size = 16
-  const buf  = Buffer.alloc(size * size * 4, 0)
-
-  function setPixel(x: number, y: number, r: number, g: number, b: number, a: number) {
-    const i = (y * size + x) * 4
-    buf[i] = r; buf[i + 1] = g; buf[i + 2] = b; buf[i + 3] = a
-  }
-
-  const cx = 7.5, cy = 7.5
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const d = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-      if (d <= 7) setPixel(x, y, 12, 14, 28, 255)      // bg
-      if (d >= 4.5 && d <= 6.5) setPixel(x, y, 64, 150, 255, 255)  // ring
-      if (d <= 2.5) setPixel(x, y, 255, 200, 40, 255)  // gold dot
-    }
-  }
-
-  return nativeImage.createFromBuffer(buf, { width: size, height: size })
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.png')
+    : path.join(__dirname, '../../src/icon/basketweaver-icon-256.png')
+  return nativeImage.createFromPath(iconPath)
 }

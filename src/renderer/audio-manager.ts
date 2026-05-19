@@ -13,6 +13,9 @@ export class AudioManager {
   private ctx: AudioContext | null = null
   enabled = true
   buffSoundEnabled = true
+  masterVolume = 1.0
+  procVolume   = 1.0
+  epicVolume   = 1.0
   private tempMuted = false
   private cfg: ConfigType
   private fileBuffers: Map<string, AudioBuffer> = new Map()
@@ -309,7 +312,10 @@ export class AudioManager {
       const ctx  = this.getCtx()
       const src  = ctx.createBufferSource()
       src.buffer = this.getBuffer(name)
-      src.connect(ctx.destination)
+      const gain = ctx.createGain()
+      gain.gain.value = this.masterVolume
+      src.connect(gain)
+      gain.connect(ctx.destination)
       src.start(when ?? ctx.currentTime)
     } catch (e) {
       console.warn(`[Audio] play(${name}) failed:`, e)
@@ -341,16 +347,22 @@ export class AudioManager {
     }
   }
 
-  /** Play a preloaded file buffer. Respects enabled and buffSoundEnabled flags. */
-  playFileSound(name: string): void {
-    if (!this.enabled || !this.buffSoundEnabled) return
+  /** Play a preloaded file buffer. Respects enabled flag; buff gate skipped when bypassBuffGate is true. */
+  playFileSound(name: string, bypassBuffGate = false): void {
+    if (!this.enabled) return
+    if (!bypassBuffGate && !this.buffSoundEnabled) return
     const buf = this.fileBuffers.get(name)
     if (!buf) return
     try {
       const ctx       = this.getCtx()
       const src       = ctx.createBufferSource()
       const gainNode  = ctx.createGain()
-      gainNode.gain.value = this.fileGains.get(name) ?? 1.0
+      const catVol = (name === 'epic' || name === 'oh_snap')
+        ? this.epicVolume
+        : (name === 'avatar' || name === 'savagery')
+          ? this.procVolume
+          : 1.0
+      gainNode.gain.value = (this.fileGains.get(name) ?? 1.0) * this.masterVolume * catVol
       src.buffer = buf
       src.connect(gainNode)
       gainNode.connect(ctx.destination)

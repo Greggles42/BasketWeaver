@@ -344,12 +344,28 @@ export class ZealReader {
         if (!OFFHAND_LINE_RE.test(text)) this.processTextPatterns(text, now)
         return
 
+      // ── Melee critical hit ─────────────────────────────────────
+      // Format: "Gabbiz Scores a critical hit!(336)"
+      // Only emit for the logged-in character (pipe is per-process, but verify name).
+      case LOG.MeleeCrits: {
+        if (this.characterName) {
+          const nameEsc = this.characterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const m = new RegExp(`^${nameEsc}\\b.*?\\((\\d+)\\)`, 'i').exec(text)
+          if (m) {
+            const damage = parseInt(m[1], 10)
+            if (damage > 0)
+              this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage } })
+            return
+          }
+        }
+        return
+      }
+
       // ── Diagnostic: log item/loot/merchant events to see if Bandolier
       //    swaps emit anything useful ──────────────────────────────
       case LOG.ItemTags:
       case LOG.LootMessage:
       case LOG.MerchantBuySell:
-      case LOG.MeleeCrits:
         console.log(`[ZealReader] DIAG type=${logType} text=${text}`)
         this.processTextPatterns(text, now)
         return

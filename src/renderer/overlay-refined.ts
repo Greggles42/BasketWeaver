@@ -369,8 +369,8 @@ export class RefinedOverlay {
       }
       case EvType.CRIT_HIT: {
         const damage = (ev.data?.damage as number) ?? 0
-        if (damage > 400) {
-          this.audio.playFileSound('epic')
+        if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
+          this.audio.playFileSound('epic', true)
           this.banners.push(new Banner('Monster Crit', '#ff4444', 3000))
         }
         break
@@ -512,8 +512,8 @@ export class RefinedOverlay {
       this.rhythm.calibrationEvent = null
     }
     if (this.rhythm.roundEndDamage !== null) {
-      if (this.rhythm.roundEndDamage > 600 && t - this.lastOhSnapTs > 1000) {
-        this.audio.playFileSound('oh_snap')
+      if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
+        this.audio.playFileSound('oh_snap', true)
         this.banners.push(new Banner('Huge Round!!!', '#ffd700', 3000))
         this.lastOhSnapTs = t
       }
