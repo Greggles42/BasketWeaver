@@ -32,9 +32,10 @@ class Banner {
   static FADE_IN  = 300
   static FADE_OUT = 500
   text: string; color: string; duration: number; born: number
-  constructor(text: string, color: string, duration = 4000) {
+  bigNumber?: string
+  constructor(text: string, color: string, duration = 4000, bigNumber?: string) {
     this.text = text; this.color = color; this.duration = duration
-    this.born = now()
+    this.born = now(); this.bigNumber = bigNumber
   }
   get alpha() {
     const age = now() - this.born
@@ -416,7 +417,7 @@ export class Overlay {
         const target = (ev.data?.target as string) || this.currentTarget
         if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
           this.audio.playFileSound('epic', true)
-          this.showBanner(`Monster Crit  ${damage.toLocaleString()}`, '#ff4444', 3000)
+          this.showBanner('Monster Crit', '#ff4444', 3000, damage.toLocaleString())
           this.recordHit(this.topCrits, damage, target)
         }
         break
@@ -663,7 +664,7 @@ export class Overlay {
       if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
         const rd = this.rhythm.roundEndDamage
         this.audio.playFileSound('oh_snap', true)
-        this.showBanner(`Huge Round!!!  ${rd.toLocaleString()}`, '#ffd700', 3000)
+        this.showBanner('Huge Round!!!', '#ffd700', 3000, rd.toLocaleString())
         this.recordHit(this.topHugeRounds, rd, this.currentTarget)
         this.lastOhSnapTs = t
       }
@@ -1783,22 +1784,39 @@ export class Overlay {
     const cfg = this.cfg
     const w   = this.canvas.width
     const hy  = this.highwayY
+    const BIG_SIZE = 32
 
     let offsetY = 0
     for (const b of this.banners) {
       const a = b.alpha
       if (a <= 0) continue
       ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
-      const tw = ctx.measureText(b.text).width
-      const bx = (w - tw - 8) / 2
+      const tw   = ctx.measureText(b.text).width
+      const boxH = b.bigNumber
+        ? cfg.FONT_SM + 6 + 4 + BIG_SIZE + 4
+        : cfg.FONT_SM + 6
+      const bx = (w - Math.max(tw, b.bigNumber ? ctx.measureText(b.bigNumber) as any : 0) - 8) / 2
       const by = hy + 4 + offsetY
       ctx.globalAlpha = a
       ctx.fillStyle = 'rgba(10,10,20,0.7)'
-      ctx.beginPath(); ctx.roundRect(bx, by, tw + 8, cfg.FONT_SM + 6, 3); ctx.fill()
+      // Measure big number width for box sizing
+      let nw = tw
+      if (b.bigNumber) {
+        ctx.font = `700 ${BIG_SIZE}px Consolas, monospace`
+        nw = Math.max(tw, ctx.measureText(b.bigNumber).width)
+        ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
+      }
+      const boxX = (w - nw - 8) / 2
+      ctx.beginPath(); ctx.roundRect(boxX, by, nw + 8, boxH, 3); ctx.fill()
       ctx.fillStyle = b.color
-      ctx.fillText(b.text, bx + 4, by + cfg.FONT_SM + 2)
+      ctx.fillText(b.text, (w - tw) / 2, by + cfg.FONT_SM + 2)
+      if (b.bigNumber) {
+        ctx.font = `700 ${BIG_SIZE}px Consolas, monospace`
+        const nwActual = ctx.measureText(b.bigNumber).width
+        ctx.fillText(b.bigNumber, (w - nwActual) / 2, by + cfg.FONT_SM + 6 + BIG_SIZE)
+      }
       ctx.globalAlpha = 1
-      offsetY += cfg.FONT_SM + 10
+      offsetY += boxH + 4
     }
   }
 
@@ -1973,8 +1991,8 @@ export class Overlay {
     this.audio.play('miss')
   }
 
-  showBanner(text: string, color: string, durationMs = 4000): void {
-    this.banners.push(new Banner(text, color, durationMs))
+  showBanner(text: string, color: string, durationMs = 4000, bigNumber?: string): void {
+    this.banners.push(new Banner(text, color, durationMs, bigNumber))
   }
 
   // ── Particle effects ──────────────────────────────────────────

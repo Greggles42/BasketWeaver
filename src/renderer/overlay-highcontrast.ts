@@ -44,8 +44,9 @@ const now = () => performance.now()
 class Banner {
   static FADE_IN = 300; static FADE_OUT = 500
   text: string; color: string; duration: number; born = now()
-  constructor(text: string, color: string, duration = 4000) {
-    this.text = text; this.color = color; this.duration = duration
+  bigNumber?: string
+  constructor(text: string, color: string, duration = 4000, bigNumber?: string) {
+    this.text = text; this.color = color; this.duration = duration; this.bigNumber = bigNumber
   }
   get alpha() {
     const age = now() - this.born
@@ -347,7 +348,7 @@ export class HighContrastOverlay {
         const target = (ev.data?.target as string) || this.currentTarget
         if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
           this.audio.playFileSound('epic', true)
-          this.banners.push(new Banner(`MONSTER CRIT  ${damage.toLocaleString()}`, '#ff4444', 3000))
+          this.banners.push(new Banner('MONSTER CRIT', '#ff4444', 3000, damage.toLocaleString()))
           this.recordHit(this.topCrits, damage, target)
         }
         break
@@ -489,7 +490,7 @@ export class HighContrastOverlay {
       if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
         const rd = this.rhythm.roundEndDamage
         this.audio.playFileSound('oh_snap', true)
-        this.banners.push(new Banner(`HUGE ROUND!!!  ${rd.toLocaleString()}`, '#ffd700', 3000))
+        this.banners.push(new Banner('HUGE ROUND!!!', '#ffd700', 3000, rd.toLocaleString()))
         this.recordHit(this.topHugeRounds, rd, this.currentTarget)
         this.lastOhSnapTs = t
       }
@@ -1043,12 +1044,18 @@ export class HighContrastOverlay {
     const w = this.canvas.width
     let y = this.highwayY + 14
     for (const b of this.banners) {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.font = '800 11px "Archivo", sans-serif'
       ctx.fillStyle = this.rgba(b.color, b.alpha)
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
       ctx.fillText(b.text, w / 2, y)
+      y += 14
+      if (b.bigNumber) {
+        ctx.font = '800 36px "Archivo Narrow", "Archivo", sans-serif'
+        ctx.fillStyle = this.rgba(b.color, b.alpha)
+        ctx.fillText(b.bigNumber, w / 2, y + 18)
+        y += 42
+      }
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
-      y += 18
     }
   }
 
