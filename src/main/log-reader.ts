@@ -189,7 +189,7 @@ export class LogReader {
       const tm = LogReader.TARGET_RE.exec(content)
       if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
       this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-        data: { damage: parseDamage(content), hit: true, line: content } })
+        data: { damage: parseDamage(content), hit: true, line: content, target: this.currentTarget } })
       return
     }
 
@@ -244,7 +244,7 @@ export class LogReader {
       const m = /\((\d+)\)/.exec(content)
       const damage = m ? parseInt(m[1], 10) : 0
       if (damage > 0)
-        this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage } })
+        this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage, target: this.currentTarget } })
       return
     }
 

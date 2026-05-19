@@ -11,10 +11,10 @@
 import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import * as path from 'path'
 import { Config } from '../shared/config'
-import { IPC, type GameEvent } from '../shared/events'
+import { IPC, type GameEvent, type HitRecord } from '../shared/events'
 import { LogReader } from './log-reader'
 import { ZealReader } from './zeal-reader'
-import { createTray, updateFightHistory } from './tray'
+import { createTray, updateFightHistory, updateTopRecords } from './tray'
 import { autoUpdater } from 'electron-updater'
 
 // ── Persist last-used log path ────────────────────────────────
@@ -353,6 +353,10 @@ function setupIPC(): void {
   ipcMain.on(IPC.SAVE_SETTINGS, () => saveSettings())
 
   ipcMain.on(IPC.FIGHT_HISTORY_UPDATE, (_e, fights: { label: string, full: string }[]) => updateFightHistory(fights))
+
+  ipcMain.on(IPC.TOP_RECORDS_UPDATE, (_e, data: { crits: HitRecord[], hugeRounds: HitRecord[] }) => {
+    updateTopRecords(data.crits, data.hugeRounds)
+  })
 
   ipcMain.on(IPC.SET_OPACITY, (_e, val: number) => {
     Config.WINDOW_OPACITY = val

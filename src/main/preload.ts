@@ -4,7 +4,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, type GameEvent } from '../shared/events'
+import { IPC, type GameEvent, type HitRecord } from '../shared/events'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── Main → renderer ─────────────────────────────────────
@@ -60,6 +60,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
+
+  sendTopRecords: (crits: HitRecord[], hugeRounds: HitRecord[]) =>
+    ipcRenderer.send(IPC.TOP_RECORDS_UPDATE, { crits, hugeRounds }),
 
   // ── Renderer → main ─────────────────────────────────────
   quit: () => ipcRenderer.send(IPC.QUIT),

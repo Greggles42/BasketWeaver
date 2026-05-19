@@ -4,7 +4,7 @@
  */
 
 import { Config } from '../shared/config'
-import type { GameEvent } from '../shared/events'
+import type { GameEvent, HitRecord } from '../shared/events'
 import { Overlay } from './overlay'
 import { RefinedOverlay } from './overlay-refined'
 import { HighContrastOverlay } from './overlay-highcontrast'
@@ -29,6 +29,7 @@ declare global {
       onSetVolumes:           (cb: (master: number, proc: number, epic: number) => void) => void
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
+      sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void

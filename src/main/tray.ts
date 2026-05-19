@@ -5,7 +5,7 @@
 
 import { Tray, Menu, MenuItem, nativeImage, BrowserWindow, ipcMain, clipboard, app } from 'electron'
 import * as path from 'path'
-import { IPC } from '../shared/events'
+import { IPC, type HitRecord } from '../shared/events'
 import { Config } from '../shared/config'
 
 const INTERVALS       = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]
@@ -17,9 +17,16 @@ const OPACITIES: Array<[string, number]> = [
 ]
 
 let recentFights: { label: string, full: string }[] = []
+let topCrits:     HitRecord[] = []
+let topHugeRounds: HitRecord[] = []
 
 export function updateFightHistory(fights: { label: string, full: string }[]): void {
   recentFights = fights
+}
+
+export function updateTopRecords(crits: HitRecord[], hugeRounds: HitRecord[]): void {
+  topCrits      = crits
+  topHugeRounds = hugeRounds
 }
 
 export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () => void = () => {}, onSelectLog: () => void = () => {}, onResetPosition: () => void = () => {}, onSetOverlayStyle: (style: 'refined' | 'standard' | 'highcontrast') => void = () => {}, onSetTrackingSource: (source: 'log' | 'zeal' | 'hybrid') => void = () => {}, onOpenSettings: () => void = () => {}): Tray {
@@ -179,6 +186,24 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
           : recentFights.map(({ label, full }) => ({
               label,
               click: () => clipboard.writeText(full),
+            })),
+      },
+      {
+        label: 'Top Crits',
+        submenu: topCrits.length === 0
+          ? [{ label: 'No crits recorded yet', enabled: false }]
+          : topCrits.map((r, i) => ({
+              label: `#${i + 1}  ${r.damage.toLocaleString()}  [${r.target || 'Unknown'}]  ${r.date}`,
+              enabled: false,
+            })),
+      },
+      {
+        label: 'Top Huge Rounds',
+        submenu: topHugeRounds.length === 0
+          ? [{ label: 'No huge rounds recorded yet', enabled: false }]
+          : topHugeRounds.map((r, i) => ({
+              label: `#${i + 1}  ${r.damage.toLocaleString()}  [${r.target || 'Unknown'}]  ${r.date}`,
+              enabled: false,
             })),
       },
       { type: 'separator' },

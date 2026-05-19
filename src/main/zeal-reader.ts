@@ -264,7 +264,7 @@ export class ZealReader {
 
         if (verb === 'crush') {
           this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-            data: { damage, hit: true, line: text } })
+            data: { damage, hit: true, line: text, target } })
         } else if (verb === 'punch' || verb === 'strike') {
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage, hit: true, line: text } })
@@ -354,7 +354,7 @@ export class ZealReader {
           if (m) {
             const damage = parseInt(m[1], 10)
             if (damage > 0)
-              this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage } })
+              this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage, target: this.currentTarget } })
             return
           }
         }

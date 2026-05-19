@@ -27,6 +27,12 @@ export interface GameEvent {
   data?: Record<string, unknown>
 }
 
+export interface HitRecord {
+  damage: number
+  target: string
+  date: string   // formatted wall-clock timestamp
+}
+
 // ── IPC channel names ────────────────────────────────────────
 export const IPC = {
   GAME_EVENT:        'game-event',         // main → renderer: GameEvent
@@ -59,4 +65,5 @@ export const IPC = {
   SETTINGS_SET:           'settings-set',
   SET_VOLUMES:            'set-volumes',
   SET_THRESHOLDS:         'set-thresholds',
+  TOP_RECORDS_UPDATE:     'top-records-update',
 } as const

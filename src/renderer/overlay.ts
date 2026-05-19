@@ -5,7 +5,7 @@
  */
 
 import { Config, type ConfigType } from '../shared/config'
-import { EvType, IPC, type GameEvent } from '../shared/events'
+import { EvType, IPC, type GameEvent, type HitRecord } from '../shared/events'
 import { RhythmEngine, type Note, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
 
@@ -170,6 +170,9 @@ export class Overlay {
   private defaultColors: Partial<ConfigType> = {}
 
   pinned = true
+  private currentTarget = ''
+  private topCrits:      HitRecord[] = []
+  private topHugeRounds: HitRecord[] = []
   private avatarActive = false
   private savageryActive = false
   private oorLastSoundTs = 0
@@ -258,6 +261,7 @@ export class Overlay {
         const crushTs = performance.now()
         const damage = ev.data?.damage as number ?? 0
         const hit    = ev.data?.hit    as boolean ?? false
+        if (ev.data?.target) this.currentTarget = ev.data.target as string
         this.rhythm.onMainhandCrush(crushTs, damage, hit)
         this.lastCombatActivity = crushTs
         this.swingLog.push(crushTs)
@@ -409,9 +413,11 @@ export class Overlay {
       }
       case EvType.CRIT_HIT: {
         const damage = (ev.data?.damage as number) ?? 0
+        const target = (ev.data?.target as string) || this.currentTarget
         if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
           this.audio.playFileSound('epic', true)
-          this.showBanner('Monster Crit', '#ff4444', 3000)
+          this.showBanner(`Monster Crit  ${damage.toLocaleString()}`, '#ff4444', 3000)
+          this.recordHit(this.topCrits, damage, target)
         }
         break
       }
@@ -505,6 +511,17 @@ export class Overlay {
     this.cfg.OFFHAND_WEAPON_NAME  = name
     const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
     this.cfg.GOOD_WINDOW = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay) / 2
+  }
+
+  private recordHit(list: HitRecord[], damage: number, target: string): void {
+    const date = new Date().toLocaleString('en-US', {
+      month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+    list.push({ damage, target: target || 'Unknown', date })
+    list.sort((a, b) => b.damage - a.damage)
+    if (list.length > 10) list.length = 10
+    window.electronAPI?.sendTopRecords(this.topCrits, this.topHugeRounds)
   }
 
   private pushHistory(result: GradeResult): void {
@@ -644,8 +661,10 @@ export class Overlay {
     }
     if (this.rhythm.roundEndDamage !== null) {
       if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
+        const rd = this.rhythm.roundEndDamage
         this.audio.playFileSound('oh_snap', true)
-        this.showBanner('Huge Round!!!', '#ffd700', 3000)
+        this.showBanner(`Huge Round!!!  ${rd.toLocaleString()}`, '#ffd700', 3000)
+        this.recordHit(this.topHugeRounds, rd, this.currentTarget)
         this.lastOhSnapTs = t
       }
       this.rhythm.roundEndDamage = null

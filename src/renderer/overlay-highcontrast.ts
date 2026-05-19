@@ -13,7 +13,7 @@
  */
 
 import { Config, type ConfigType } from '../shared/config'
-import { EvType, type GameEvent } from '../shared/events'
+import { EvType, type GameEvent, type HitRecord } from '../shared/events'
 import { RhythmEngine, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
 
@@ -122,6 +122,9 @@ export class HighContrastOverlay {
 
   pinned = true
   charName = ''
+  private currentTarget = ''
+  private topCrits:      HitRecord[] = []
+  private topHugeRounds: HitRecord[] = []
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -223,6 +226,7 @@ export class HighContrastOverlay {
         const ct = now()
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit    as boolean) ?? false
+        if (ev.data?.target) this.currentTarget = ev.data.target as string
         this.rhythm.onMainhandCrush(ct, damage, hit)
         this.lastCombatActivity = ct
         this.consecutiveCrushesWithoutFist++
@@ -340,9 +344,11 @@ export class HighContrastOverlay {
       }
       case EvType.CRIT_HIT: {
         const damage = (ev.data?.damage as number) ?? 0
+        const target = (ev.data?.target as string) || this.currentTarget
         if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
           this.audio.playFileSound('epic', true)
-          this.banners.push(new Banner('MONSTER CRIT', '#ff4444', 3000))
+          this.banners.push(new Banner(`MONSTER CRIT  ${damage.toLocaleString()}`, '#ff4444', 3000))
+          this.recordHit(this.topCrits, damage, target)
         }
         break
       }
@@ -368,6 +374,17 @@ export class HighContrastOverlay {
     this.lastGradeResult = null
     this.combatStartTs = 0
     this.swingTimerEverValid = false
+  }
+
+  private recordHit(list: HitRecord[], damage: number, target: string): void {
+    const date = new Date().toLocaleString('en-US', {
+      month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    })
+    list.push({ damage, target: target || 'Unknown', date })
+    list.sort((a, b) => b.damage - a.damage)
+    if (list.length > 10) list.length = 10
+    window.electronAPI?.sendTopRecords(this.topCrits, this.topHugeRounds)
   }
 
   private pushHistory(result: GradeResult): void {
@@ -470,8 +487,10 @@ export class HighContrastOverlay {
     }
     if (this.rhythm.roundEndDamage !== null) {
       if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
+        const rd = this.rhythm.roundEndDamage
         this.audio.playFileSound('oh_snap', true)
-        this.banners.push(new Banner('HUGE ROUND!!!', '#ffd700', 3000))
+        this.banners.push(new Banner(`HUGE ROUND!!!  ${rd.toLocaleString()}`, '#ffd700', 3000))
+        this.recordHit(this.topHugeRounds, rd, this.currentTarget)
         this.lastOhSnapTs = t
       }
       this.rhythm.roundEndDamage = null
