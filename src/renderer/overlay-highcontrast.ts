@@ -370,7 +370,6 @@ export class HighContrastOverlay {
           this.banners.push(new Banner('MONSTER CRIT', '#ff4444', 3000, damage.toLocaleString()))
           this.recordHit(this.topCrits, damage, target)
         } else {
-          this.audio.playFileSound('hit_tick', true)
           this.banners.push(new Banner('CRIT', '#ffffff', 2000, damage.toLocaleString()))
         }
         if (this.cfg.SHOW_ALL_CRITS) {

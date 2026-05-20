@@ -359,7 +359,7 @@ export class AudioManager {
       const gainNode  = ctx.createGain()
       const catVol = (name === 'epic' || name === 'oh_snap')
         ? this.epicVolume
-        : (name === 'avatar' || name === 'savagery' || name === 'hit_tick')
+        : (name === 'avatar' || name === 'savagery')
           ? this.procVolume
           : 1.0
       gainNode.gain.value = (this.fileGains.get(name) ?? 1.0) * this.masterVolume * catVol

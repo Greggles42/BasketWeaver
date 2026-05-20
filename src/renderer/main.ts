@@ -116,11 +116,10 @@ window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
 // ── Buff sounds — preload wav files ──────────────────────────
 const audio: import('./audio-manager').AudioManager | undefined = (overlay as any).audio
 if (audio) {
-  audio.loadFile('avatar',    './sounds/avatar.wav',    0.6)
-  audio.loadFile('savagery',  './sounds/savagery.wav')
-  audio.loadFile('oh_snap',   './sounds/oh snap.wav')
-  audio.loadFile('epic',      './sounds/epic.wav')
-  audio.loadFile('hit_tick',  './sounds/Hit tick.wav')
+  audio.loadFile('avatar',   './sounds/avatar.wav',   0.6)
+  audio.loadFile('savagery', './sounds/savagery.wav')
+  audio.loadFile('oh_snap',  './sounds/oh snap.wav')
+  audio.loadFile('epic',     './sounds/epic.wav')
 }
 
 window.electronAPI.onClearBuffs(() => {
