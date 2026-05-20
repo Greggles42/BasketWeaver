@@ -126,8 +126,6 @@ export class HighContrastOverlay {
   private currentTarget = ''
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
-  private critMarkers: { ts: number; big: boolean }[] = []
-
   // Post-combat glide: keep weave windows scrolling for 3 s after mob dies
   private postCombatGlideUntil = 0
   private postCombatNextSwing  = 0
@@ -369,12 +367,9 @@ export class HighContrastOverlay {
           this.audio.playFileSound('epic', true)
           this.banners.push(new Banner('MONSTER CRIT', '#ff4444', 3000, damage.toLocaleString()))
           this.recordHit(this.topCrits, damage, target)
-        } else {
+        } else if (this.cfg.SHOW_ALL_CRITS) {
           this.audio.playFileSound('hit_tick', true)
           this.banners.push(new Banner('CRIT', '#ffffff', 2000, damage.toLocaleString()))
-        }
-        if (this.cfg.SHOW_ALL_CRITS && big) {
-          this.critMarkers.push({ ts: now(), big })
         }
         break
       }
@@ -552,7 +547,6 @@ export class HighContrastOverlay {
 
     this.drawHeader()
     this.drawHighwayBox()
-    this.drawCritMarkers()
     this.drawDynamicWeaveWindows()
     this.drawHitZone()
     this.drawMissChip()
@@ -656,48 +650,6 @@ export class HighContrastOverlay {
     ctx.fillStyle = this.hasteCalibrated ? '#ff9f44' : HC.accent
     ctx.fillText(`${this.cfg.HASTE_PCT.toFixed(0)}%`, w - 10, 20)
     ctx.textAlign = 'left'
-  }
-
-  private drawCritMarkers(): void {
-    if (!this.cfg.SHOW_ALL_CRITS) { this.critMarkers = []; return }
-    const ctx  = this.ctx
-    const t    = now()
-    const hy   = this.highwayY, hh = this.highwayH
-    const vert = this.cfg.ORIENTATION === 'vertical'
-    const cutoff = (this.cfg.HIGHWAY_DURATION + 2) * 1000
-    this.critMarkers = this.critMarkers.filter(m => t - m.ts < cutoff)
-    for (const m of this.critMarkers) {
-      const [px, py] = this.projectAt(m.ts, t)
-      const color = m.big ? '#ff4444' : '#ffffff'
-      ctx.save()
-      ctx.globalAlpha = 0.90
-      if (vert) {
-        if (py < hy || py > hy + hh) { ctx.restore(); continue }
-        const cx = this.hzX
-        ctx.strokeStyle = color; ctx.lineWidth = m.big ? 2.5 : 1.5
-        ctx.beginPath(); ctx.moveTo(cx - 9, py); ctx.lineTo(cx + 9, py); ctx.stroke()
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.moveTo(cx,     py - 5)
-        ctx.lineTo(cx + 5, py)
-        ctx.lineTo(cx,     py + 5)
-        ctx.lineTo(cx - 5, py)
-        ctx.closePath(); ctx.fill()
-      } else {
-        if (px < this.hzX - this.runway || px > this.hzX + 20) { ctx.restore(); continue }
-        const cy = hy + hh / 2
-        ctx.strokeStyle = color; ctx.lineWidth = m.big ? 2.5 : 1.5
-        ctx.beginPath(); ctx.moveTo(px, cy - 9); ctx.lineTo(px, cy + 9); ctx.stroke()
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.moveTo(px,     cy - 6)
-        ctx.lineTo(px + 6, cy)
-        ctx.lineTo(px,     cy + 6)
-        ctx.lineTo(px - 6, cy)
-        ctx.closePath(); ctx.fill()
-      }
-      ctx.restore()
-    }
   }
 
   private drawHighwayBox(): void {
