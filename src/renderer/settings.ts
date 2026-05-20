@@ -330,6 +330,7 @@ async function init(): Promise<void> {
   setupToggle('keystrokeGrading',   'KEYSTROKE_GRADING',   s.KEYSTROKE_GRADING  as boolean)
   setupToggle('orientationVertical','ORIENTATION_VERTICAL', s.ORIENTATION === 'vertical')
   setupToggle('windowPinned',       'WINDOW_PINNED',       s.WINDOW_PINNED      as boolean)
+  setupToggle('showAllCrits',       'SHOW_ALL_CRITS',      s.SHOW_ALL_CRITS     as boolean)
 
   // ── Close button ─────────────────────────────────────────────
   document.getElementById('btnClose')?.addEventListener('click', () => {

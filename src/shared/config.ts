@@ -133,6 +133,7 @@ export const Config = {
   // weave window rather than EQ log fist-attack events. This avoids dual-wield
   // proc failures counting as missed weaves.
   KEYSTROKE_GRADING: false,
+  SHOW_ALL_CRITS: false,
 
   // ── Weapon / haste ────────────────────────────────────────────
   BASE_WEAPON_DELAY:    20,  // EQ tenths-of-seconds

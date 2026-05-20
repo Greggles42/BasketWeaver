@@ -30,6 +30,7 @@ declare global {
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
+      onSetShowAllCrits:      (cb: (enabled: boolean) => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -153,6 +154,10 @@ window.electronAPI.onSetVolumes((master, proc, epic) => {
 window.electronAPI.onSetThresholds((critDamage, hugeRound) => {
   Config.CRIT_DAMAGE_THRESHOLD = critDamage
   Config.HUGE_ROUND_THRESHOLD  = hugeRound
+})
+
+window.electronAPI.onSetShowAllCrits((enabled) => {
+  Config.SHOW_ALL_CRITS = enabled
 })
 
 // ── Status requests from tray ─────────────────────────────────

@@ -58,6 +58,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.SET_THRESHOLDS, (_e, d: { critDamage: number; hugeRound: number }) =>
       cb(d.critDamage, d.hugeRound)),
 
+  onSetShowAllCrits: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.SET_SHOW_ALL_CRITS, (_e, enabled: boolean) => cb(enabled)),
+
   sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
 

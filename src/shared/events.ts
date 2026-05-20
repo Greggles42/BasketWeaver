@@ -66,4 +66,5 @@ export const IPC = {
   SET_VOLUMES:            'set-volumes',
   SET_THRESHOLDS:         'set-thresholds',
   TOP_RECORDS_UPDATE:     'top-records-update',
+  SET_SHOW_ALL_CRITS:     'set-show-all-crits',
 } as const

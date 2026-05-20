@@ -410,6 +410,7 @@ function setupIPC(): void {
     DYNAMIC_WEAVING:          Config.DYNAMIC_WEAVING,
     SHOW_OFFHAND_TIMER:       Config.SHOW_OFFHAND_TIMER,
     KEYSTROKE_GRADING:        Config.KEYSTROKE_GRADING,
+    SHOW_ALL_CRITS:           Config.SHOW_ALL_CRITS,
     FIST_SOUND_ON_MISS:       Config.FIST_SOUND_ON_MISS,
     BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
@@ -510,6 +511,11 @@ function setupIPC(): void {
           Config.WINDOW_PINNED = value as boolean
           win?.webContents.send(IPC.TOGGLE_PIN)
         }
+        break
+
+      case 'SHOW_ALL_CRITS':
+        Config.SHOW_ALL_CRITS = value as boolean
+        win?.webContents.send(IPC.SET_SHOW_ALL_CRITS, value)
         break
 
       default:
@@ -624,6 +630,8 @@ app.whenReady().then(async () => {
     })
     // Sync pinned state
     if (!Config.WINDOW_PINNED) win!.webContents.send(IPC.TOGGLE_PIN)
+    // Sync show-all-crits state
+    if (Config.SHOW_ALL_CRITS) win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
 
     if (Config.TRACKING_SOURCE === 'zeal') {
       startZealReader()

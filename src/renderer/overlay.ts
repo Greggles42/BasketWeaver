@@ -174,6 +174,7 @@ export class Overlay {
   private currentTarget = ''
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
+  private critMarkers: { ts: number; big: boolean }[] = []
   private avatarActive = false
   private savageryActive = false
   private oorLastSoundTs = 0
@@ -415,10 +416,14 @@ export class Overlay {
       case EvType.CRIT_HIT: {
         const damage = (ev.data?.damage as number) ?? 0
         const target = (ev.data?.target as string) || this.currentTarget
-        if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
+        const big = damage > this.cfg.CRIT_DAMAGE_THRESHOLD
+        if (big) {
           this.audio.playFileSound('epic', true)
           this.showBanner('Monster Crit', '#ff4444', 3000, damage.toLocaleString())
           this.recordHit(this.topCrits, damage, target)
+        }
+        if (this.cfg.SHOW_ALL_CRITS) {
+          this.critMarkers.push({ ts: now(), big })
         }
         break
       }
@@ -731,6 +736,7 @@ export class Overlay {
     this.drawResyncingNotice()
 
     this.drawDynamicWeaveWindows()
+    this.drawCritMarkers()
     this.drawNotes()
     this.drawHitZone()
     this.drawEffects()
@@ -745,6 +751,48 @@ export class Overlay {
   }
 
   // ── Highway ───────────────────────────────────────────────────
+
+  private drawCritMarkers(): void {
+    if (!this.cfg.SHOW_ALL_CRITS) { this.critMarkers = []; return }
+    const ctx  = this.ctx2d
+    const t    = now()
+    const hy   = this.highwayY, hh = this.highwayH
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const cutoff = (this.cfg.HIGHWAY_DURATION + 2) * 1000
+    this.critMarkers = this.critMarkers.filter(m => t - m.ts < cutoff)
+    for (const m of this.critMarkers) {
+      const [px, py] = this.noteScreenPos(m.ts, t)
+      const color = m.big ? '#ff4444' : '#ffffff'
+      ctx.save()
+      ctx.globalAlpha = 0.85
+      if (vert) {
+        if (py < hy || py > hy + hh) { ctx.restore(); continue }
+        const cx = this.highwayCX
+        ctx.strokeStyle = color; ctx.lineWidth = m.big ? 2 : 1.5
+        ctx.beginPath(); ctx.moveTo(cx - 8, py); ctx.lineTo(cx + 8, py); ctx.stroke()
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.moveTo(cx,     py - 5)
+        ctx.lineTo(cx + 5, py)
+        ctx.lineTo(cx,     py + 5)
+        ctx.lineTo(cx - 5, py)
+        ctx.closePath(); ctx.fill()
+      } else {
+        if (px < this.hzX - this.runway || px > this.hzX + 20) { ctx.restore(); continue }
+        const cy = this.highwayCY
+        ctx.strokeStyle = color; ctx.lineWidth = m.big ? 2 : 1.5
+        ctx.beginPath(); ctx.moveTo(px, cy - 8); ctx.lineTo(px, cy + 8); ctx.stroke()
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.moveTo(px,     cy - 5)
+        ctx.lineTo(px + 5, cy)
+        ctx.lineTo(px,     cy + 5)
+        ctx.lineTo(px - 5, cy)
+        ctx.closePath(); ctx.fill()
+      }
+      ctx.restore()
+    }
+  }
 
   private drawHighway(): void {
     const ctx  = this.ctx2d

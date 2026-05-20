@@ -143,6 +143,7 @@ export class RefinedOverlay {
   private currentTarget = ''
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
+  private critMarkers: { ts: number; big: boolean }[] = []
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -375,10 +376,14 @@ export class RefinedOverlay {
       case EvType.CRIT_HIT: {
         const damage = (ev.data?.damage as number) ?? 0
         const target = (ev.data?.target as string) || this.currentTarget
-        if (damage > this.cfg.CRIT_DAMAGE_THRESHOLD) {
+        const big = damage > this.cfg.CRIT_DAMAGE_THRESHOLD
+        if (big) {
           this.audio.playFileSound('epic', true)
           this.banners.push(new Banner('Monster Crit', '#ff4444', 3000, damage.toLocaleString()))
           this.recordHit(this.topCrits, damage, target)
+        }
+        if (this.cfg.SHOW_ALL_CRITS) {
+          this.critMarkers.push({ ts: now(), big })
         }
         break
       }
@@ -572,6 +577,7 @@ export class RefinedOverlay {
     // Backgrounds
     ctx.fillStyle = PAL.bg; ctx.fillRect(0,0,w,h)
     this.drawHighway()
+    this.drawCritMarkers()
     this.drawHeader()
     this.drawFooter()
     this.drawDynamicWeaveWindows()
@@ -638,6 +644,55 @@ export class RefinedOverlay {
       ctx.beginPath(); ctx.moveTo(this.hzX, cy); ctx.lineTo(w, cy); ctx.stroke()
     } else {
       ctx.beginPath(); ctx.moveTo(this.hzX, hy); ctx.lineTo(this.hzX, this.hzY); ctx.stroke()
+    }
+  }
+
+  private drawCritMarkers(): void {
+    if (!this.cfg.SHOW_ALL_CRITS) { this.critMarkers = []; return }
+    const ctx  = this.ctx
+    const t    = now()
+    const hy   = this.highwayY, hh = this.highwayH
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const cutoff = (this.cfg.HIGHWAY_DURATION + 2) * 1000
+    this.critMarkers = this.critMarkers.filter(m => t - m.ts < cutoff)
+    for (const m of this.critMarkers) {
+      const [px, py] = this.projectAt(m.ts, t)
+      const color = m.big ? '#ff4444' : '#ffffff'
+      if (vert) {
+        if (py < hy || py > hy + hh) continue
+        const cx = this.hzX
+        ctx.save()
+        ctx.globalAlpha = 0.85
+        ctx.strokeStyle = color
+        ctx.lineWidth = m.big ? 2 : 1.5
+        ctx.beginPath(); ctx.moveTo(cx - 8, py); ctx.lineTo(cx + 8, py); ctx.stroke()
+        // Small diamond
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.moveTo(cx,     py - 4)
+        ctx.lineTo(cx + 4, py)
+        ctx.lineTo(cx,     py + 4)
+        ctx.lineTo(cx - 4, py)
+        ctx.closePath(); ctx.fill()
+        ctx.restore()
+      } else {
+        if (px < this.hzX - this.runway || px > this.hzX + 20) continue
+        const cy = hy + hh / 2
+        ctx.save()
+        ctx.globalAlpha = 0.85
+        ctx.strokeStyle = color
+        ctx.lineWidth = m.big ? 2 : 1.5
+        ctx.beginPath(); ctx.moveTo(px, cy - 8); ctx.lineTo(px, cy + 8); ctx.stroke()
+        // Small diamond
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.moveTo(px,     cy - 5)
+        ctx.lineTo(px + 5, cy)
+        ctx.lineTo(px,     cy + 5)
+        ctx.lineTo(px - 5, cy)
+        ctx.closePath(); ctx.fill()
+        ctx.restore()
+      }
     }
   }
 
