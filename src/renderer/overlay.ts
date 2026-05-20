@@ -438,9 +438,10 @@ export class Overlay {
           this.showBanner('Monster Crit', '#ff4444', 3000, damage.toLocaleString())
           this.recordHit(this.topCrits, damage, target)
         } else {
+          this.audio.playFileSound('hit_tick', true)
           this.showBanner('Crit', '#ffffff', 2000, damage.toLocaleString())
         }
-        if (this.cfg.SHOW_ALL_CRITS) {
+        if (this.cfg.SHOW_ALL_CRITS && big) {
           this.critMarkers.push({ ts: now(), big })
         }
         break

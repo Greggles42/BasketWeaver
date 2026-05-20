@@ -120,6 +120,7 @@ if (audio) {
   audio.loadFile('savagery', './sounds/savagery.wav')
   audio.loadFile('oh_snap',  './sounds/oh snap.wav')
   audio.loadFile('epic',     './sounds/epic.wav')
+  audio.loadFile('hit_tick', './sounds/Hit tick.wav')
 }
 
 window.electronAPI.onClearBuffs(() => {
