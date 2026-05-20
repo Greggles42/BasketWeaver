@@ -128,6 +128,12 @@ export class HighContrastOverlay {
   private topHugeRounds: HitRecord[] = []
   private critMarkers: { ts: number; big: boolean }[] = []
 
+  // Post-combat glide: keep weave windows scrolling for 3 s after mob dies
+  private postCombatGlideUntil = 0
+  private postCombatNextSwing  = 0
+  private postCombatLastCrush  = 0
+  private postCombatRoundOpen  = false
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')!
@@ -198,6 +204,7 @@ export class HighContrastOverlay {
     switch (ev.type) {
       case EvType.COMBAT_START:
         if (!this.rhythm.inCombat) {
+          this.postCombatGlideUntil = 0
           this.rhythm.onCombatStart(now())
           this.audio.play('combat_start')
           this.gradeScreen = null
@@ -210,6 +217,10 @@ export class HighContrastOverlay {
         break
       case EvType.MOB_DIED: {
         if (this.rhythm.inCombat) {
+          this.postCombatGlideUntil = now() + 3000
+          this.postCombatNextSwing  = this.rhythm.nextSwingTime
+          this.postCombatLastCrush  = this.rhythm.lastCrushTime
+          this.postCombatRoundOpen  = this.rhythm.roundOpen
           const r = this.rhythm.onCombatEnd(ts)
           r.mobName = (ev.data?.mobName as string) ?? ''
           this.audio.play('combat_end')
@@ -221,7 +232,13 @@ export class HighContrastOverlay {
         break
       }
       case EvType.COMBAT_END:
-        if (this.rhythm.inCombat) this.rhythm.onCombatEnd(ts)
+        if (this.rhythm.inCombat) {
+          this.postCombatGlideUntil = now() + 3000
+          this.postCombatNextSwing  = this.rhythm.nextSwingTime
+          this.postCombatLastCrush  = this.rhythm.lastCrushTime
+          this.postCombatRoundOpen  = this.rhythm.roundOpen
+          this.rhythm.onCombatEnd(ts)
+        }
         this.clearRapidAttackMute()
         break
       case EvType.MAINHAND_CRUSH: {
@@ -352,6 +369,8 @@ export class HighContrastOverlay {
           this.audio.playFileSound('epic', true)
           this.banners.push(new Banner('MONSTER CRIT', '#ff4444', 3000, damage.toLocaleString()))
           this.recordHit(this.topCrits, damage, target)
+        } else {
+          this.audio.playFileSound('hit_tick', true)
         }
         if (this.cfg.SHOW_ALL_CRITS) {
           this.critMarkers.push({ ts: now(), big })
@@ -376,6 +395,7 @@ export class HighContrastOverlay {
 
   private resetTrack(): void {
     if (this.rhythm.inCombat) this.rhythm.onCombatEnd(now())
+    this.postCombatGlideUntil = 0
     this.gradeScreen = null
     this.lastGradeResult = null
     this.combatStartTs = 0
@@ -468,6 +488,10 @@ export class HighContrastOverlay {
 
     if (this.rhythm.inCombat && this.lastCombatActivity > 0
         && t - this.lastCombatActivity > COMBAT_IDLE_TIMEOUT_MS) {
+      this.postCombatGlideUntil = t + 3000
+      this.postCombatNextSwing  = this.rhythm.nextSwingTime
+      this.postCombatLastCrush  = this.rhythm.lastCrushTime
+      this.postCombatRoundOpen  = this.rhythm.roundOpen
       const result = this.rhythm.onCombatEnd(t)
       this.audio.play('combat_end')
       this.gradeScreen = new GradeScreen(result)
@@ -683,16 +707,18 @@ export class HighContrastOverlay {
   }
 
   private drawDynamicWeaveWindows(): void {
-    if (!this.rhythm.inCombat || !this.rhythm.swingTimerValid) return
-    const ctx = this.ctx
     const t = now()
+    const gliding = !this.rhythm.inCombat && t < this.postCombatGlideUntil
+    if (!this.rhythm.inCombat && !gliding) return
+    if (!this.rhythm.swingTimerValid && !gliding) return
+    const ctx = this.ctx
     const intervalMs = this.cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = this.rhythm.effectiveOffhandDelay * 1000
     const weaveMs    = Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
 
-    const nextSwing = this.rhythm.roundOpen
-      ? this.rhythm.lastCrushTime + intervalMs
-      : this.rhythm.nextSwingTime
+    const nextSwing = gliding
+      ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
+      : (this.rhythm.roundOpen    ? this.rhythm.lastCrushTime + intervalMs : this.rhythm.nextSwingTime)
 
     let firstSwing = nextSwing
     while (firstSwing - intervalMs > t - intervalMs) firstSwing -= intervalMs

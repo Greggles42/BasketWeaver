@@ -175,6 +175,13 @@ export class Overlay {
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
   private critMarkers: { ts: number; big: boolean }[] = []
+
+  // Post-combat glide: keep weave windows scrolling for 3 s after mob dies
+  private postCombatGlideUntil = 0
+  private postCombatNextSwing  = 0
+  private postCombatLastCrush  = 0
+  private postCombatRoundOpen  = false
+
   private avatarActive = false
   private savageryActive = false
   private oorLastSoundTs = 0
@@ -222,6 +229,7 @@ export class Overlay {
     switch (ev.type) {
       case EvType.COMBAT_START:
         if (!this.rhythm.inCombat) {
+          this.postCombatGlideUntil = 0
           this.rhythm.onCombatStart(performance.now())
           this.audio.play('combat_start')
           this.gradeScreen = null
@@ -239,6 +247,10 @@ export class Overlay {
 
       case EvType.MOB_DIED:
         if (this.rhythm.inCombat) {
+          this.postCombatGlideUntil = now() + 3000
+          this.postCombatNextSwing  = this.rhythm.nextSwingTime
+          this.postCombatLastCrush  = this.rhythm.lastCrushTime
+          this.postCombatRoundOpen  = this.rhythm.roundOpen
           const result = this.rhythm.onCombatEnd(ts)
           result.mobName = (ev.data?.mobName as string) ?? ''
           this.lastGradeResult = result
@@ -252,6 +264,10 @@ export class Overlay {
       case EvType.COMBAT_END:
         // Silent end (zoned / logout) — stop tracking, no grade or sound
         if (this.rhythm.inCombat) {
+          this.postCombatGlideUntil = now() + 3000
+          this.postCombatNextSwing  = this.rhythm.nextSwingTime
+          this.postCombatLastCrush  = this.rhythm.lastCrushTime
+          this.postCombatRoundOpen  = this.rhythm.roundOpen
           this.rhythm.onCombatEnd(ts)
         }
         this.clearRapidAttackMute()
@@ -421,6 +437,8 @@ export class Overlay {
           this.audio.playFileSound('epic', true)
           this.showBanner('Monster Crit', '#ff4444', 3000, damage.toLocaleString())
           this.recordHit(this.topCrits, damage, target)
+        } else {
+          this.audio.playFileSound('hit_tick', true)
         }
         if (this.cfg.SHOW_ALL_CRITS) {
           this.critMarkers.push({ ts: now(), big })
@@ -633,6 +651,10 @@ export class Overlay {
     // Auto combat-end idle timeout
     if (this.rhythm.inCombat && this.lastCombatActivity > 0
         && t - this.lastCombatActivity > COMBAT_IDLE_TIMEOUT_MS) {
+      this.postCombatGlideUntil = t + 3000
+      this.postCombatNextSwing  = this.rhythm.nextSwingTime
+      this.postCombatLastCrush  = this.rhythm.lastCrushTime
+      this.postCombatRoundOpen  = this.rhythm.roundOpen
       const result = this.rhythm.onCombatEnd(t)
       this.lastGradeResult = result
       this.audio.play('combat_end')
@@ -1088,7 +1110,9 @@ export class Overlay {
     const hy   = this.highwayY
     const hh   = this.highwayH
 
-    if (!rhy.inCombat || !rhy.swingTimerValid) return
+    const gliding = !rhy.inCombat && t < this.postCombatGlideUntil
+    if (!rhy.inCombat && !gliding) return
+    if (!rhy.swingTimerValid && !gliding) return
 
     const interval_ms  = cfg.PUNCH_INTERVAL * 1000
     const offhandDelay = rhy.effectiveOffhandDelay                          // seconds
@@ -1096,9 +1120,9 @@ export class Overlay {
     const windowPx     = windowSec * this.speed * 1000                     // pixels
 
     // During an open round nextSwingTime is stale. Recompute from lastCrushTime.
-    const nextSwing = rhy.roundOpen
-      ? rhy.lastCrushTime + interval_ms
-      : rhy.nextSwingTime
+    const nextSwing = gliding
+      ? (this.postCombatRoundOpen ? this.postCombatLastCrush + interval_ms : this.postCombatNextSwing)
+      : (rhy.roundOpen            ? rhy.lastCrushTime + interval_ms        : rhy.nextSwingTime)
 
     // Swing times: k=0 → last swing (may still be on screen), k=1 → next, k=2 → one beyond
     //   swingTime_k = nextSwing + (k - 1) * interval
@@ -1178,15 +1202,17 @@ export class Overlay {
     const hy   = this.highwayY
     const hh   = this.highwayH
 
-    if (!rhy.inCombat || !rhy.swingTimerValid) return
+    const gliding = !rhy.inCombat && t < this.postCombatGlideUntil
+    if (!rhy.inCombat && !gliding) return
+    if (!rhy.swingTimerValid && !gliding) return
 
     const intervalMs = cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = rhy.effectiveOffhandDelay * 1000
     const weaveMs    = Math.max(50, (cfg.PUNCH_INTERVAL - rhy.effectiveOffhandDelay) * 1000)
 
-    const nextSwing = rhy.roundOpen
-      ? rhy.lastCrushTime + intervalMs
-      : rhy.nextSwingTime
+    const nextSwing = gliding
+      ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
+      : (rhy.roundOpen            ? rhy.lastCrushTime + intervalMs        : rhy.nextSwingTime)
 
     const offhandReadyTs = this.lastFistAttackTs > 0
       ? this.lastFistAttackTs + offhandMs
@@ -2077,6 +2103,7 @@ export class Overlay {
 
   resetTrack(): void {
     this.rhythm.reset()
+    this.postCombatGlideUntil = 0
     this.gradeScreen        = null
     this.lastGradeResult    = null
     this.rings              = []
