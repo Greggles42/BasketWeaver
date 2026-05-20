@@ -400,6 +400,7 @@ export class RefinedOverlay {
           this.recordHit(this.topCrits, damage, target)
         } else {
           this.audio.playFileSound('hit_tick', true)
+          this.banners.push(new Banner('Crit', '#ffffff', 2000, damage.toLocaleString()))
         }
         if (this.cfg.SHOW_ALL_CRITS) {
           this.critMarkers.push({ ts: now(), big })
