@@ -278,6 +278,13 @@ export class Overlay {
         const damage = ev.data?.damage as number ?? 0
         const hit    = ev.data?.hit    as boolean ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
+        // Auto-restart if combat ended spuriously mid-fight
+        if (!this.rhythm.inCombat) {
+          this.postCombatGlideUntil = 0
+          this.rhythm.onCombatStart(crushTs)
+          this.combatStartTs = crushTs
+          this.swingTimerEverValid = false
+        }
         this.rhythm.onMainhandCrush(crushTs, damage, hit)
         this.lastCombatActivity = crushTs
         this.swingLog.push(crushTs)
@@ -1065,7 +1072,6 @@ export class Overlay {
 
     const gliding = !rhy.inCombat && t < this.postCombatGlideUntil
     if (!rhy.inCombat && !gliding) return
-    if (!rhy.swingTimerValid && !gliding) return
 
     const interval_ms  = cfg.PUNCH_INTERVAL * 1000
     const offhandDelay = rhy.effectiveOffhandDelay                          // seconds
@@ -1076,6 +1082,7 @@ export class Overlay {
     const nextSwing = gliding
       ? (this.postCombatRoundOpen ? this.postCombatLastCrush + interval_ms : this.postCombatNextSwing)
       : (rhy.roundOpen            ? rhy.lastCrushTime + interval_ms        : rhy.nextSwingTime)
+    if (nextSwing <= 0) return
 
     // Swing times: k=0 → last swing (may still be on screen), k=1 → next, k=2 → one beyond
     //   swingTime_k = nextSwing + (k - 1) * interval
@@ -1157,7 +1164,6 @@ export class Overlay {
 
     const gliding = !rhy.inCombat && t < this.postCombatGlideUntil
     if (!rhy.inCombat && !gliding) return
-    if (!rhy.swingTimerValid && !gliding) return
 
     const intervalMs = cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = rhy.effectiveOffhandDelay * 1000
@@ -1166,6 +1172,7 @@ export class Overlay {
     const nextSwing = gliding
       ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
       : (rhy.roundOpen            ? rhy.lastCrushTime + intervalMs        : rhy.nextSwingTime)
+    if (nextSwing <= 0) return
 
     const offhandReadyTs = this.lastFistAttackTs > 0
       ? this.lastFistAttackTs + offhandMs

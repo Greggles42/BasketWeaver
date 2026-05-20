@@ -132,7 +132,7 @@ export class RhythmEngine {
     const halfWindow  = Math.max(0.2, interval - fistDelay) / 2
     this.cfg.GOOD_WINDOW    = halfWindow
     this.cfg.PUNCH_INTERVAL = interval
-    this.lastKnownInterval  = s(interval)
+    this.lastKnownInterval  = interval   // seconds, matching PUNCH_INTERVAL units
 
     // lastRoundCloseTime stays 0 (set by resetScore) so the first closeRound()
     // produces no measurement — combatStart is not a swing boundary.
@@ -479,7 +479,7 @@ export class RhythmEngine {
     this.swingTimerValid = false
     this.lastRoundFistDamages = []; this.roundFistDamages = []
     this.roundMainhandDamage = 0; this.roundEndDamage = null
-    this.lastKnownInterval = s(this.predictedInterval)
+    this.lastKnownInterval = this.predictedInterval   // seconds, matching PUNCH_INTERVAL units
     this.measuredIntervals = []; this.calibrationEvent = null
   }
 }

@@ -262,6 +262,13 @@ export class RefinedOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit    as boolean) ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
+        // Auto-restart if combat ended spuriously mid-fight
+        if (!this.rhythm.inCombat) {
+          this.postCombatGlideUntil = 0
+          this.rhythm.onCombatStart(crushTs)
+          this.combatStartTs = crushTs
+          this.swingTimerEverValid = false
+        }
         this.rhythm.onMainhandCrush(crushTs, damage, hit)
         this.lastCombatActivity = crushTs
         this.consecutiveCrushesWithoutFist++
@@ -766,7 +773,6 @@ export class RefinedOverlay {
     const t = now()
     const gliding = !this.rhythm.inCombat && t < this.postCombatGlideUntil
     if (!this.rhythm.inCombat && !gliding) return
-    if (!this.rhythm.swingTimerValid && !gliding) return
     const ctx = this.ctx
     const intervalMs = this.cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = this.rhythm.effectiveOffhandDelay * 1000
@@ -775,6 +781,7 @@ export class RefinedOverlay {
     const nextSwing = gliding
       ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
       : (this.rhythm.roundOpen    ? this.rhythm.lastCrushTime + intervalMs : this.rhythm.nextSwingTime)
+    if (nextSwing <= 0) return   // no reference yet (very start of combat)
 
     let firstSwing = nextSwing
     while (firstSwing - intervalMs > t - intervalMs) firstSwing -= intervalMs
