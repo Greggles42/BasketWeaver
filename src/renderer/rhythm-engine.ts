@@ -150,9 +150,16 @@ export class RhythmEngine {
     this.inCombat = true
     // combatStartTime intentionally unchanged — full fight duration preserved
     // Do NOT call resetScore() — keep accumulated damage stats
-    const interval   = this.cfg.PUNCH_INTERVAL
+    // Clear calibration state so stale measurements from the previous fight don't
+    // corrupt the interval estimate for the new/resumed engagement.
+    this.measuredIntervals  = []
+    this.calibrationEvent   = null
+    this.lastRoundCloseTime = 0
+    const interval   = this.predictedInterval   // derive fresh from weapon delay + haste
     const fistDelay  = this.effectiveOffhandDelay
     const halfWindow = Math.max(0.2, interval - fistDelay) / 2
+    this.cfg.PUNCH_INTERVAL  = interval
+    this.cfg.GOOD_WINDOW     = halfWindow
     this.nextSwingTime   = ts + s(interval)
     this.nextNoteTime    = ts + s(interval) + s(halfWindow)
     this.notesAnchored   = true
