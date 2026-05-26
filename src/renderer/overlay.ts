@@ -316,9 +316,13 @@ export class Overlay {
         } else {
           const [hzx, hzy] = this.hitZoneCenter()
           if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
-            if (hit && damage > 0) this.lastFistHitTs = fistNow
             this.audio.play('punch')
-            this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)
+            if (hit && damage > 0) {
+              this.lastFistHitTs = fistNow
+              this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)
+            } else {
+              this.spawnMissDrop(hzx, hzy)
+            }
           } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
             if (this.cfg.FIST_SOUND_ON_MISS) {
               setTimeout(() => {

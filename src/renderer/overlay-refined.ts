@@ -295,13 +295,19 @@ export class RefinedOverlay {
           this.clipWarn = 1
           this.audio.play('error')
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
-          // Positive feedback mode: timing was good → punch sound regardless of mob hit/miss
-          if (hit && damage > 0) this.lastFistHitTs = fistNow
+          // Good timing → punch sound regardless of mob hit/miss.
+          // Mob hit: full visual (hitFlash + particles).
+          // Mob miss: show miss text but still play punch (not whiff) — timing was correct.
           this.audio.play('punch')
-          this.hitFlash = 1
-          this.spawnParticles(hzx, hzy)
+          if (hit && damage > 0) {
+            this.lastFistHitTs = fistNow
+            this.hitFlash = 1
+            this.spawnParticles(hzx, hzy)
+          } else {
+            this.missFlash = 1
+          }
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
-          // Positive feedback mode: timing was bad → whiff regardless of mob hit/miss
+          // Bad timing → whiff regardless of mob hit/miss
           this.missFlash = 1
           if (this.cfg.FIST_SOUND_ON_MISS) {
             setTimeout(() => {

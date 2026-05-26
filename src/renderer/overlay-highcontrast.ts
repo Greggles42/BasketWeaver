@@ -277,7 +277,7 @@ export class HighContrastOverlay {
           this.audio.play('error')
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
           this.audio.play('punch')
-          this.hitFlash = 1
+          if (hit && damage > 0) { this.hitFlash = 1 } else { this.missFlash = 1 }
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
           this.missFlash = 1
           if (this.cfg.FIST_SOUND_ON_MISS) setTimeout(() => this.audio.play('whiff'), 150)

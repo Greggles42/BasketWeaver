@@ -296,10 +296,13 @@ export class RhythmEngine {
     this.cfg.PUNCH_INTERVAL = Math.max(0.5, Math.min(12.0, this.cfg.PUNCH_INTERVAL + delta))
   }
 
-  /** Returns true if ts falls within any active note's scoring window. */
+  /** Returns true if ts falls within any note's scoring window.
+   *  Includes recently auto-missed notes so a punch that arrives a frame after
+   *  the window closes still registers as in-window for positive-audio feedback. */
   isInWeaveWindow(ts: number): boolean {
     return this.notes.some(n =>
-      n.state === 'active' && Math.abs(ts - n.targetTime) <= s(this.cfg.GOOD_WINDOW))
+      (n.state === 'active' || n.state === 'missed') &&
+      Math.abs(ts - n.targetTime) <= s(this.cfg.GOOD_WINDOW))
   }
 
   /**
