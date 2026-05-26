@@ -89,6 +89,7 @@ export const Config = {
   TICK_VOLUME:  0.38,
   FX_VOLUME:    0.62,
   FIST_SOUND_ON_MISS: true,
+  POSITIVE_AUDIO_IN_WINDOW: false,  // punch sound on any in-window attempt; whiff on out-of-window
 
   // ── Audio volumes (0–1, 1.0 = unity) ─────────────────────────
   VOLUME_MASTER: 1.0,
@@ -133,7 +134,7 @@ export const Config = {
   // weave window rather than EQ log fist-attack events. This avoids dual-wield
   // proc failures counting as missed weaves.
   KEYSTROKE_GRADING: false,
-  SHOW_ALL_CRITS: false,
+  SHOW_ALL_CRITS: true,
 
   // ── Weapon / haste ────────────────────────────────────────────
   BASE_WEAPON_DELAY:    20,  // EQ tenths-of-seconds
@@ -204,6 +205,13 @@ export const Config = {
   ],
   SAVAGERY_LOST_PATTERNS: [
     '^The savagery fades\\.',
+  ],
+  // Innerflame (Monk discipline)
+  INNERFLAME_GAINED_PATTERNS: [
+    'Your muscles bulge with the force of will\\.',
+  ],
+  INNERFLAME_LOST_PATTERNS: [
+    'Your strength of will fades\\.',
   ],
 
   // Critical hit notification lines — separate from the damage line

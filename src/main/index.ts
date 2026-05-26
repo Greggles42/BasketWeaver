@@ -74,9 +74,10 @@ function loadSettings(): void {
       if (typeof saved.VOLUME_EPIC           === 'number')  Config.VOLUME_EPIC           = saved.VOLUME_EPIC
       if (typeof saved.CRIT_DAMAGE_THRESHOLD === 'number')  Config.CRIT_DAMAGE_THRESHOLD = saved.CRIT_DAMAGE_THRESHOLD
       if (typeof saved.HUGE_ROUND_THRESHOLD  === 'number')  Config.HUGE_ROUND_THRESHOLD  = saved.HUGE_ROUND_THRESHOLD
-      if (typeof saved.BUFF_SOUND_ENABLED    === 'boolean') Config.BUFF_SOUND_ENABLED    = saved.BUFF_SOUND_ENABLED
-      if (typeof saved.AUDIO_ENABLED         === 'boolean') Config.AUDIO_ENABLED         = saved.AUDIO_ENABLED
-      if (typeof saved.WINDOW_PINNED         === 'boolean') Config.WINDOW_PINNED         = saved.WINDOW_PINNED
+      if (typeof saved.BUFF_SOUND_ENABLED         === 'boolean') Config.BUFF_SOUND_ENABLED         = saved.BUFF_SOUND_ENABLED
+      if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
+      if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
+      if (typeof saved.POSITIVE_AUDIO_IN_WINDOW   === 'boolean') Config.POSITIVE_AUDIO_IN_WINDOW   = saved.POSITIVE_AUDIO_IN_WINDOW
     }
   } catch {}
 }
@@ -96,9 +97,10 @@ export function saveSettings(): void {
       VOLUME_EPIC:           Config.VOLUME_EPIC,
       CRIT_DAMAGE_THRESHOLD: Config.CRIT_DAMAGE_THRESHOLD,
       HUGE_ROUND_THRESHOLD:  Config.HUGE_ROUND_THRESHOLD,
-      BUFF_SOUND_ENABLED:    Config.BUFF_SOUND_ENABLED,
-      AUDIO_ENABLED:         Config.AUDIO_ENABLED,
-      WINDOW_PINNED:         Config.WINDOW_PINNED,
+      BUFF_SOUND_ENABLED:        Config.BUFF_SOUND_ENABLED,
+      AUDIO_ENABLED:             Config.AUDIO_ENABLED,
+      WINDOW_PINNED:             Config.WINDOW_PINNED,
+      POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
@@ -410,7 +412,8 @@ function setupIPC(): void {
     DYNAMIC_WEAVING:          Config.DYNAMIC_WEAVING,
     SHOW_OFFHAND_TIMER:       Config.SHOW_OFFHAND_TIMER,
     KEYSTROKE_GRADING:        Config.KEYSTROKE_GRADING,
-    SHOW_ALL_CRITS:           Config.SHOW_ALL_CRITS,
+    SHOW_ALL_CRITS:               Config.SHOW_ALL_CRITS,
+    POSITIVE_AUDIO_IN_WINDOW:     Config.POSITIVE_AUDIO_IN_WINDOW,
     FIST_SOUND_ON_MISS:       Config.FIST_SOUND_ON_MISS,
     BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
@@ -516,6 +519,11 @@ function setupIPC(): void {
       case 'SHOW_ALL_CRITS':
         Config.SHOW_ALL_CRITS = value as boolean
         win?.webContents.send(IPC.SET_SHOW_ALL_CRITS, value)
+        break
+
+      case 'POSITIVE_AUDIO_IN_WINDOW':
+        Config.POSITIVE_AUDIO_IN_WINDOW = value as boolean
+        win?.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, value)
         break
 
       default:
@@ -630,8 +638,9 @@ app.whenReady().then(async () => {
     })
     // Sync pinned state
     if (!Config.WINDOW_PINNED) win!.webContents.send(IPC.TOGGLE_PIN)
-    // Sync show-all-crits state
-    if (Config.SHOW_ALL_CRITS) win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
+    // Sync show-all-crits and positive-audio-in-window states
+    if (Config.SHOW_ALL_CRITS)           win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
+    if (Config.POSITIVE_AUDIO_IN_WINDOW) win!.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, true)
 
     if (Config.TRACKING_SOURCE === 'zeal') {
       startZealReader()

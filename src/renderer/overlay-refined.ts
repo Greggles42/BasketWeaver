@@ -137,6 +137,7 @@ export class RefinedOverlay {
   private static readonly RAPID_MUTE_MS = 6000
   private avatarActive = false
   private savageryActive = false
+  private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
 
   pinned = true
   charName = ''
@@ -262,12 +263,10 @@ export class RefinedOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit    as boolean) ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
-        // Auto-restart if combat ended spuriously mid-fight
+        // Resume if combat ended spuriously mid-fight (preserves damage stats)
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
-          this.rhythm.onCombatStart(crushTs)
-          this.combatStartTs = crushTs
-          this.swingTimerEverValid = false
+          this.rhythm.resumeCombat(crushTs)
         }
         this.rhythm.onMainhandCrush(crushTs, damage, hit)
         this.lastCombatActivity = crushTs
@@ -295,8 +294,22 @@ export class RefinedOverlay {
         if (isClip) {
           this.clipWarn = 1
           this.audio.play('error')
+        } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
+          // Positive feedback mode: timing was good → punch sound regardless of mob hit/miss
+          if (hit && damage > 0) this.lastFistHitTs = fistNow
+          this.audio.play('punch')
+          this.hitFlash = 1
+          this.spawnParticles(hzx, hzy)
+        } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
+          // Positive feedback mode: timing was bad → whiff regardless of mob hit/miss
+          this.missFlash = 1
+          if (this.cfg.FIST_SOUND_ON_MISS) {
+            setTimeout(() => {
+              if (now() - this.lastFistHitTs > 300) this.audio.play('whiff')
+            }, 150)
+          }
         } else if (hit && damage > 0) {
-          this.lastFistHitTs = now()
+          this.lastFistHitTs = fistNow
           this.audio.play('punch')
           this.hitFlash = 1
           this.spawnParticles(hzx, hzy)
@@ -392,6 +405,9 @@ export class RefinedOverlay {
             this.banners.push(new Banner('Savagery ON', '#f97316', 4000))
             this.audio.playFileSound('savagery')
           }
+        }
+        if (buff === 'innerflame') {
+          this.innerflameUntil = active ? now() + 12000 : 0
         }
         break
       }
@@ -673,11 +689,23 @@ export class RefinedOverlay {
     }
   }
 
+  private drawInnerflameBar(y: number, h: number): void {
+    const frac = this.innerflameUntil > 0 ? Math.max(0, (this.innerflameUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const ctx = this.ctx
+    // Ember gold that pulses slightly with the remaining fraction
+    const alpha = 0.55 + frac * 0.35
+    ctx.fillStyle = `rgba(232,144,32,${alpha.toFixed(2)})`
+    ctx.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
   private drawHeader(): void {
     const ctx = this.ctx
     const w = this.canvas.width
     ctx.fillStyle = PAL.headerFooter; ctx.fillRect(0, 0, w, HEADER_H)
     ctx.fillStyle = PAL.divider;      ctx.fillRect(0, HEADER_H - 1, w, 1)
+    this.drawInnerflameBar(HEADER_H - 2, 2)
 
     ctx.font = '600 12px "Inter", sans-serif'
     ctx.textBaseline = 'middle'
@@ -711,6 +739,15 @@ export class RefinedOverlay {
       this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
       ctx.fillStyle = '#f97316'
       ctx.fillText('SAV', buffX + 5, 12)
+      buffX += bw + 4
+    }
+    if (this.innerflameUntil > 0 && now() < this.innerflameUntil) {
+      const label = 'INNERFLAME'
+      const bw = ctx.measureText(label).width + 10
+      ctx.fillStyle = this.rgba('#e89020', 0.22)
+      this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
+      ctx.fillStyle = '#e89020'
+      ctx.fillText(label, buffX + 5, 12)
     }
 
     // Right-side
@@ -729,6 +766,7 @@ export class RefinedOverlay {
     const w = this.canvas.width, h = this.canvas.height
     ctx.fillStyle = PAL.headerFooter; ctx.fillRect(0, h - FOOTER_H, w, FOOTER_H)
     ctx.fillStyle = PAL.divider;      ctx.fillRect(0, h - FOOTER_H, w, 1)
+    this.drawInnerflameBar(h - FOOTER_H, 2)
     ctx.textBaseline = 'middle'
 
     const fy = h - FOOTER_H / 2

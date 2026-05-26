@@ -30,7 +30,8 @@ declare global {
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
-      onSetShowAllCrits:      (cb: (enabled: boolean) => void) => void
+      onSetShowAllCrits:             (cb: (enabled: boolean) => void) => void
+      onSetPositiveAudioInWindow:    (cb: (enabled: boolean) => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -159,6 +160,10 @@ window.electronAPI.onSetThresholds((critDamage, hugeRound) => {
 
 window.electronAPI.onSetShowAllCrits((enabled) => {
   Config.SHOW_ALL_CRITS = enabled
+})
+
+window.electronAPI.onSetPositiveAudioInWindow((enabled) => {
+  Config.POSITIVE_AUDIO_IN_WINDOW = enabled
 })
 
 // ── Status requests from tray ─────────────────────────────────

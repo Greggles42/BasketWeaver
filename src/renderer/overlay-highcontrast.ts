@@ -120,6 +120,7 @@ export class HighContrastOverlay {
   private static readonly RAPID_MUTE_MS = 6000
   private avatarActive = false
   private savageryActive = false
+  private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
 
   pinned = true
   charName = ''
@@ -244,12 +245,10 @@ export class HighContrastOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit    as boolean) ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
-        // Auto-restart if combat ended spuriously mid-fight
+        // Resume if combat ended spuriously mid-fight (preserves damage stats)
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
-          this.rhythm.onCombatStart(ct)
-          this.combatStartTs = ct
-          this.swingTimerEverValid = false
+          this.rhythm.resumeCombat(ct)
         }
         this.rhythm.onMainhandCrush(ct, damage, hit)
         this.lastCombatActivity = ct
@@ -276,6 +275,12 @@ export class HighContrastOverlay {
         if (isClip) {
           this.clipWarn = 1
           this.audio.play('error')
+        } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
+          this.audio.play('punch')
+          this.hitFlash = 1
+        } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
+          this.missFlash = 1
+          if (this.cfg.FIST_SOUND_ON_MISS) setTimeout(() => this.audio.play('whiff'), 150)
         } else if (hit && damage > 0) {
           this.audio.play('punch')
           this.hitFlash = 1
@@ -363,6 +368,9 @@ export class HighContrastOverlay {
             this.banners.push(new Banner('SAVAGERY ON', '#f97316', 4000))
             this.audio.playFileSound('savagery')
           }
+        }
+        if (buff === 'innerflame') {
+          this.innerflameUntil = active ? now() + 12000 : 0
         }
         break
       }
@@ -603,6 +611,15 @@ export class HighContrastOverlay {
     ctx.fillRect(0, barY, barW, barH)
   }
 
+  private drawInnerflameBar(y: number, h: number): void {
+    const frac = this.innerflameUntil > 0 ? Math.max(0, (this.innerflameUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const alpha = 0.65 + frac * 0.30
+    this.ctx.fillStyle = `rgba(232,144,32,${alpha.toFixed(2)})`
+    this.ctx.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
   private drawHeader(): void {
     const ctx = this.ctx
     const w = this.canvas.width
@@ -647,6 +664,18 @@ export class HighContrastOverlay {
       ctx.textAlign = 'center'
       ctx.fillText('SAV', buffX + 16, 20)
       ctx.textAlign = 'left'
+      buffX += 36
+    }
+    if (this.innerflameUntil > 0 && now() < this.innerflameUntil) {
+      const label = 'INNERFLAME'
+      ctx.font = '800 9px "Archivo", sans-serif'
+      const lw = ctx.measureText(label).width + 10
+      ctx.fillStyle = '#e89020'
+      ctx.fillRect(buffX, 8, lw, 16)
+      ctx.fillStyle = '#000'
+      ctx.textAlign = 'center'
+      ctx.fillText(label, buffX + lw / 2, 20)
+      ctx.textAlign = 'left'
     }
 
     // Stats right
@@ -657,6 +686,8 @@ export class HighContrastOverlay {
     ctx.fillStyle = this.hasteCalibrated ? '#ff9f44' : HC.accent
     ctx.fillText(`${this.cfg.HASTE_PCT.toFixed(0)}%`, w - 10, 20)
     ctx.textAlign = 'left'
+
+    this.drawInnerflameBar(27, 3)
   }
 
   private drawHighwayBox(): void {
@@ -1044,6 +1075,8 @@ export class HighContrastOverlay {
     const ctx = this.ctx
     const w = this.canvas.width, h = this.canvas.height
     ctx.textBaseline = 'alphabetic'
+
+    this.drawInnerflameBar(h - 30, 3)
 
     // WEAVES
     ctx.font = '600 9px "Archivo", sans-serif'

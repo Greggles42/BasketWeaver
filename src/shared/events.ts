@@ -17,7 +17,7 @@ export const enum EvType {
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
   WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
-  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery', active: boolean }
+  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame', active: boolean }
   CRIT_HIT        = 'CRIT_HIT',        // data: { damage: number }
 }
 
@@ -66,5 +66,6 @@ export const IPC = {
   SET_VOLUMES:            'set-volumes',
   SET_THRESHOLDS:         'set-thresholds',
   TOP_RECORDS_UPDATE:     'top-records-update',
-  SET_SHOW_ALL_CRITS:     'set-show-all-crits',
+  SET_SHOW_ALL_CRITS:           'set-show-all-crits',
+  SET_POSITIVE_AUDIO_IN_WINDOW: 'set-positive-audio-in-window',
 } as const

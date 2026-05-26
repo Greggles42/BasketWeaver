@@ -142,6 +142,25 @@ export class RhythmEngine {
     this.swingTimerValid    = true
   }
 
+  /** Resume combat after a spurious end event (false MOB_DIED / COMBAT_END mid-fight).
+   *  Restores inCombat and re-arms the swing timer WITHOUT resetting damage stats or
+   *  combatStartTime, so the full fight's DPS calculation remains intact. */
+  resumeCombat(ts: number): void {
+    if (this.inCombat) return
+    this.inCombat = true
+    // combatStartTime intentionally unchanged — full fight duration preserved
+    // Do NOT call resetScore() — keep accumulated damage stats
+    const interval   = this.cfg.PUNCH_INTERVAL
+    const fistDelay  = this.effectiveOffhandDelay
+    const halfWindow = Math.max(0.2, interval - fistDelay) / 2
+    this.nextSwingTime   = ts + s(interval)
+    this.nextNoteTime    = ts + s(interval) + s(halfWindow)
+    this.notesAnchored   = true
+    this.swingTimerValid = true
+    this.roundOpen       = false
+    this.lastKnownInterval = interval
+  }
+
   onCombatEnd(ts: number): GradeResult {
     if (!this.inCombat) return this.makeGrade()
     this.inCombat = false
@@ -275,6 +294,12 @@ export class RhythmEngine {
 
   adjustInterval(delta: number): void {
     this.cfg.PUNCH_INTERVAL = Math.max(0.5, Math.min(12.0, this.cfg.PUNCH_INTERVAL + delta))
+  }
+
+  /** Returns true if ts falls within any active note's scoring window. */
+  isInWeaveWindow(ts: number): boolean {
+    return this.notes.some(n =>
+      n.state === 'active' && Math.abs(ts - n.targetTime) <= s(this.cfg.GOOD_WINDOW))
   }
 
   /**

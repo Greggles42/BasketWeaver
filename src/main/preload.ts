@@ -61,6 +61,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetShowAllCrits: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.SET_SHOW_ALL_CRITS, (_e, enabled: boolean) => cb(enabled)),
 
+  onSetPositiveAudioInWindow: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, (_e, enabled: boolean) => cb(enabled)),
+
   sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
 

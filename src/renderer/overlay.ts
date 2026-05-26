@@ -182,6 +182,7 @@ export class Overlay {
 
   private avatarActive = false
   private savageryActive = false
+  private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
   private oorLastSoundTs = 0
   private lastOhSnapTs = 0
   private lastFistHitTs  = 0
@@ -278,12 +279,10 @@ export class Overlay {
         const damage = ev.data?.damage as number ?? 0
         const hit    = ev.data?.hit    as boolean ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
-        // Auto-restart if combat ended spuriously mid-fight
+        // Resume if combat ended spuriously mid-fight (preserves damage stats)
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
-          this.rhythm.onCombatStart(crushTs)
-          this.combatStartTs = crushTs
-          this.swingTimerEverValid = false
+          this.rhythm.resumeCombat(crushTs)
         }
         this.rhythm.onMainhandCrush(crushTs, damage, hit)
         this.lastCombatActivity = crushTs
@@ -316,7 +315,18 @@ export class Overlay {
           this.showClipIndicator()
         } else {
           const [hzx, hzy] = this.hitZoneCenter()
-          if (hit && damage > 0) {
+          if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
+            if (hit && damage > 0) this.lastFistHitTs = fistNow
+            this.audio.play('punch')
+            this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)
+          } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
+            if (this.cfg.FIST_SOUND_ON_MISS) {
+              setTimeout(() => {
+                if (now() - this.lastFistHitTs > 300) this.audio.play('whiff')
+              }, 150)
+            }
+            this.spawnMissDrop(hzx, hzy)
+          } else if (hit && damage > 0) {
             this.lastFistHitTs = now()
             this.audio.play('punch')
             this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)
@@ -431,6 +441,9 @@ export class Overlay {
             this.showBanner('Savagery ON', '#f97316', 4000)
             this.audio.playFileSound('savagery')
           }
+        }
+        if (buff === 'innerflame') {
+          this.innerflameUntil = active ? now() + 12000 : 0
         }
         break
       }
@@ -1726,6 +1739,17 @@ export class Overlay {
     ctx.fillRect(0, barY, barW, barH)
   }
 
+  // ── Innerflame timer bar ──────────────────────────────────────
+
+  private drawInnerflameBar(y: number, h: number): void {
+    const frac = this.innerflameUntil > 0 ? Math.max(0, (this.innerflameUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const alpha = 0.55 + frac * 0.35
+    this.ctx2d.fillStyle = `rgba(232,144,32,${alpha.toFixed(2)})`
+    this.ctx2d.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
   // ── Header ────────────────────────────────────────────────────
 
   private drawHeader(): void {
@@ -1763,12 +1787,19 @@ export class Overlay {
     if (this.savageryActive) {
       ctx.fillStyle = '#f97316'
       ctx.fillText('SAV', buffX, h / 2)
+      buffX += ctx.measureText('SAV').width + 6
+    }
+    if (this.innerflameUntil > 0 && now() < this.innerflameUntil) {
+      ctx.fillStyle = '#e89020'
+      ctx.fillText('INNERFLAME', buffX, h / 2)
     }
 
     ctx.fillStyle = cfg.C_TEXT
     const sw = ctx.measureText(scoreText).width
     ctx.fillText(scoreText, w - sw - 4, h / 2)
     ctx.textBaseline = 'alphabetic'
+
+    this.drawInnerflameBar(cfg.HEADER_H - 2, 2)
   }
 
   // ── Footer ────────────────────────────────────────────────────
@@ -1785,6 +1816,7 @@ export class Overlay {
     ctx.fillRect(0, y, w, h)
     ctx.strokeStyle = cfg.C_TRACK_LINE; ctx.lineWidth = 1
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke()
+    this.drawInnerflameBar(y, 2)
 
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
     ctx.fillStyle = cfg.C_TEXT_DIM
