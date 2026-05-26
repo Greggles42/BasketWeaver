@@ -307,36 +307,30 @@ export class ZealReader {
 
       // ── You missed something ───────────────────────────────────
       // Zeal sends ALL misses as "missed TARGET" with no verb.  We use timing to
-      // classify each miss as either a fist (offhand) miss or a crush (mainhand) miss:
-      //   • If enough time has passed since the last fist event for the offhand
-      //     cooldown to have elapsed, the miss is likely a fist miss → FIST_ATTACK.
-      //   • Otherwise (offhand still on cooldown, or no fist reference yet) →
-      //     MAINHAND_CRUSH miss.
-      // This keeps the overlay's lastCombatActivity alive on every miss and lets
-      // the offhand swing timer reset correctly during extended missing streaks.
+      // Miss events are emitted as MAINHAND_CRUSH in all cases.
+      // In hybrid mode the log reader (missOnly) is the authoritative source for miss
+      // classification — it uses verified pattern matching to distinguish mainhand miss
+      // ("You try to crush") from fist miss ("You try to punch/strike").  Zeal only
+      // emits COMBAT_START here so the idle-timeout stays alive during miss streaks.
+      // In Zeal-only mode we never emit FIST_ATTACK for misses because the timing
+      // heuristic is unreliable and a false FIST_ATTACK sets lastFistAttackTs, which
+      // makes the offhand appear to be on cooldown and hides the weave window.
+      // Fist hits are still correctly detected via YouHitOther (punch/strike verb).
       case LOG.YouMissOther: {
         this.ensureCombat(now)    // always emits COMBAT_START — see ensureCombat()
         const mre = ZEAL_MISS_RE.exec(text)
         if (mre) { this.currentTarget = mre[1]; this.lastAttackTs = now }
 
-        // Timing-based miss classification
-        const offhandDelaySec = this.cfg.OFFHAND_WEAPON_DELAY / 10
-          / (1 + this.cfg.HASTE_PCT / 100)
-        const timeSinceLastFist = this.lastFistHitTs > 0
-          ? (now - this.lastFistHitTs) / 1000
-          : Infinity
-
-        if (this.lastFistHitTs > 0 && timeSinceLastFist >= offhandDelaySec * 0.85) {
-          // Offhand cooldown has elapsed since last fist event → fist miss
-          this.lastFistHitTs = now
-          this.emit({ type: EvType.FIST_ATTACK, ts: now,
-            data: { damage: 0, hit: false, line: text } })
-        } else {
-          // Offhand still on cooldown or no fist reference yet → crush miss
-          this.lastCrushHitTs = now
-          this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-            data: { damage: 0, hit: false, line: text } })
+        if (this.cfg.TRACKING_SOURCE === 'hybrid') {
+          // Log reader owns miss classification in hybrid mode; just keep combat alive.
+          return
         }
+
+        // Zeal-only: treat every miss as a mainhand miss.  The weave window stays
+        // visible; fist hits are tracked by YouHitOther so scoring remains accurate.
+        this.lastCrushHitTs = now
+        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+          data: { damage: 0, hit: false, line: text } })
         return
       }
 
