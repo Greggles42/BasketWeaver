@@ -114,6 +114,13 @@ export class ZealReader {
   private currentTarget = ''
   private lastAttackTs = 0    // last time player attacked currentTarget
 
+  // ── Swing tracking for miss classification ────────────────────
+  // Zeal's YouMissOther sends "missed TARGET" with no verb, making it impossible to
+  // distinguish a crush miss from a fist miss. We track the most recent hit timestamps
+  // for each weapon slot so we can classify misses by timing.
+  private lastCrushHitTs = 0  // last YouHitOther crush hit (ms)
+  private lastFistHitTs  = 0  // last YouHitOther punch/strike hit (ms)
+
   // ── Haste dedup ───────────────────────────────────────────────
   private lastHastePct = -1
   private lastHasteEmitTs = 0
@@ -125,18 +132,22 @@ export class ZealReader {
   private avatarLostRe: RegExp[]
   private savageryGainedRe: RegExp[]
   private savageryLostRe: RegExp[]
+  private innerflamGainedRe: RegExp[]
+  private innerflamLostRe: RegExp[]
 
   constructor(cfg: ConfigType, onEvent: EventCallback) {
     this.cfg     = cfg
     this.onEvent = onEvent
 
     const compile = (patterns: string[]) => patterns.map(p => new RegExp(p, 'i'))
-    this.oorRe           = compile(cfg.OUT_OF_RANGE_PATTERNS)
-    this.cursorBlockedRe = compile(cfg.CURSOR_BLOCKED_PATTERNS)
-    this.avatarGainedRe  = compile(cfg.AVATAR_GAINED_PATTERNS)
-    this.avatarLostRe    = compile(cfg.AVATAR_LOST_PATTERNS)
-    this.savageryGainedRe = compile(cfg.SAVAGERY_GAINED_PATTERNS)
-    this.savageryLostRe   = compile(cfg.SAVAGERY_LOST_PATTERNS)
+    this.oorRe             = compile(cfg.OUT_OF_RANGE_PATTERNS)
+    this.cursorBlockedRe   = compile(cfg.CURSOR_BLOCKED_PATTERNS)
+    this.avatarGainedRe    = compile(cfg.AVATAR_GAINED_PATTERNS)
+    this.avatarLostRe      = compile(cfg.AVATAR_LOST_PATTERNS)
+    this.savageryGainedRe  = compile(cfg.SAVAGERY_GAINED_PATTERNS)
+    this.savageryLostRe    = compile(cfg.SAVAGERY_LOST_PATTERNS)
+    this.innerflamGainedRe = compile(cfg.INNERFLAME_GAINED_PATTERNS)
+    this.innerflamLostRe   = compile(cfg.INNERFLAME_LOST_PATTERNS)
     this.weaponRe       = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
       name,
@@ -263,9 +274,11 @@ export class ZealReader {
         this.lastAttackTs  = now
 
         if (verb === 'crush') {
+          this.lastCrushHitTs = now
           this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
             data: { damage, hit: true, line: text, target } })
         } else if (verb === 'punch' || verb === 'strike') {
+          this.lastFistHitTs = now
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage, hit: true, line: text } })
         } else if (verb === 'flying kick' || verb === 'kick') {
@@ -280,23 +293,50 @@ export class ZealReader {
 
       // ── Special abilities (ripostes, backstabs, finishing blows) ──
       // These are never swing-timer events. Parse damage for net DPS.
+      // When no damage is found (e.g. discipline activation text), fall through
+      // to text-pattern matching so buff patterns can fire.
       case LOG.SpecialAbilities: {
         const damage = parseDamageShort(text)
-        if (damage > 0)
+        if (damage > 0) {
           this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+          return
+        }
+        this.processTextPatterns(text, now)
         return
       }
 
       // ── You missed something ───────────────────────────────────
-      // Zeal sends ALL misses (weapon, kick, round kick, etc.) as "missed TARGET"
-      // with no verb — making it impossible to distinguish a kick miss from a
-      // weapon miss. Any attempt to classify by timing would play audio for kicks.
-      // We therefore ignore all YouMissOther events in Zeal mode; timing and
-      // calibration remain accurate from hit events alone.
+      // Zeal sends ALL misses as "missed TARGET" with no verb.  We use timing to
+      // classify each miss as either a fist (offhand) miss or a crush (mainhand) miss:
+      //   • If enough time has passed since the last fist event for the offhand
+      //     cooldown to have elapsed, the miss is likely a fist miss → FIST_ATTACK.
+      //   • Otherwise (offhand still on cooldown, or no fist reference yet) →
+      //     MAINHAND_CRUSH miss.
+      // This keeps the overlay's lastCombatActivity alive on every miss and lets
+      // the offhand swing timer reset correctly during extended missing streaks.
       case LOG.YouMissOther: {
-        this.ensureCombat(now)
+        this.ensureCombat(now)    // always emits COMBAT_START — see ensureCombat()
         const mre = ZEAL_MISS_RE.exec(text)
         if (mre) { this.currentTarget = mre[1]; this.lastAttackTs = now }
+
+        // Timing-based miss classification
+        const offhandDelaySec = this.cfg.OFFHAND_WEAPON_DELAY / 10
+          / (1 + this.cfg.HASTE_PCT / 100)
+        const timeSinceLastFist = this.lastFistHitTs > 0
+          ? (now - this.lastFistHitTs) / 1000
+          : Infinity
+
+        if (this.lastFistHitTs > 0 && timeSinceLastFist >= offhandDelaySec * 0.85) {
+          // Offhand cooldown has elapsed since last fist event → fist miss
+          this.lastFistHitTs = now
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage: 0, hit: false, line: text } })
+        } else {
+          // Offhand still on cooldown or no fist reference yet → crush miss
+          this.lastCrushHitTs = now
+          this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+            data: { damage: 0, hit: false, line: text } })
+        }
         return
       }
 
@@ -413,6 +453,16 @@ export class ZealReader {
       return
     }
 
+    // Innerflame discipline tracking
+    if (this.innerflamGainedRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: true } })
+      return
+    }
+    if (this.innerflamLostRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: false } })
+      return
+    }
+
     // Weapon preset detection
     for (const { re, name, delay } of this.weaponRe) {
       if (re.test(text)) {
@@ -451,8 +501,12 @@ export class ZealReader {
   private ensureCombat(now: number): void {
     if (!this.inCombat) {
       this.inCombat = true
-      this.emit({ type: EvType.COMBAT_START, ts: now })
     }
+    // Always emit COMBAT_START — the overlay only re-initializes when not already in combat,
+    // but always updates lastCombatActivity. This prevents the 10-second idle timeout from
+    // firing during periods of sustained missing (crush or fist), which is the primary cause
+    // of fights "ending quickly" in Zeal-only mode when the player has a run of misses.
+    this.emit({ type: EvType.COMBAT_START, ts: now })
   }
 
   private emit(ev: GameEvent): void {
@@ -470,5 +524,7 @@ export class ZealReader {
     this.inCombat        = false
     this.currentTarget   = ''
     this.lastAttackTs    = 0
+    this.lastCrushHitTs  = 0
+    this.lastFistHitTs   = 0
   }
 }
