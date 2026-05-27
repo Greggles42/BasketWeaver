@@ -68,6 +68,8 @@ export class LogReader {
   private avatarLostRe:   RegExp[]
   private savageryGainedRe: RegExp[]
   private savageryLostRe:   RegExp[]
+  private innerflamGainedRe: RegExp[]
+  private innerflamLostRe:   RegExp[]
   private critHitRe:    RegExp[]
   private missOnly:     boolean
 
@@ -94,9 +96,11 @@ export class LogReader {
 
     this.avatarGainedRe   = compile(cfg.AVATAR_GAINED_PATTERNS)
     this.avatarLostRe     = compile(cfg.AVATAR_LOST_PATTERNS)
-    this.savageryGainedRe = compile(cfg.SAVAGERY_GAINED_PATTERNS)
-    this.savageryLostRe   = compile(cfg.SAVAGERY_LOST_PATTERNS)
-    this.critHitRe        = compile(cfg.CRIT_HIT_PATTERNS)
+    this.savageryGainedRe  = compile(cfg.SAVAGERY_GAINED_PATTERNS)
+    this.savageryLostRe    = compile(cfg.SAVAGERY_LOST_PATTERNS)
+    this.innerflamGainedRe = compile(cfg.INNERFLAME_GAINED_PATTERNS)
+    this.innerflamLostRe   = compile(cfg.INNERFLAME_LOST_PATTERNS)
+    this.critHitRe         = compile(cfg.CRIT_HIT_PATTERNS)
 
     this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
@@ -176,12 +180,21 @@ export class LogReader {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
       } else if (this.savageryLostRe.some(r => r.test(content))) {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
+      } else if (this.innerflamGainedRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: true } })
+      } else if (this.innerflamLostRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: false } })
       }
       return
     }
 
-    // ── Riposte — ignore, not a swing-timer event ───────────
-    if (this.riposteRe.some(r => r.test(content))) return
+    // ── Riposte — count damage toward DPS but no track/sound effect ──
+    if (this.riposteRe.some(r => r.test(content))) {
+      const damage = parseDamage(content)
+      if (this.inCombat && damage > 0)
+        this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+      return
+    }
 
     // ── Mainhand crush hit ──────────────────────────────────
     if (this.crushHitRe.some(r => r.test(content))) {
@@ -312,6 +325,16 @@ export class LogReader {
     }
     if (this.savageryLostRe.some(r => r.test(content))) {
       this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
+      return
+    }
+
+    // ── Innerflame discipline tracking ─────────────────────────
+    if (this.innerflamGainedRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: true } })
+      return
+    }
+    if (this.innerflamLostRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: false } })
       return
     }
 
