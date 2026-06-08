@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basketweaver Community Leaderboard</title>
+  <style>
+    :root {
+      --bg:      #0a0c16;
+      --surface: #0e101e;
+      --border:  #1e2240;
+      --text:    #d2d7f0;
+      --dim:     #5a6482;
+      --accent:  #40a8ff;
+      --gold:    #ffd700;
+      --green:   #50e68c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    header h1 {
+      font-size: 18px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    header span {
+      color: var(--dim);
+      font-size: 12px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .controls label { color: var(--dim); font-size: 12px; }
+
+    select, input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      outline: none;
+    }
+    select:focus, input:focus { border-color: var(--accent); }
+
+    .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+      color: var(--dim);
+      font-weight: 600;
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { color: var(--accent); }
+    thead th.sorted { color: var(--accent); }
+
+    tbody tr:nth-child(odd)  { background: var(--bg); }
+    tbody tr:nth-child(even) { background: #0c0f1c; }
+    tbody tr:hover { background: #141830; }
+
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #12142a;
+      white-space: nowrap;
+    }
+
+    .grade-S { color: var(--gold);  font-weight: 700; }
+    .grade-A { color: var(--green); }
+    .grade-B { color: var(--accent); }
+    .grade-C { color: #ffc850; }
+    .grade-D { color: #c87850; }
+    .grade-F { color: #b43c3c; }
+
+    .mob-header {
+      background: var(--surface);
+      padding: 12px 16px;
+      margin-top: 24px;
+      margin-bottom: 4px;
+      border-left: 3px solid var(--accent);
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 0 4px 4px 0;
+    }
+    .mob-header .mob-count { color: var(--dim); font-size: 12px; font-weight: 400; }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--dim);
+    }
+
+    .loading { text-align: center; padding: 40px; color: var(--dim); }
+
+    .pagination {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 16px;
+    }
+    .pagination button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .pagination button:hover { border-color: var(--accent); }
+    .pagination button:disabled { opacity: 0.4; cursor: default; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚔ Basketweaver Leaderboard</h1>
+    <span>Community performance records</span>
+  </header>
+
+  <div class="controls">
+    <label>Mob</label>
+    <select id="mobSelect">
+      <option value="">All mobs</option>
+    </select>
+    <label>Server</label>
+    <input type="text" id="serverInput" placeholder="all servers" style="width:130px" />
+    <label>Character</label>
+    <input type="text" id="charInput" placeholder="all characters" style="width:140px" />
+    <label>Sort by</label>
+    <select id="sortSelect">
+      <option value="total_dps">Total DPS</option>
+      <option value="fist_dps">Fist DPS</option>
+      <option value="grade">Grade</option>
+      <option value="timestamp">Date</option>
+    </select>
+  </div>
+
+  <div class="main">
+    <div id="content" class="loading">Loading leaderboard…</div>
+  </div>
+
+  <script>
+    const mobSelect   = document.getElementById('mobSelect')
+    const serverInput = document.getElementById('serverInput')
+    const charInput   = document.getElementById('charInput')
+    const sortSelect  = document.getElementById('sortSelect')
+    const content     = document.getElementById('content')
+
+    const BASE = location.origin
+
+    function escHtml(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    }
+
+    function fmtDur(ms) {
+      const s = Math.round(ms / 1000)
+      const m = Math.floor(s / 60)
+      return m > 0 ? `${m}m ${s % 60}s` : `${s}s`
+    }
+
+    function fmtDate(ts) {
+      return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    }
+
+    async function loadMobs() {
+      const res = await fetch(`${BASE}/api/mobs`)
+      if (!res.ok) return
+      const { mobs } = await res.json()
+      mobs.forEach(m => {
+        const opt = document.createElement('option')
+        opt.value = m.mob_name
+        opt.textContent = `${m.mob_name} (${m.count})`
+        mobSelect.appendChild(opt)
+      })
+    }
+
+    async function loadLeaderboard() {
+      const mob    = mobSelect.value
+      const server = serverInput.value.trim()
+      const char   = charInput.value.trim()
+      const sort   = sortSelect.value
+
+      const params = new URLSearchParams({ limit: '200' })
+      if (mob)    params.set('mob',    mob)
+      if (server) params.set('server', server)
+
+      let url = `${BASE}/api/leaderboard?${params}`
+      if (char) url = `${BASE}/api/records?${new URLSearchParams({ char, server, limit: '200' })}`
+
+      content.innerHTML = '<div class="loading">Loading…</div>'
+      const res = await fetch(url)
+      if (!res.ok) { content.innerHTML = '<div class="empty">Failed to load data.</div>'; return }
+
+      const { records } = await res.json()
+      if (!records?.length) { content.innerHTML = '<div class="empty">No records found.</div>'; return }
+
+      // Sort
+      records.sort((a, b) => {
+        if (sort === 'total_dps') return b.total_dps - a.total_dps
+        if (sort === 'fist_dps')  return b.fist_dps  - a.fist_dps
+        if (sort === 'grade')     return a.grade.localeCompare(b.grade)
+        return b.timestamp - a.timestamp
+      })
+
+      // Group by mob if no specific mob filter
+      if (!mob) {
+        const grouped = {}
+        for (const r of records) {
+          if (!grouped[r.mob_name]) grouped[r.mob_name] = []
+          grouped[r.mob_name].push(r)
+        }
+        let html = ''
+        for (const [mobName, recs] of Object.entries(grouped)) {
+          html += `<div class="mob-header">${escHtml(mobName)}<span class="mob-count">${recs.length} record${recs.length !== 1 ? 's' : ''}</span></div>`
+          html += buildTable(recs.slice(0, 10))
+        }
+        content.innerHTML = html
+      } else {
+        content.innerHTML = buildTable(records)
+      }
+    }
+
+    function buildTable(records) {
+      const rows = records.map((r, i) => {
+        const discs = (() => { try { const d = JSON.parse(r.disciplines_used ?? '[]'); return d.join(', ') || '—' } catch { return '—' } })()
+        const buffs = (() => { try { const b = JSON.parse(r.buffs_at_start ?? '{}'); return [b.avatar ? 'Avatar' : '', b.savagery ? 'Savagery' : ''].filter(Boolean).join(', ') || '—' } catch { return '—' } })()
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${escHtml(r.mob_name)}</td>
+          <td class="${escHtml('grade-' + r.grade)}">${escHtml(r.grade)}</td>
+          <td>${(r.total_dps ?? 0).toFixed(1)}</td>
+          <td>${(r.fist_dps  ?? 0).toFixed(1)}</td>
+          <td>${escHtml(r.mainhand || '—')}</td>
+          <td>${escHtml(r.offhand  || '—')}</td>
+          <td>${r.atk_rating || '—'}</td>
+          <td>${r.haste_pct  ? r.haste_pct.toFixed(0) + '%' : '—'}</td>
+          <td>${escHtml(discs)}</td>
+          <td>${escHtml(buffs)}</td>
+          <td>${fmtDur(r.engaged_ms ?? 0)}</td>
+          <td>${fmtDur(r.fight_duration ?? 0)}</td>
+          <td>${escHtml(r.character_name || '—')}</td>
+          <td>${escHtml(r.server_name   || '—')}</td>
+          <td>${fmtDate(r.timestamp)}</td>
+        </tr>`
+      }).join('')
+
+      return `<table>
+        <thead><tr>
+          <th>#</th><th>Mob</th><th>Grade</th><th>Total DPS</th><th>Fist DPS</th>
+          <th>Mainhand</th><th>Offhand</th><th>ATK</th><th>Haste%</th>
+          <th>Disc</th><th>Buffs</th>
+          <th>Engaged</th><th>Duration</th>
+          <th>Character</th><th>Server</th><th>Date</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+    }
+
+    mobSelect.addEventListener('change', loadLeaderboard)
+    serverInput.addEventListener('change', loadLeaderboard)
+    charInput.addEventListener('change', loadLeaderboard)
+    sortSelect.addEventListener('change', loadLeaderboard)
+
+    loadMobs().then(loadLeaderboard)
+  </script>
+</body>
+</html>
