@@ -161,14 +161,12 @@
     <select id="mobSelect">
       <option value="">All mobs</option>
     </select>
-    <label>Server</label>
-    <input type="text" id="serverInput" placeholder="all servers" style="width:130px" />
     <label>Character</label>
     <input type="text" id="charInput" placeholder="all characters" style="width:140px" />
     <label>Sort by</label>
     <select id="sortSelect">
       <option value="total_dps">Total DPS</option>
-      <option value="fist_dps">Fist DPS</option>
+      <option value="fist_dps">Weave DPS</option>
       <option value="grade">Grade</option>
       <option value="timestamp">Date</option>
     </select>
@@ -180,7 +178,6 @@
 
   <script>
     const mobSelect   = document.getElementById('mobSelect')
-    const serverInput = document.getElementById('serverInput')
     const charInput   = document.getElementById('charInput')
     const sortSelect  = document.getElementById('sortSelect')
     const content     = document.getElementById('content')
@@ -214,17 +211,15 @@
     }
 
     async function loadLeaderboard() {
-      const mob    = mobSelect.value
-      const server = serverInput.value.trim()
-      const char   = charInput.value.trim()
-      const sort   = sortSelect.value
+      const mob  = mobSelect.value
+      const char = charInput.value.trim()
+      const sort = sortSelect.value
 
       const params = new URLSearchParams({ limit: '200' })
-      if (mob)    params.set('mob',    mob)
-      if (server) params.set('server', server)
+      if (mob) params.set('mob', mob)
 
       let url = `${BASE}/api/leaderboard?${params}`
-      if (char) url = `${BASE}/api/records?${new URLSearchParams({ char, server, limit: '200' })}`
+      if (char) url = `${BASE}/api/records?${new URLSearchParams({ char, limit: '200' })}`
 
       content.innerHTML = '<div class="loading">Loading…</div>'
       const res = await fetch(url)
@@ -268,7 +263,7 @@
           <td>${escHtml(r.mob_name)}</td>
           <td class="${escHtml('grade-' + r.grade)}">${escHtml(r.grade)}</td>
           <td>${(r.total_dps ?? 0).toFixed(1)}</td>
-          <td>${(r.fist_dps  ?? 0).toFixed(1)}</td>
+          <td>${(r.fist_dps ?? 0).toFixed(1)}</td>
           <td>${escHtml(r.mainhand || '—')}</td>
           <td>${escHtml(r.offhand  || '—')}</td>
           <td>${r.atk_rating || '—'}</td>
@@ -278,25 +273,23 @@
           <td>${fmtDur(r.engaged_ms ?? 0)}</td>
           <td>${fmtDur(r.fight_duration ?? 0)}</td>
           <td>${escHtml(r.character_name || '—')}</td>
-          <td>${escHtml(r.server_name   || '—')}</td>
           <td>${fmtDate(r.timestamp)}</td>
         </tr>`
       }).join('')
 
       return `<table>
         <thead><tr>
-          <th>#</th><th>Mob</th><th>Grade</th><th>Total DPS</th><th>Fist DPS</th>
+          <th>#</th><th>Mob</th><th>Grade</th><th>Total DPS</th><th>Weave DPS</th>
           <th>Mainhand</th><th>Offhand</th><th>ATK</th><th>Haste%</th>
           <th>Disc</th><th>Buffs</th>
           <th>Engaged</th><th>Duration</th>
-          <th>Character</th><th>Server</th><th>Date</th>
+          <th>Character</th><th>Date</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`
     }
 
     mobSelect.addEventListener('change', loadLeaderboard)
-    serverInput.addEventListener('change', loadLeaderboard)
     charInput.addEventListener('change', loadLeaderboard)
     sortSelect.addEventListener('change', loadLeaderboard)
 
