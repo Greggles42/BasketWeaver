@@ -180,26 +180,32 @@ function drawChart(samples: number[]): void {
   const plotW = width  - padL - padR
   const plotH = height - padT - padB
 
-  const maxDps = Math.max(...samples, 1)
+  const rawMax   = Math.max(...samples, 1)
   const totalSec = samples.length
+
+  // Round up to a nice axis ceiling
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawMax)))
+  const niceStep  = [1, 2, 2.5, 5, 10].map(f => f * magnitude).find(s => s * 4 >= rawMax) ?? magnitude * 10
+  const axisMax   = Math.ceil(rawMax / niceStep) * niceStep
+  const TICKS     = 4
 
   // Helpers: value → pixel
   const xOf = (sec: number) => padL + (sec / totalSec) * plotW
-  const yOf = (dps: number) => padT + plotH - (dps / maxDps) * plotH
+  const yOf = (dps: number) => padT + plotH - (dps / axisMax) * plotH
 
   // ── Background grid ───────────────────────────────────────────
   ctx.strokeStyle = '#1e2240'
   ctx.lineWidth   = 1
 
-  // Horizontal grid lines (5 steps)
-  for (let i = 0; i <= 4; i++) {
-    const y = padT + (i / 4) * plotH
+  // Horizontal grid lines
+  for (let i = 0; i <= TICKS; i++) {
+    const y     = padT + (i / TICKS) * plotH
+    const value = axisMax * (1 - i / TICKS)
     ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke()
-    const label = ((1 - i / 4) * maxDps).toFixed(0)
     ctx.fillStyle = '#5a6482'
     ctx.font = '10px "Segoe UI", system-ui, sans-serif'
     ctx.textAlign = 'right'
-    ctx.fillText(label, padL - 6, y + 3.5)
+    ctx.fillText(value.toFixed(0), padL - 6, y + 3.5)
   }
 
   // Vertical grid lines every 15 seconds
