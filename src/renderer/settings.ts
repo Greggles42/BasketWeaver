@@ -333,6 +333,28 @@ async function init(): Promise<void> {
   setupToggle('showAllCrits',          'SHOW_ALL_CRITS',             s.SHOW_ALL_CRITS             as boolean)
   setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
 
+  // ── Leaderboard settings ─────────────────────────────────────
+  const lbCharName      = document.getElementById('lbCharName')      as HTMLInputElement | null
+  const lbWorkerUrl     = document.getElementById('lbWorkerUrl')     as HTMLInputElement | null
+  const lbApiKey        = document.getElementById('lbApiKey')        as HTMLInputElement | null
+  const lbUploadEnabled = document.getElementById('lbUploadEnabled') as HTMLInputElement | null
+
+  if (lbCharName)      lbCharName.value      = (s.LEADERBOARD_CHARACTER_NAME as string) ?? ''
+  if (lbWorkerUrl)     lbWorkerUrl.value     = (s.LEADERBOARD_WORKER_URL     as string) ?? ''
+  if (lbApiKey)        lbApiKey.value        = (s.LEADERBOARD_API_KEY        as string) ?? ''
+  if (lbUploadEnabled) lbUploadEnabled.checked = (s.LEADERBOARD_UPLOAD_ENABLED as boolean) ?? false
+
+  const onLbChange = (el: HTMLInputElement | null, key: string, isCheckbox = false) => {
+    el?.addEventListener('change', () => {
+      window.settingsAPI.setSetting(key, isCheckbox ? el!.checked : el!.value)
+    })
+  }
+
+  onLbChange(lbCharName,      'LEADERBOARD_CHARACTER_NAME')
+  onLbChange(lbWorkerUrl,     'LEADERBOARD_WORKER_URL')
+  onLbChange(lbApiKey,        'LEADERBOARD_API_KEY')
+  onLbChange(lbUploadEnabled, 'LEADERBOARD_UPLOAD_ENABLED', true)
+
   // ── Close button ─────────────────────────────────────────────
   document.getElementById('btnClose')?.addEventListener('click', () => {
     window.settingsAPI.close()

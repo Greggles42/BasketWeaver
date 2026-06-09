@@ -214,6 +214,12 @@ export const Config = {
     'Your strength of will fades\\.',
   ],
 
+  // ── Leaderboard ───────────────────────────────────────────────
+  LEADERBOARD_UPLOAD_ENABLED: false,
+  LEADERBOARD_CHARACTER_NAME: '',   // auto-populated from log filename or Zeal pipe
+  LEADERBOARD_WORKER_URL:     '',   // Worker endpoint URL
+  LEADERBOARD_API_KEY:        '',   // shared secret for POST auth
+
   // Critical hit notification lines — separate from the damage line
   CRIT_HIT_PATTERNS: [
     'You deliver a Crippling Blow',

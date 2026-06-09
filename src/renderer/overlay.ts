@@ -8,6 +8,7 @@ import { Config, type ConfigType } from '../shared/config'
 import { EvType, IPC, type GameEvent, type HitRecord } from '../shared/events'
 import { RhythmEngine, type Note, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
+import type { EncounterRecord } from '../shared/leaderboard-types'
 
 // ── Timing helpers ────────────────────────────────────────────
 const now = () => performance.now()
@@ -184,6 +185,13 @@ export class Overlay {
   private savageryActive = false
   private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
   private oorLastSoundTs = 0
+
+  // ── Leaderboard tracking ──────────────────────────────────────
+  private lastKnownAtkRating = 0
+  private lastKnownHastePct  = 0
+  private lastKnownMainhand  = ''
+  private avatarAtFightStart   = false
+  private savageryAtFightStart = false
   private lastOhSnapTs = 0
   private lastFistHitTs  = 0
   private lastFistAttackTs = 0
@@ -240,6 +248,9 @@ export class Overlay {
           this.dpsLastUpdate   = 0
           this.combatStartTs        = performance.now()
           this.swingTimerEverValid  = false
+          // Snapshot buff state at fight start for leaderboard
+          this.avatarAtFightStart   = this.avatarActive
+          this.savageryAtFightStart = this.savageryActive
         }
         this.lastCombatActivity = ts
         break
@@ -254,6 +265,7 @@ export class Overlay {
           result.mobName = (ev.data?.mobName as string) ?? ''
           this.lastGradeResult = result
           this.pushHistory(result)
+          this.sendLeaderboardRecord(result)
           this.audio.play('combat_end')
           this.gradeScreen = new GradeScreen(result)
         }
@@ -284,6 +296,8 @@ export class Overlay {
           this.postCombatGlideUntil = 0
           this.rhythm.resumeCombat(crushTs)
         }
+        // A mainhand crush means the player is back in range
+        this.rhythm.onReturnInRange(crushTs)
         this.rhythm.onMainhandCrush(crushTs, damage, hit)
         this.lastCombatActivity = crushTs
         this.swingLog.push(crushTs)
@@ -388,6 +402,7 @@ export class Overlay {
         const name  = ev.data?.name  as string ?? ''
         const delay = ev.data?.delay as number ?? 20
         this.cfg.BASE_WEAPON_DELAY = delay
+        if (name) this.lastKnownMainhand = name
         const newInterval = this.rhythm.predictedInterval
         const fistDelay   = this.rhythm.effectiveOffhandDelay
         this.cfg.GOOD_WINDOW    = Math.max(0.2, newInterval - fistDelay) / 2
@@ -403,6 +418,7 @@ export class Overlay {
         const interval = ev.data?.interval  as number ?? this.rhythm.predictedInterval
         this.cfg.HASTE_PCT      = hastePct
         this.cfg.PUNCH_INTERVAL = interval
+        this.lastKnownHastePct  = hastePct
         const fistDelay   = this.rhythm.effectiveOffhandDelay
         this.cfg.GOOD_WINDOW = Math.max(0.2, interval - fistDelay) / 2
         this.rhythm.resetCalibration()
@@ -444,11 +460,21 @@ export class Overlay {
           if (active) {
             this.showBanner('Savagery ON', '#f97316', 4000)
             this.audio.playFileSound('savagery')
+            if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('savagery')
           }
         }
         if (buff === 'innerflame') {
           this.innerflameUntil = active ? now() + 12000 : 0
+          if (active && this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('innerflame')
         }
+        break
+      }
+
+      case EvType.STATS_UPDATE: {
+        const atkRating = ev.data?.atkRating as number | undefined
+        const hastePct  = ev.data?.hastePct  as number | undefined
+        if (atkRating !== undefined && atkRating > 0) this.lastKnownAtkRating = atkRating
+        if (hastePct  !== undefined && hastePct  >= 0) this.lastKnownHastePct  = hastePct
         break
       }
       case EvType.CRIT_HIT: {
@@ -566,6 +592,46 @@ export class Overlay {
     list.sort((a, b) => b.damage - a.damage)
     if (list.length > 10) list.length = 10
     window.electronAPI?.sendTopRecords(this.topCrits, this.topHugeRounds)
+  }
+
+  private sendLeaderboardRecord(result: GradeResult): void {
+    const record: EncounterRecord = {
+      // GradeResult fields
+      grade:                    result.grade,
+      mobName:                  result.mobName,
+      pctInGreen:               result.pctInGreen,
+      roundsWeaved:             result.roundsWeaved,
+      keystrokeRoundsWeaved:    result.keystrokeRoundsWeaved,
+      totalRounds:              result.totalRounds,
+      weaveAttempts:            result.weaveAttempts,
+      weaveLanded:              result.weaveLanded,
+      keystrokeGrading:         result.keystrokeGrading,
+      totalFistDamage:          result.totalFistDamage,
+      fightDuration:            result.fightDuration,
+      addedDps:                 result.addedDps,
+      totalDps:                 result.totalDps,
+      avgReactionMs:            result.avgReactionMs,
+      // Leaderboard-specific
+      id:                       crypto.randomUUID(),
+      timestamp:                Date.now(),
+      characterName:            this.cfg.LEADERBOARD_CHARACTER_NAME,
+      serverName:               'Project Quarm',
+      weapons: {
+        mainhand: this.lastKnownMainhand || 'Unknown',
+        offhand:  this.cfg.OFFHAND_WEAPON_NAME || 'Unknown',
+      },
+      atkRating:        this.lastKnownAtkRating,
+      hastePct:         this.lastKnownHastePct,
+      engagedMs:        result.engagedMs,
+      outOfRangeMs:     result.outOfRangeMs,
+      disciplinesUsed:  Array.from(this.rhythm.disciplinesUsed),
+      buffsAtStart: {
+        avatar:   this.avatarAtFightStart,
+        savagery: this.savageryAtFightStart,
+      },
+      dpsSamples: this.rhythm.getDpsSamples(),
+    }
+    window.electronAPI?.sendLeaderboardRecord(record)
   }
 
   private pushHistory(result: GradeResult): void {

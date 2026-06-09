@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basketweaver Leaderboard</title>
+  <style>
+    :root {
+      --bg:      #0a0c16;
+      --surface: #0e101e;
+      --border:  #1e2240;
+      --text:    #d2d7f0;
+      --dim:     #5a6482;
+      --accent:  #40a8ff;
+      --gold:    #ffd700;
+      --green:   #50e68c;
+      --orange:  #ff6e3c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .toolbar label { color: var(--dim); font-size: 11px; }
+
+    .toolbar input, .toolbar select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .toolbar input:focus, .toolbar select:focus {
+      border-color: var(--accent);
+    }
+
+    .toolbar .spacer { flex: 1; }
+
+    button {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: border-color 0.15s;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-primary {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .table-wrap {
+      flex: 1;
+      overflow: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 7px 10px;
+      text-align: left;
+      color: var(--dim);
+      font-weight: 600;
+      font-size: 11px;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { color: var(--accent); }
+    thead th.sorted { color: var(--accent); }
+
+    tbody tr:nth-child(odd)  { background: var(--bg); }
+    tbody tr:nth-child(even) { background: #0c0f1c; }
+    tbody tr:hover { background: #141830; }
+
+    td {
+      padding: 5px 10px;
+      border-bottom: 1px solid #12142a;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .grade-S { color: var(--gold); font-weight: 700; }
+    .grade-A { color: var(--green); }
+    .grade-B { color: var(--accent); }
+    .grade-C { color: #ffc850; }
+    .grade-D { color: #c87850; }
+    .grade-F { color: #b43c3c; }
+
+    .upload-btn {
+      padding: 2px 8px;
+      font-size: 11px;
+    }
+    .upload-btn.uploaded { color: var(--green); border-color: var(--green); }
+    .upload-btn.failed   { color: #ff6e6e; border-color: #ff6e6e; }
+
+    .status-bar {
+      padding: 6px 14px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      color: var(--dim);
+      font-size: 11px;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-bar a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .status-bar a:hover { text-decoration: underline; }
+
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--dim);
+    }
+
+    .chart-panel {
+      flex-shrink: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 14px 10px;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .chart-title {
+      font-size: 11px;
+      color: var(--dim);
+    }
+
+    .chart-close {
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    .chart-close:hover { color: var(--text); border: none; }
+
+    #dpsChart {
+      display: block;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <label>Mob</label>
+    <input type="text" id="filterMob" placeholder="filter mob name…" style="width:160px" />
+    <label>Character</label>
+    <input type="text" id="filterChar" placeholder="all chars" style="width:110px" />
+    <div class="spacer"></div>
+    <button id="btnUploadAll" class="btn-primary">Upload All</button>
+    <button id="btnSettings">Settings…</button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="lbTable">
+      <thead>
+        <tr>
+          <th data-col="mobName">Mob</th>
+          <th data-col="grade">Grade</th>
+          <th data-col="totalDps">Total DPS</th>
+          <th data-col="addedDps">Weave DPS</th>
+          <th data-col="weapons.mainhand">Mainhand</th>
+          <th data-col="weapons.offhand">Offhand</th>
+          <th data-col="atkRating">ATK</th>
+          <th data-col="hastePct">Haste%</th>
+          <th data-col="disciplinesUsed">Disc</th>
+          <th data-col="buffsAtStart">Buffs</th>
+          <th data-col="engagedMs">Engaged</th>
+          <th data-col="fightDuration">Duration</th>
+          <th data-col="totalRounds">Rounds</th>
+          <th data-col="pctInGreen">Weave%</th>
+          <th data-col="characterName">Character</th>
+          <th data-col="timestamp">Date</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="lbBody">
+        <tr><td colspan="17" class="empty">No records yet. Kill some mobs!</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="chartPanel" class="chart-panel" style="display:none">
+    <div class="chart-header">
+      <span id="chartTitle" class="chart-title"></span>
+      <button class="chart-close" id="btnCloseChart">✕</button>
+    </div>
+    <canvas id="dpsChart" height="130"></canvas>
+  </div>
+
+  <div class="status-bar">
+    <span id="statusText">0 records</span>
+    <span id="communityLink"></span>
+  </div>
+
+  <script type="module" src="./leaderboard.ts"></script>
+</body>
+</html>

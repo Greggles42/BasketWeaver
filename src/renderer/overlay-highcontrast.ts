@@ -477,7 +477,7 @@ export class HighContrastOverlay {
       id:                       crypto.randomUUID(),
       timestamp:                Date.now(),
       characterName:            this.cfg.LEADERBOARD_CHARACTER_NAME,
-      serverName:               this.cfg.LEADERBOARD_SERVER_NAME,
+      serverName:               'Project Quarm',
       weapons: {
         mainhand: this.lastKnownMainhand || 'Unknown',
         offhand:  this.cfg.OFFHAND_WEAPON_NAME || 'Unknown',

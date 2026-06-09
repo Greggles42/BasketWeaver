@@ -14,8 +14,10 @@ import { Config } from '../shared/config'
 import { IPC, type GameEvent, type HitRecord } from '../shared/events'
 import { LogReader } from './log-reader'
 import { ZealReader } from './zeal-reader'
+import { LeaderboardManager } from './leaderboard-manager'
 import { createTray, updateFightHistory, updateTopRecords } from './tray'
 import { autoUpdater } from 'electron-updater'
+import type { EncounterRecord } from '../shared/leaderboard-types'
 
 // ── Persist last-used log path ────────────────────────────────
 
@@ -78,6 +80,10 @@ function loadSettings(): void {
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
       if (typeof saved.POSITIVE_AUDIO_IN_WINDOW   === 'boolean') Config.POSITIVE_AUDIO_IN_WINDOW   = saved.POSITIVE_AUDIO_IN_WINDOW
+      if (typeof saved.LEADERBOARD_UPLOAD_ENABLED  === 'boolean') Config.LEADERBOARD_UPLOAD_ENABLED  = saved.LEADERBOARD_UPLOAD_ENABLED
+      if (typeof saved.LEADERBOARD_CHARACTER_NAME  === 'string')  Config.LEADERBOARD_CHARACTER_NAME  = saved.LEADERBOARD_CHARACTER_NAME
+      if (typeof saved.LEADERBOARD_WORKER_URL      === 'string')  Config.LEADERBOARD_WORKER_URL      = saved.LEADERBOARD_WORKER_URL
+      if (typeof saved.LEADERBOARD_API_KEY         === 'string')  Config.LEADERBOARD_API_KEY         = saved.LEADERBOARD_API_KEY
     }
   } catch {}
 }
@@ -101,6 +107,10 @@ export function saveSettings(): void {
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
       POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
+      LEADERBOARD_UPLOAD_ENABLED: Config.LEADERBOARD_UPLOAD_ENABLED,
+      LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
+      LEADERBOARD_WORKER_URL:     Config.LEADERBOARD_WORKER_URL,
+      LEADERBOARD_API_KEY:        Config.LEADERBOARD_API_KEY,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
@@ -185,11 +195,14 @@ export function createSettingsWindow(): void {
 
 // ── App lifecycle ─────────────────────────────────────────────
 
-let win:       BrowserWindow | null = null
-let settingsWin: BrowserWindow | null = null
+let win:          BrowserWindow | null = null
+let settingsWin:  BrowserWindow | null = null
+let leaderboardWin: BrowserWindow | null = null
 let stopLog:   (() => void) | null  = null
 let stopZeal:  (() => void) | null  = null
 let lastLogPath = ''
+
+let leaderboardManager: LeaderboardManager
 
 function createWindow(): void {
   const { x: dx, y: dy, width: dw, height: dh } = screen.getPrimaryDisplay().workArea
@@ -334,6 +347,10 @@ async function pickLogFile(): Promise<string | null> {
 function handleLogSelected(p: string): void {
   lastLogPath = p
   saveLastLog(p)
+  // Auto-derive character name from log filename: eqlog_CharName_Server.txt
+  const filename = path.basename(p)
+  const m = filename.match(/^eqlog_([^_]+)_/i)
+  if (m) Config.LEADERBOARD_CHARACTER_NAME = m[1]
   if (Config.TRACKING_SOURCE === 'hybrid') {
     startHybridReader()
   } else {
@@ -418,6 +435,10 @@ function setupIPC(): void {
     BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
     WINDOW_PINNED:            Config.WINDOW_PINNED,
+    LEADERBOARD_UPLOAD_ENABLED: Config.LEADERBOARD_UPLOAD_ENABLED,
+    LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
+    LEADERBOARD_WORKER_URL:     Config.LEADERBOARD_WORKER_URL,
+    LEADERBOARD_API_KEY:        Config.LEADERBOARD_API_KEY,
   }))
 
   ipcMain.on(IPC.SETTINGS_SET, (_e, { key, value }: { key: string; value: unknown }) => {
@@ -526,6 +547,13 @@ function setupIPC(): void {
         win?.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, value)
         break
 
+      case 'LEADERBOARD_CHARACTER_NAME':
+      case 'LEADERBOARD_WORKER_URL':
+      case 'LEADERBOARD_API_KEY':
+      case 'LEADERBOARD_UPLOAD_ENABLED':
+        (Config as any)[key] = value
+        break
+
       default:
         // Simple Config update (BASE_WEAPON_DELAY, PUNCH_INTERVAL, TARGET_OFFSET,
         // LATENCY_COMPENSATION, CLIP_AUTO, CLIP_DETECTION_WINDOW, KEYSTROKE_GRADING, etc.)
@@ -536,6 +564,73 @@ function setupIPC(): void {
 
   ipcMain.on(IPC.OPEN_SETTINGS, () => createSettingsWindow())
   ipcMain.on('close-settings', () => settingsWin?.close())
+
+  // ── Leaderboard IPC ───────────────────────────────────────────
+
+  ipcMain.on(IPC.LEADERBOARD_RECORD, async (_e, record: EncounterRecord) => {
+    leaderboardManager.addRecord(record)
+    // Forward to leaderboard window if open
+    if (leaderboardWin && !leaderboardWin.isDestroyed()) {
+      leaderboardWin.webContents.send(IPC.LEADERBOARD_DATA, leaderboardManager.getAll())
+    }
+    // Upload if enabled
+    if (Config.LEADERBOARD_UPLOAD_ENABLED && Config.LEADERBOARD_WORKER_URL && Config.LEADERBOARD_API_KEY) {
+      const ok = await leaderboardManager.upload(record, Config.LEADERBOARD_WORKER_URL, Config.LEADERBOARD_API_KEY)
+      console.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for ${record.mobName}`)
+    }
+  })
+
+  ipcMain.handle(IPC.LEADERBOARD_GET, () => leaderboardManager.getAll())
+
+  ipcMain.on(IPC.LEADERBOARD_OPEN, () => createLeaderboardWindow())
+}
+
+export function createLeaderboardWindow(): void {
+  if (leaderboardWin && !leaderboardWin.isDestroyed()) {
+    leaderboardWin.focus()
+    return
+  }
+
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.png')
+    : path.join(__dirname, '../../src/icon/basketweaver-icon-256.png')
+
+  leaderboardWin = new BrowserWindow({
+    width:  1000,
+    height: 640,
+    title:  'Basketweaver Leaderboard',
+    icon:   iconPath,
+    resizable:   true,
+    minimizable: true,
+    maximizable: true,
+    skipTaskbar: false,
+    webPreferences: {
+      preload:          path.join(__dirname, '../preload/leaderboard.js'),
+      contextIsolation: true,
+      nodeIntegration:  false,
+    },
+  })
+
+  leaderboardWin.setMenu(null)
+
+  const devUrl = process.env['ELECTRON_RENDERER_URL']
+  if (devUrl) {
+    const base = devUrl.replace(/[?#].*$/, '').replace(/\/[^/]*\.html$/, '')
+    leaderboardWin.loadURL(`${base}/leaderboard.html`)
+  } else {
+    leaderboardWin.loadFile(path.join(__dirname, '../renderer/leaderboard.html'))
+  }
+
+  leaderboardWin.webContents.on('did-finish-load', () => {
+    leaderboardWin?.webContents.send(IPC.LEADERBOARD_DATA, leaderboardManager.getAll())
+    leaderboardWin?.webContents.send('leaderboard-config', {
+      workerUrl:      Config.LEADERBOARD_WORKER_URL,
+      characterName:  Config.LEADERBOARD_CHARACTER_NAME,
+      uploadEnabled:  Config.LEADERBOARD_UPLOAD_ENABLED,
+    })
+  })
+
+  leaderboardWin.on('closed', () => { leaderboardWin = null })
 }
 
 // ── Auto-updater ──────────────────────────────────────────────
@@ -600,6 +695,7 @@ function recomputeGoodWindow(): void {
 app.whenReady().then(async () => {
   loadSettings()
   recomputeGoodWindow()
+  leaderboardManager = new LeaderboardManager(configDir())
   setupIPC()
   createWindow()
 
@@ -607,7 +703,7 @@ app.whenReady().then(async () => {
   createTray(win!, () => app.quit(), saveSettings, async () => {
     const p = await pickLogFile()
     if (p) handleLogSelected(p)
-  }, resetWindowPosition, setOverlayStyle, setTrackingSource, createSettingsWindow)
+  }, resetWindowPosition, setOverlayStyle, setTrackingSource, createSettingsWindow, createLeaderboardWindow)
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()
