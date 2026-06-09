@@ -152,13 +152,11 @@ async function uploadRecord(id: string): Promise<void> {
 
 // ── DPS Chart ─────────────────────────────────────────────────
 
-const COMPENSATION_SEC = 15
-
 function showChart(rec: R): void {
   const samples = rec.dpsSamples
   if (!samples || samples.length === 0) return
 
-  chartTitle.textContent = `${rec.mobName || 'Unknown'} — time-averaged DPS (${COMPENSATION_SEC}s compensation)`
+  chartTitle.textContent = `${rec.mobName || 'Unknown'} — time-averaged DPS`
   chartPanel.style.display = 'block'
   drawChart(samples)
 }
@@ -222,23 +220,27 @@ function drawChart(samples: number[]): void {
     ctx.fillText(`${totalSec}s`, xOf(totalSec), padT + plotH + 16)
   }
 
-  // ── Compensation boundary (15 s vertical marker) ──────────────
-  if (COMPENSATION_SEC < totalSec) {
-    const cx = xOf(COMPENSATION_SEC)
-    ctx.save()
-    ctx.setLineDash([4, 3])
-    ctx.strokeStyle = '#ffd700'
-    ctx.lineWidth   = 1
-    ctx.globalAlpha = 0.5
-    ctx.beginPath(); ctx.moveTo(cx, padT); ctx.lineTo(cx, padT + plotH); ctx.stroke()
-    ctx.restore()
-    ctx.fillStyle   = '#ffd700'
-    ctx.globalAlpha = 0.7
-    ctx.textAlign   = 'left'
-    ctx.font        = '9px "Segoe UI", system-ui, sans-serif'
-    ctx.fillText('15s', cx + 3, padT + 10)
-    ctx.globalAlpha = 1
-  }
+  // ── Peak DPS marker ───────────────────────────────────────────
+  const peakIdx = samples.reduce((best, v, i) => v > samples[best] ? i : best, 0)
+  const peakSec = peakIdx + 1
+  const peakDps = samples[peakIdx]
+  const px = xOf(peakSec)
+  const py = yOf(peakDps)
+  ctx.save()
+  ctx.setLineDash([4, 3])
+  ctx.strokeStyle = '#ffd700'
+  ctx.lineWidth   = 1
+  ctx.globalAlpha = 0.5
+  ctx.beginPath(); ctx.moveTo(px, padT); ctx.lineTo(px, padT + plotH); ctx.stroke()
+  ctx.restore()
+  ctx.fillStyle  = '#ffd700'
+  ctx.globalAlpha = 0.85
+  ctx.textAlign  = 'left'
+  ctx.font       = '9px "Segoe UI", system-ui, sans-serif'
+  const peakLabel = `peak ${peakDps.toFixed(0)} @ ${peakSec}s`
+  const labelX = px + 3 + (px + ctx.measureText(peakLabel).width + 6 > padL + plotW ? -(ctx.measureText(peakLabel).width + 8) : 0)
+  ctx.fillText(peakLabel, labelX, py > padT + 14 ? py - 4 : padT + 10)
+  ctx.globalAlpha = 1
 
   // ── DPS line ──────────────────────────────────────────────────
   ctx.beginPath()
