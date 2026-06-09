@@ -305,7 +305,8 @@ export class RhythmEngine {
         cumDamage += this.damageLog[logIdx][1]
         logIdx++
       }
-      samples.push(cumDamage / Math.max(compensationSec, t))
+      const denom = Math.max(t, compensationSec * (1 - Math.exp(-3 * t / compensationSec)))
+      samples.push(cumDamage / denom)
     }
     return samples
   }
