@@ -138,11 +138,12 @@ export class RefinedOverlay {
   private static readonly RAPID_MUTE_MS = 6000
   private avatarActive = false
   private savageryActive = false
-  private avatarAtFightStart = false
-  private savageryAtFightStart = false
   private lastKnownMainhand = ''
   private lastKnownAtkRating = 0
   private lastKnownHastePct = 0
+  private avatarFightMs = 0;     private avatarFightStart:      number | null = null
+  private savageryFightMs = 0;   private savageryFightStart:    number | null = null
+  private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
   private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
 
   pinned = true
@@ -235,8 +236,10 @@ export class RefinedOverlay {
           this.combatStartTs = now()
           this.swingTimerEverValid = false
           this.dpsDisplayTotal = 0; this.dpsDisplayFist = 0; this.dpsLastUpdate = 0
-          this.avatarAtFightStart   = this.avatarActive
-          this.savageryAtFightStart = this.savageryActive
+          const t0 = now()
+          this.avatarFightMs = 0;      this.avatarFightStart      = this.avatarActive          ? t0 : null
+          this.savageryFightMs = 0;    this.savageryFightStart    = this.savageryActive         ? t0 : null
+          this.innerflameFlightMs = 0; this.innerflameFlightStart = this.innerflameUntil > t0  ? t0 : null
         }
         this.lastCombatActivity = ts
         break
@@ -410,20 +413,27 @@ export class RefinedOverlay {
         const active = ev.data?.active as boolean
         if (buff === 'avatar') {
           this.avatarActive = active
-          if (active) {
-            this.banners.push(new Banner('Avatar ON', '#a855f7', 4000))
-            this.audio.playFileSound('avatar')
+          if (this.rhythm.inCombat) {
+            if (active) { this.avatarFightStart = now() }
+            else if (this.avatarFightStart !== null) { this.avatarFightMs += now() - this.avatarFightStart; this.avatarFightStart = null }
           }
+          if (active) { this.banners.push(new Banner('Avatar ON', '#a855f7', 4000)); this.audio.playFileSound('avatar') }
         }
         if (buff === 'savagery') {
           this.savageryActive = active
-          if (active) {
-            this.banners.push(new Banner('Savagery ON', '#f97316', 4000))
-            this.audio.playFileSound('savagery')
+          if (this.rhythm.inCombat) {
+            if (active) { this.savageryFightStart = now() }
+            else if (this.savageryFightStart !== null) { this.savageryFightMs += now() - this.savageryFightStart; this.savageryFightStart = null }
           }
+          if (active) { this.banners.push(new Banner('Savagery ON', '#f97316', 4000)); this.audio.playFileSound('savagery') }
         }
         if (buff === 'innerflame') {
-          this.innerflameUntil = active ? now() + 12000 : 0
+          const t = now()
+          this.innerflameUntil = active ? t + 12000 : 0
+          if (this.rhythm.inCombat) {
+            if (active) { this.innerflameFlightStart = t }
+            else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
+          }
         }
         break
       }
@@ -531,13 +541,22 @@ export class RefinedOverlay {
       engagedMs:       result.engagedMs,
       outOfRangeMs:    result.outOfRangeMs,
       disciplinesUsed: Array.from(this.rhythm.disciplinesUsed),
-      buffsAtStart: {
-        avatar:   this.avatarAtFightStart,
-        savagery: this.savageryAtFightStart,
-      },
+      buffsActive: this.flushBuffs(result.fightDuration),
       dpsSamples: this.rhythm.getDpsSamples(),
     }
     window.electronAPI?.sendLeaderboardRecord(record)
+  }
+
+  private flushBuffs(fightDuration: number): { avatar: number; savagery: number; innerflame: number } {
+    const endNow = now()
+    const flush = (start: number | null, accum: number) =>
+      start !== null ? accum + (endNow - start) : accum
+    const frac = (ms: number) => Math.min(1, ms / Math.max(1, fightDuration))
+    return {
+      avatar:     frac(flush(this.avatarFightStart,      this.avatarFightMs)),
+      savagery:   frac(flush(this.savageryFightStart,    this.savageryFightMs)),
+      innerflame: frac(flush(this.innerflameFlightStart, this.innerflameFlightMs)),
+    }
   }
 
   private copyToClipboard(): void {

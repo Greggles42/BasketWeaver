@@ -184,6 +184,9 @@ export class Overlay {
   private avatarActive = false
   private savageryActive = false
   private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
+  private avatarFightMs = 0;    private avatarFightStart:     number | null = null
+  private savageryFightMs = 0;  private savageryFightStart:   number | null = null
+  private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
   private oorLastSoundTs = 0
 
   // ── Leaderboard tracking ──────────────────────────────────────
@@ -248,9 +251,11 @@ export class Overlay {
           this.dpsLastUpdate   = 0
           this.combatStartTs        = performance.now()
           this.swingTimerEverValid  = false
-          // Snapshot buff state at fight start for leaderboard
-          this.avatarAtFightStart   = this.avatarActive
-          this.savageryAtFightStart = this.savageryActive
+          // Reset buff duration tracking for leaderboard
+          const t0 = now()
+          this.avatarFightMs = 0;     this.avatarFightStart     = this.avatarActive             ? t0 : null
+          this.savageryFightMs = 0;   this.savageryFightStart   = this.savageryActive            ? t0 : null
+          this.innerflameFlightMs = 0; this.innerflameFlightStart = this.innerflameUntil > t0    ? t0 : null
         }
         this.lastCombatActivity = ts
         break
@@ -450,22 +455,27 @@ export class Overlay {
         const active = ev.data?.active as boolean
         if (buff === 'avatar') {
           this.avatarActive = active
-          if (active) {
-            this.showBanner('Avatar ON', '#a855f7', 4000)
-            this.audio.playFileSound('avatar')
+          if (this.rhythm.inCombat) {
+            if (active) { this.avatarFightStart = now() }
+            else if (this.avatarFightStart !== null) { this.avatarFightMs += now() - this.avatarFightStart; this.avatarFightStart = null }
           }
+          if (active) { this.showBanner('Avatar ON', '#a855f7', 4000); this.audio.playFileSound('avatar') }
         }
         if (buff === 'savagery') {
           this.savageryActive = active
-          if (active) {
-            this.showBanner('Savagery ON', '#f97316', 4000)
-            this.audio.playFileSound('savagery')
-            if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('savagery')
+          if (this.rhythm.inCombat) {
+            if (active) { this.savageryFightStart = now(); this.rhythm.disciplinesUsed.add('savagery') }
+            else if (this.savageryFightStart !== null) { this.savageryFightMs += now() - this.savageryFightStart; this.savageryFightStart = null }
           }
+          if (active) { this.showBanner('Savagery ON', '#f97316', 4000); this.audio.playFileSound('savagery') }
         }
         if (buff === 'innerflame') {
-          this.innerflameUntil = active ? now() + 12000 : 0
-          if (active && this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('innerflame')
+          const t = now()
+          this.innerflameUntil = active ? t + 12000 : 0
+          if (this.rhythm.inCombat) {
+            if (active) { this.innerflameFlightStart = t; this.rhythm.disciplinesUsed.add('innerflame') }
+            else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
+          }
         }
         break
       }
@@ -626,13 +636,22 @@ export class Overlay {
       engagedMs:        result.engagedMs,
       outOfRangeMs:     result.outOfRangeMs,
       disciplinesUsed:  Array.from(this.rhythm.disciplinesUsed),
-      buffsAtStart: {
-        avatar:   this.avatarAtFightStart,
-        savagery: this.savageryAtFightStart,
-      },
+      buffsActive: this.flushBuffs(result.fightDuration),
       dpsSamples: this.rhythm.getDpsSamples(),
     }
     window.electronAPI?.sendLeaderboardRecord(record)
+  }
+
+  private flushBuffs(fightDuration: number): { avatar: number; savagery: number; innerflame: number } {
+    const endNow = now()
+    const flush = (start: number | null, accum: number) =>
+      start !== null ? accum + (endNow - start) : accum
+    const frac = (ms: number) => Math.min(1, ms / Math.max(1, fightDuration))
+    return {
+      avatar:     frac(flush(this.avatarFightStart,      this.avatarFightMs)),
+      savagery:   frac(flush(this.savageryFightStart,    this.savageryFightMs)),
+      innerflame: frac(flush(this.innerflameFlightStart, this.innerflameFlightMs)),
+    }
   }
 
   private pushHistory(result: GradeResult): void {

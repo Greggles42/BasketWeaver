@@ -102,9 +102,11 @@ function render(): void {
 
   tbody.innerHTML = rows.map(r => {
     const discs = r.disciplinesUsed.join(', ') || '—'
-    const buffs  = [
-      r.buffsAtStart.avatar   ? 'Avatar'   : '',
-      r.buffsAtStart.savagery ? 'Savagery' : '',
+    const ba = r.buffsActive
+    const buffs = [
+      ba.avatar     > 0 ? `Avatar ${(ba.avatar     * 100).toFixed(0)}%` : '',
+      ba.savagery   > 0 ? `Savagery ${(ba.savagery   * 100).toFixed(0)}%` : '',
+      ba.innerflame > 0 ? `Innerflame ${(ba.innerflame * 100).toFixed(0)}%` : '',
     ].filter(Boolean).join(', ') || '—'
 
     const uploaded = uploadedIds.has(r.id)
