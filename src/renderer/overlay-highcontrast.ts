@@ -16,6 +16,7 @@ import { Config, type ConfigType } from '../shared/config'
 import { EvType, type GameEvent, type HitRecord } from '../shared/events'
 import { RhythmEngine, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
+import type { EncounterRecord } from '../shared/leaderboard-types'
 
 const COMBAT_IDLE_TIMEOUT_MS = 10_000
 
@@ -120,6 +121,11 @@ export class HighContrastOverlay {
   private static readonly RAPID_MUTE_MS = 6000
   private avatarActive = false
   private savageryActive = false
+  private avatarAtFightStart = false
+  private savageryAtFightStart = false
+  private lastKnownMainhand = ''
+  private lastKnownAtkRating = 0
+  private lastKnownHastePct = 0
   private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
 
   pinned = true
@@ -211,6 +217,8 @@ export class HighContrastOverlay {
           this.combatStartTs = now()
           this.dpsDisplayTotal = 0; this.dpsDisplayFist = 0; this.dpsLastUpdate = 0
           this.swingTimerEverValid = false
+          this.avatarAtFightStart   = this.avatarActive
+          this.savageryAtFightStart = this.savageryActive
         }
         this.lastCombatActivity = ts
         break
@@ -225,6 +233,7 @@ export class HighContrastOverlay {
           this.audio.play('combat_end')
           this.lastGradeResult = r
           this.pushHistory(r)
+          this.sendLeaderboardRecord(r)
           this.gradeScreen = new GradeScreen(r)
         }
         this.clearRapidAttackMute()
@@ -311,6 +320,7 @@ export class HighContrastOverlay {
       case EvType.WEAPON_DETECTED: {
         const name  = (ev.data?.name  as string) ?? ''
         const delay = (ev.data?.delay as number) ?? 20
+        this.lastKnownMainhand = name
         this.cfg.BASE_WEAPON_DELAY = delay
         const newInterval = this.rhythm.predictedInterval
         const fistDelay   = this.rhythm.effectiveOffhandDelay
@@ -372,6 +382,13 @@ export class HighContrastOverlay {
         if (buff === 'innerflame') {
           this.innerflameUntil = active ? now() + 12000 : 0
         }
+        break
+      }
+      case EvType.STATS_UPDATE: {
+        const atk   = ev.data?.atkRating as number | undefined
+        const haste = ev.data?.hastePct  as number | undefined
+        if (atk   != null) this.lastKnownAtkRating = atk
+        if (haste != null) this.lastKnownHastePct  = haste
         break
       }
       case EvType.CRIT_HIT: {
@@ -439,6 +456,44 @@ export class HighContrastOverlay {
       return { label, full }
     })
     window.electronAPI?.sendFightHistory(entries)
+  }
+
+  private sendLeaderboardRecord(result: GradeResult): void {
+    const record: EncounterRecord = {
+      grade:                    result.grade,
+      mobName:                  result.mobName,
+      pctInGreen:               result.pctInGreen,
+      roundsWeaved:             result.roundsWeaved,
+      keystrokeRoundsWeaved:    result.keystrokeRoundsWeaved,
+      totalRounds:              result.totalRounds,
+      weaveAttempts:            result.weaveAttempts,
+      weaveLanded:              result.weaveLanded,
+      keystrokeGrading:         result.keystrokeGrading,
+      totalFistDamage:          result.totalFistDamage,
+      fightDuration:            result.fightDuration,
+      addedDps:                 result.addedDps,
+      totalDps:                 result.totalDps,
+      avgReactionMs:            result.avgReactionMs,
+      id:                       crypto.randomUUID(),
+      timestamp:                Date.now(),
+      characterName:            this.cfg.LEADERBOARD_CHARACTER_NAME,
+      serverName:               this.cfg.LEADERBOARD_SERVER_NAME,
+      weapons: {
+        mainhand: this.lastKnownMainhand || 'Unknown',
+        offhand:  this.cfg.OFFHAND_WEAPON_NAME || 'Unknown',
+      },
+      atkRating:       this.lastKnownAtkRating,
+      hastePct:        this.lastKnownHastePct,
+      engagedMs:       result.engagedMs,
+      outOfRangeMs:    result.outOfRangeMs,
+      disciplinesUsed: Array.from(this.rhythm.disciplinesUsed),
+      buffsAtStart: {
+        avatar:   this.avatarAtFightStart,
+        savagery: this.savageryAtFightStart,
+      },
+      dpsSamples: this.rhythm.getDpsSamples(),
+    }
+    window.electronAPI?.sendLeaderboardRecord(record)
   }
 
   private copyToClipboard(): void {
