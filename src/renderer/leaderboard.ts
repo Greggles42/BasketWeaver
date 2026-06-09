@@ -102,7 +102,7 @@ function render(): void {
 
   tbody.innerHTML = rows.map(r => {
     const discs = r.disciplinesUsed.join(', ') || '—'
-    const ba = r.buffsActive
+    const ba = r.buffsActive ?? { avatar: 0, savagery: 0, innerflame: 0 }
     const buffs = [
       ba.avatar     > 0 ? `Avatar ${(ba.avatar     * 100).toFixed(0)}%` : '',
       ba.savagery   > 0 ? `Savagery ${(ba.savagery   * 100).toFixed(0)}%` : '',
