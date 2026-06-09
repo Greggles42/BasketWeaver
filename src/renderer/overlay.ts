@@ -595,6 +595,7 @@ export class Overlay {
   }
 
   private sendLeaderboardRecord(result: GradeResult): void {
+    if (result.fightDuration < 10_000) return
     const record: EncounterRecord = {
       // GradeResult fields
       grade:                    result.grade,

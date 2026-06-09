@@ -459,6 +459,7 @@ export class HighContrastOverlay {
   }
 
   private sendLeaderboardRecord(result: GradeResult): void {
+    if (result.fightDuration < 10_000) return
     const record: EncounterRecord = {
       grade:                    result.grade,
       mobName:                  result.mobName,
