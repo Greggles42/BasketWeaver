@@ -28,10 +28,12 @@ export interface GradeResult {
   weaveLanded: number          // fist attacks that dealt damage
   keystrokeGrading: boolean    // which mode produced pctInGreen/grade
   totalFistDamage: number
-  fightDuration: number // ms
+  fightDuration: number // ms (total wall-clock duration)
   addedDps: number      // damage per second from fist attacks
   totalDps: number      // total melee DPS (mainhand + fist + misc) for the fight
   avgReactionMs: number | null  // ms from mainhand crush to first fist attempt, per round
+  outOfRangeMs: number  // ms accumulated out-of-range during the fight
+  engagedMs: number     // ms actually in melee range (fightDuration - outOfRangeMs)
 }
 
 const GRADE_THRESHOLDS: Array<[number, string]> = [
@@ -83,6 +85,15 @@ export class RhythmEngine {
   totalFistDamage = 0
   totalMeleeDamage = 0   // mainhand + fist combined
   mainhandClips = 0
+
+  // ── Leaderboard tracking ──────────────────────────────────────
+  totalOutOfRangeMs = 0
+  private outOfRangeStart: number | null = null
+  disciplinesUsed: Set<string> = new Set()
+
+  // ── DPS time-series ───────────────────────────────────────────
+  /** [ms since combatStart, damage] pairs, appended on every damage event. */
+  private damageLog: Array<[number, number]> = []
 
   get liveDps(): number {
     if (!this.inCombat || this.combatStartTime <= 0) return 0
@@ -170,6 +181,11 @@ export class RhythmEngine {
 
   onCombatEnd(ts: number): GradeResult {
     if (!this.inCombat) return this.makeGrade()
+    // Close any open OOR period before computing engagedMs
+    if (this.outOfRangeStart !== null) {
+      this.totalOutOfRangeMs += Math.max(0, ts - this.outOfRangeStart)
+      this.outOfRangeStart = null
+    }
     this.inCombat = false
     this.roundOpen = false
     this.notesAnchored = false
@@ -187,6 +203,7 @@ export class RhythmEngine {
   onMainhandCrush(ts: number, damage: number, _hit: boolean): void {
     if (damage > 0) this.totalMeleeDamage += damage
     if (!this.inCombat) return
+    if (damage > 0) this.damageLog.push([ts - this.combatStartTime, damage])
     if (this.roundOpen) {
       if (damage > 0) this.roundMainhandDamage += damage
       this.lastCrushTime = ts
@@ -241,6 +258,7 @@ export class RhythmEngine {
       this.totalMeleeDamage += damage
       this.fistAttackCount++
       this.roundFistDamages.push(damage)
+      this.damageLog.push([reactionTs - this.combatStartTime, damage])
     }
     return false
   }
@@ -248,12 +266,48 @@ export class RhythmEngine {
   onMiscDamage(damage: number): void {
     if (!this.inCombat || damage <= 0) return
     this.totalMeleeDamage += damage
+    this.damageLog.push([performance.now() - this.combatStartTime, damage])
   }
 
-  onOutOfRange(_ts: number): void {
+  onOutOfRange(ts: number): void {
     this.swingTimerValid = false
     this.notesAnchored = false
     this.cancelActiveNotes()
+    if (this.inCombat && this.outOfRangeStart === null) {
+      this.outOfRangeStart = ts
+    }
+  }
+
+  onReturnInRange(ts: number): void {
+    if (this.outOfRangeStart !== null) {
+      this.totalOutOfRangeMs += Math.max(0, ts - this.outOfRangeStart)
+      this.outOfRangeStart = null
+    }
+  }
+
+  /**
+   * Return per-second time-averaged DPS samples for the completed fight.
+   * Each index i represents second (i+1). DPS is compensated by treating
+   * the first `compensationSec` seconds as if `compensationSec` seconds have
+   * elapsed — this smooths out the initial spike where small elapsed time
+   * inflates the DPS value.
+   */
+  getDpsSamples(compensationSec = 15): number[] {
+    if (this.damageLog.length === 0) return []
+    const maxMs  = this.damageLog[this.damageLog.length - 1][0]
+    const maxSec = Math.ceil(maxMs / 1000)
+    const samples: number[] = []
+    let cumDamage = 0
+    let logIdx    = 0
+    for (let t = 1; t <= maxSec; t++) {
+      const tMs = t * 1000
+      while (logIdx < this.damageLog.length && this.damageLog[logIdx][0] <= tMs) {
+        cumDamage += this.damageLog[logIdx][1]
+        logIdx++
+      }
+      samples.push(cumDamage / Math.max(compensationSec, t))
+    }
+    return samples
   }
 
   /**
@@ -384,13 +438,16 @@ export class RhythmEngine {
       ? this.reactionTimeSum / this.reactionTimeCount
       : null
 
+    const outOfRangeMs = this.totalOutOfRangeMs
+    const engagedMs    = Math.max(0, fightDuration - outOfRangeMs)
+
     return { grade, mobName: '', pctInGreen,
       roundsWeaved: this.roundsWithWeave,
       keystrokeRoundsWeaved: this.keystrokeRoundsWithWeave,
       totalRounds: this.roundCount,
       weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
       totalFistDamage: this.totalFistDamage, fightDuration, addedDps, totalDps, avgReactionMs,
-      keystrokeGrading: useKeystroke }
+      keystrokeGrading: useKeystroke, outOfRangeMs, engagedMs }
   }
 
   // ── Internal ─────────────────────────────────────────────────
@@ -516,5 +573,8 @@ export class RhythmEngine {
     this.roundMainhandDamage = 0; this.roundEndDamage = null
     this.lastKnownInterval = this.predictedInterval   // seconds, matching PUNCH_INTERVAL units
     this.measuredIntervals = []; this.calibrationEvent = null
+    this.totalOutOfRangeMs = 0; this.outOfRangeStart = null
+    this.disciplinesUsed = new Set()
+    this.damageLog = []
   }
 }
