@@ -11,8 +11,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v))
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  const client = await db.connect()
+  let client: Awaited<ReturnType<typeof db.connect>> | null = null
   try {
+    client = await db.connect()
     // ── POST /api/records — submit a record ──────────────────────────────────
     if (req.method === 'POST') {
       const key = String(req.headers['x-api-key'] ?? '')
@@ -87,8 +88,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e)
+    console.error('[records] 500 error:', e)
     return res.status(500).json({ error: `DB error: ${msg}` })
   } finally {
-    client.release()
+    client?.release()
   }
 }
