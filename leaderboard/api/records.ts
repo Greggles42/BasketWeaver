@@ -21,8 +21,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const rec = req.body
-      if (!rec?.id || !rec?.mob_name || !rec?.character_name) {
-        return res.status(400).json({ error: 'Missing required fields: id, mob_name, character_name' })
+      if (!rec?.id || !rec?.mobName || !rec?.characterName) {
+        return res.status(400).json({ error: 'Missing required fields: id, mobName, characterName' })
       }
 
       await client.query(
@@ -38,9 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ) ON CONFLICT (id) DO NOTHING`,
         [
           rec.id,
-          rec.character_name,
-          rec.server_name      ?? '',
-          rec.mob_name,
+          rec.characterName,
+          rec.serverName       ?? '',
+          rec.mobName,
           rec.grade            ?? 'F',
           rec.totalDps         ?? 0,
           rec.addedDps         ?? 0,
