@@ -195,7 +195,9 @@
     }
 
     function fmtDate(ts) {
-      return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const n = Number(ts)
+      if (!n) return '—'
+      return new Date(n).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     }
 
     async function loadMobs() {
