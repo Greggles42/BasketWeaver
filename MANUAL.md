@@ -1,13 +1,14 @@
 # Basketweaver — User Manual
+## Version 2.2.0-beta.1
 
 Basketweaver is a real-time timing overlay for EverQuest weapon-weaving.
 It draws a scrolling highway showing when to swap to your offhand weapon set
 so your offhand round lands without clipping your mainhand swing timer.
 
 Combat events can be read two ways: from your **EQ log file** (default), or
-directly from the game via a **Zeal named pipe** if you are running the Zeal
-client plugin. Both modes produce identical overlays — the difference is only
-in how data reaches Basketweaver.
+in **Hybrid mode**, which combines the log file with a **Zeal named pipe** if
+you are running the Zeal client plugin. Both modes produce identical overlays —
+the difference is only in how data reaches Basketweaver.
 
 ---
 
@@ -16,15 +17,15 @@ in how data reaches Basketweaver.
 1. [How It Works](#1-how-it-works)
 2. [Core Concepts & Definitions](#2-core-concepts--definitions)
 3. [First-Time Setup](#3-first-time-setup)
-4. [Zeal Pipe Tracking](#4-zeal-pipe-tracking)
+4. [Hybrid Tracking (Zeal + Log)](#4-hybrid-tracking-zeal--log)
 5. [Understanding the Overlay](#5-understanding-the-overlay)
 6. [Timing Your Weaves](#6-timing-your-weaves)
 7. [Calibration](#7-calibration)
-8. [Tray Menu Reference](#8-tray-menu-reference)
-9. [Keyboard Shortcuts](#9-keyboard-shortcuts)
-10. [Troubleshooting](#10-troubleshooting)
-
----
+8. [Settings Window](#8-settings-window)
+9. [Tray Menu Reference](#9-tray-menu-reference)
+10. [Leaderboard](#10-leaderboard)
+11. [Keyboard Shortcuts](#11-keyboard-shortcuts)
+12. [Troubleshooting](#12-troubleshooting)
 
 ---
 
@@ -69,7 +70,7 @@ EverQuest game client
         │         │
         │    Basketweaver tails the file (16 ms poll)
         │
-        └─── Zeal named pipe (\\.\pipe\zeal_PID)  ← Zeal Pipe mode
+        └─── Zeal named pipe (\\.\pipe\zeal_PID)  ← Hybrid mode (Zeal + Log)
                   │
              Basketweaver connects via TCP socket
 
@@ -103,7 +104,7 @@ At the end of each fight, Basketweaver grades your performance based on the
 fraction of mainhand rounds in which you made a fist weave attempt. By default
 grading uses log-detected fist events. If you prefer to grade by keystrokes (so
 proc failures and dual-wield misses do not penalise you), enable **Keystroke
-Grading** in the tray menu.
+Grading** in Settings.
 
 | Grade | Rounds weaved |
 |---|---|
@@ -127,7 +128,7 @@ you have a valid target in range.
 **Weapon delay**
 EQ stores weapon delays in tenths of a second (e.g. delay 20 = 2.0 s). Basketweaver
 uses this value as the baseline for interval calculations. Set it via tray →
-**Mainhand Delay**.
+**Mainhand Delay** or the Settings window.
 
 **Haste**
 A percentage bonus that shortens effective weapon delays. At 40% haste, a 2.0 s
@@ -147,7 +148,7 @@ Example: 2.0 s staff at 60% haste → `2.0 / 1.60 = 1.25 s` interval.
 **Offhand / fist weapon delay**
 The delay of your secondary (fist) weapon, also haste-adjusted. This determines
 how long the fist timer needs to count down before firing. A shorter fist delay
-means a narrower safe weave window. Set via tray → **Offhand Delay**.
+means a narrower safe weave window. Set via tray → **Offhand Delay** or Settings.
 
 **Weave window**
 The safe period between mainhand swings during which the fist weapon can fire
@@ -171,8 +172,8 @@ is worse than skipping a weave because it actively delays mainhand damage.
 **Hit zone**
 The vertical bar on the left side of the highway that acts as the timing target.
 Weave actions are judged at this point. When the green window reaches the hit zone,
-swap to your offhand weapon set. The hit zone position can be moved left or right via tray
-→ **Target Position** (cosmetic only — timing is not affected).
+swap to your offhand weapon set. The hit zone position can be moved left or right via
+Settings → **Target Position** (cosmetic only — timing is not affected).
 
 **Target offset**
 A timing correction applied to the hit zone, in milliseconds. A positive offset
@@ -213,8 +214,6 @@ otherwise count as a missed weave under log-based grading.
 
 ---
 
----
-
 ## 3. First-Time Setup
 
 ### Launch
@@ -236,42 +235,65 @@ Your character name is read from the log filename and displayed in the header.
 If the overlay ever ends up off-screen, use tray → **Reset Window Position** to
 snap it back to the center of your primary monitor.
 
+### Open Settings
+Right-click the tray icon → **Settings…** to open the Settings window.
+All major configuration options live here. See [Section 8](#8-settings-window) for
+a full reference.
+
 ### Set Your Mainhand Weapon
-Right-click the tray icon → **Mainhand Delay** → select your weapon.
+In Settings → **Weapon & Timing** → **Mainhand Weapon**, type to search your weapon
+by name and select it from the dropdown. Alternatively, use tray → **Mainhand Delay**
+to pick from the full preset list.
 
 | Weapon | Delay |
 |---|---|
-| Imbued Fighter's Staff | 4.0s |
+| Imbued Fighters Staff | 4.0s |
+| Norge`tal | 4.5s |
 | Ton Po's Bo Stick of Understanding | 4.0s |
+| Twisted Steel Bastard Sword | 4.5s |
 | Bo Staff of Trorsmang | 3.5s |
-| Abashi's Rod of Disillusionment | 3.0s |
+| Abashi's Rod of Disempowerment | 3.0s |
+| Aggression | 4.0s |
+| Bloodied Berserker's Blade | 4.0s |
 | Caen's Bo Staff of Fury | 3.0s |
+| Emaciated Maul of the Overseer | 4.5s |
+| Facesmasher | 4.2s |
+| Feartouched Greatsword | 4.0s |
+| Gaudralek, Sword of the Sky | 3.8s |
+| Greatsword of the Disciple | 4.0s |
+| Meljeldin, Bane of Giants | 3.8s |
+| Palladius' Axe of Slaughter | 4.2s |
+| Rocksmasher | 4.1s |
+| Scalecracker | 4.3s |
+| Scythe of Shadows | 4.0s |
+| Shovel of the Harvest | 4.3s |
+| The Sword of Ssraeshza | 4.2s |
 | Tranquil Staff | 3.0s |
 
 ### Set Your Offhand (Fist) Weapon Delay
-Right-click the tray icon → **Offhand Delay** → select the delay that matches
-your fist weapon. Default is 1.6s (delay 16 — standard monk fists).
+In Settings → **Weapon & Timing** → **Offhand Weapon**, search and select your fist
+weapon. Default is 1.6s (delay 16 — standard monk fists). Alternatively, use tray →
+**Offhand Delay** to set by delay value.
 
-> **Tip:** Use the `/mystats` calibration macro to auto-detect this.
-> See [Section 8](#8-auto-detection-with-mystats).
+> **Tip:** Use the `/mystats` calibration macro to auto-detect haste.
+> See [Section 7](#7-calibration).
 
 ---
 
-## 4. Zeal Pipe Tracking
+## 4. Hybrid Tracking (Zeal + Log)
 
 **Zeal** is a client plugin for EverQuest (TAKP / Project Quarm and similar
-servers) that exposes real-time game data through Windows named pipes. When
-Zeal is running alongside EQ, Basketweaver can read combat messages directly
-from the game process instead of parsing the log file.
+servers) that exposes real-time game data through Windows named pipes. In
+**Hybrid mode**, Basketweaver reads combat data from both the Zeal named pipe
+and the log file simultaneously, combining them for the lowest possible latency.
 
-### Why Use Zeal Pipe Instead of the Log?
+### Why Use Hybrid Instead of Log Only?
 
-| | Log File | Zeal Pipe |
+| | Log File | Hybrid (Zeal + Log) |
 |---|---|---|
-| **Latency** | Bounded by how often EQ flushes the log to disk | Near-instant — events arrive as they fire in-game |
-| **Setup** | Requires logging on (`/log on`) | No log file needed |
-| **Log required?** | Yes | No |
-| **Auto-connects** | No — you select a file | Yes — detects EQ automatically |
+| **Latency** | Bounded by how often EQ flushes the log to disk | Near-instant from Zeal; log fills in anything Zeal misses |
+| **Setup** | Requires logging on (`/log on`) | Log still recommended for fallback |
+| **Auto-connects to Zeal** | No | Yes — detects EQ automatically |
 | **Multiple EQ sessions** | One log file at a time | Connects to all running EQ processes |
 
 ### Requirements
@@ -281,29 +303,29 @@ from the game process instead of parsing the log file.
   EQ process automatically — no extra configuration is needed.
 - Basketweaver and EverQuest must be running on the same machine.
 
-### Enabling Zeal Pipe Tracking
+### Enabling Hybrid Tracking
 
-Right-click the tray icon → **Tracking Source** → **Zeal Pipe**.
+Open **Settings…** → **Tracking Source** → select **Hybrid (Zeal + Log)**.
 
-Basketweaver immediately stops tailing any open log file and begins scanning
-for `eqgame.exe` processes every 2 seconds. Once it finds one, it connects
-to the Zeal pipe and starts receiving events. A log entry appears in the
-console confirming the connection:
+Basketweaver immediately begins scanning for `eqgame.exe` processes every
+2 seconds. Once it finds one, it connects to the Zeal pipe and starts receiving
+events alongside the log file. A log entry appears in the console confirming
+the connection:
 
 ```
 [ZealReader] Connected to pipe for PID 12345
 ```
 
-The overlay behaves identically to log-based mode — swing detection, haste
+The overlay behaves identically to log-only mode — swing detection, haste
 sync, weapon detection, and `/mystats` calibration all work the same way
-because the text content coming through the pipe is the same combat text that
-would appear in your log file.
+because the text content from Zeal is the same combat text that appears in
+your log file.
 
 ### Switching Back to Log Tracking
 
-Right-click the tray icon → **Tracking Source** → **Log File (default)**.
+Open **Settings…** → **Tracking Source** → select **Log File**.
 
-If you had a log file selected before switching to Zeal, Basketweaver resumes
+If you had a log file selected before switching to Hybrid, Basketweaver resumes
 tailing it automatically. If not, it will wait for you to select one via
 tray → **Select Log File…**.
 
@@ -315,16 +337,13 @@ Zeal writes JSON messages to its named pipe in the format:
 {"type": 0, "character": "Yourname", "data": "{\"type\": 265, \"text\": \"You crush a goblin for 42 points of damage.\"}"}
 ```
 
-The outer `type` field is the message category (`0` = log text, `2` = gauges,
-`3` = labels, etc.). Basketweaver only processes log text messages. The inner
-`type` field is EverQuest's internal channel code, and `text` is the combat
-line — identical to what would be written to your log file, but without the
-`[Day Mon DD HH:MM:SS YYYY]` timestamp prefix.
+The outer `type` field is the message category (`0` = log text). Basketweaver
+only processes log text messages. The inner `text` field is the combat line —
+identical to what would be written to your log file, but without the timestamp
+prefix.
 
-Basketweaver applies the same pattern matching it uses for log parsing, so
-mainhand crush events, fist attacks, out-of-range messages, target deaths,
-and `/mystats` calibration output are all detected exactly as they are in
-log mode.
+In Hybrid mode, events from both sources are deduplicated by content so a combat
+line seen on both the pipe and the log file is only processed once.
 
 ---
 
@@ -332,8 +351,8 @@ log mode.
 
 The overlay is a scrolling "highway" that sits on top of EverQuest.
 Weave windows approach from the right and travel left toward the hit zone.
-The default style is **Refined**; two alternate styles are available via tray →
-**Overlay Style**.
+Two visual styles are available via Settings → **Overlay Style**: **Refined**
+(default) and **High Contrast**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -378,7 +397,7 @@ after this point — you won't have time before the next swing.
 A progress bar that shows how long until your offhand weapon is ready to
 fire again. It shrinks from full width toward zero as the cooldown counts
 down. Colour shifts from **blue → cyan → bright cyan** as the weapon
-approaches ready. Toggleable via tray → **Offhand Swing Timer**.
+approaches ready. Toggleable via Settings → **Offhand Swing Timer**.
 
 **CURSOR! warning**
 If you try to swap weapons while holding an item on your cursor, EQ will
@@ -395,12 +414,11 @@ and plays an error sound so you know to clear your cursor immediately.
 
 ### Overlay Styles
 
-Three visual styles are available via tray → **Overlay Style**:
+Two visual styles are available via Settings → **Overlay Style**:
 
 | Style | Description |
 |---|---|
 | **Refined** (default) | Dark arcade look — gold bar hit zone, green weave windows, subtle grid |
-| **Standard** | Original design — blue dot notes, circular hit zone, swing bar |
 | **High Contrast** | Black background, vivid yellow/cyan colors — good for streaming or low-vision use |
 
 ---
@@ -474,6 +492,9 @@ Open tray → **Recent Fights** to view the last 5 results. The menu entry
 shows a compact summary; clicking it copies a full detailed line to the
 clipboard — useful for sharing parse results in Discord or guild chat.
 
+All fight records are also stored locally and visible in the
+[Leaderboard window](#10-leaderboard).
+
 ---
 
 ## 7. Calibration
@@ -497,10 +518,8 @@ No manual action needed.
 If auto-sync hasn't fired yet (e.g. at the start of a session), you
 can set the interval manually:
 
-Right-click tray icon → **Interval** → select the seconds value that
-matches your current haste.
-
-You can also use the arrow keys while the overlay is focused:
+Open Settings → **Weapon & Timing** → **Mainhand Swing Interval**, or use
+the arrow keys while the overlay is focused:
 - `↑` — increase interval by 0.25s
 - `↓` — decrease interval by 0.25s
 
@@ -508,22 +527,14 @@ You can also use the arrow keys while the overlay is focused:
 
 Increase **Target Offset** (shifts the hit zone timing later):
 
-Right-click tray → **Target Offset** → try 25 ms, 50 ms steps
-
-Or with the keyboard (Standard style only):
-`]` — add 25 ms offset
-`[` — remove 25 ms offset
+Settings → **Weapon & Timing** → **Target Offset** → try 25 ms, 50 ms steps.
 
 ### If Weaves Feel Late (you're always catching the tail of the green box)
 
 Decrease Target Offset back toward 0, or adjust **Latency Comp.**
 if your network adds delay between when you act and when EQ registers it:
 
-Right-click tray → **Latency Comp.** → try 25–75 ms
-
-Keyboard (Standard style only):
-`'` — add 25 ms latency comp
-`;` — remove 25 ms latency comp
+Settings → **Weapon & Timing** → **Latency Comp.** → try 25–75 ms.
 
 ### Calibration Quick Reference
 
@@ -533,50 +544,194 @@ Keyboard (Standard style only):
 | Green box arrives too late, mainhand delays | Decrease Latency Comp. |
 | Notes never reach hit zone | Check your log file is updating (logging on?) |
 | Windows don't appear | Enter combat — windows only show during active fighting |
-| Interval wrong after buff / zone | Use `↑` / `↓` keys or set Interval in tray |
+| Interval wrong after buff / zone | Use `↑` / `↓` keys or set Interval in Settings |
 
 ---
 
-## 8. Tray Menu Reference
+## 8. Settings Window
+
+Open via tray → **Settings…**. Changes take effect immediately; click **Save & Close**
+to persist them across sessions.
+
+### Audio Volumes
+
+| Setting | Description |
+|---|---|
+| **Master Volume** | Global volume multiplier for all sounds (0–100%) |
+| **Buff / Proc Sounds** | Volume for Avatar, Savagery, and other buff sounds |
+| **Epic / Huge Round** | Volume for the epic crit and huge-round sounds |
+| **Sound Debounce (ms)** | Minimum milliseconds between repeated sounds of the same type. Use 50–150 ms in Hybrid mode to prevent double-firing. Set 0 to disable. |
+
+### Sound Triggers
+
+| Setting | Description |
+|---|---|
+| **Crit Damage** | Minimum single-hit damage to trigger the epic.wav sound |
+| **Huge Round** | Minimum round total damage to trigger the oh_snap.wav sound |
+
+### Tracking Source
+
+| Option | Description |
+|---|---|
+| **Log File** (default) | Basketweaver tails your EQ log file |
+| **Hybrid (Zeal + Log)** | Combines Zeal named pipe with log file; lower latency |
+
+See [Section 4](#4-hybrid-tracking-zeal--log) for full Hybrid mode details.
+
+### Overlay Style
+
+| Option | Description |
+|---|---|
+| **Refined** (default) | Dark arcade look — gold hit zone, green weave windows, subtle grid |
+| **High Contrast** | Black background, vivid yellow/cyan — good for streaming or low-vision |
+
+Changing the style reloads the renderer. Your log file reconnects automatically and
+all persisted settings are restored.
+
+### Weapon & Timing
+
+| Setting | Description |
+|---|---|
+| **Mainhand Weapon** | Search and select your 2H weapon; sets the base delay |
+| **Offhand Weapon** | Search and select your fist/offhand weapon; sets offhand delay |
+| **Mainhand Swing Interval** | Override the post-haste swing interval manually |
+| **Target Offset** | Fine-tune hit zone timing in ms (positive = later) |
+| **Latency Comp.** | Compensate for network/input delay in ms |
+| **Clip Window** | Duration after a weave to suppress duplicate detections |
+| **Weave Window (ms, 0=auto)** | Override the weave window width. 0 = auto-derived from interval minus offhand delay |
+
+Custom weapon delays can be entered in EQ tenths-of-seconds (e.g. 28 = 2.8 s) using
+the custom field that appears when no preset matches your search.
+
+### Display
+
+| Setting | Description |
+|---|---|
+| **Target Position** | Move the hit zone left or right (cosmetic; timing unaffected) |
+| **Opacity** | Overlay transparency (50–100%) |
+
+### Options
+
+| Option | Description |
+|---|---|
+| **Audio Enabled** | Master toggle for all sounds |
+| **Buff Sound Enabled** | Play sounds when Avatar, Savagery, or Innerflame is detected |
+| **Fist Sound on Miss** | Play a whiff sound when a fist weave misses |
+| **Dynamic Weaving** | Show color-coded weave window zones (blue/green/red) based on offhand cooldown |
+| **Offhand Swing Timer** | Show a thin bar at the bottom of the highway indicating offhand weapon readiness |
+| **Keystroke Grading** | Grade weaves by keystrokes rather than log-detected fist attacks |
+| **Offhand Same Attack Type (timing)** | Treat a second crush in a round as the offhand event (for blunt offhand weapons like Ribcracker) |
+| **Freeze Window Position** | Lock the overlay in place so it cannot be dragged |
+| **Show All Crits on Track** | Display all critical hit banners on the highway, not just those above the epic threshold |
+| **Positive Feedback Audio in Weave Windows** | Play the punch sound on any in-window attempt; play the whiff sound only for out-of-window swings |
+| **Weave Off Delay (ms)** | How long to keep the weave state active after a swap-back bandolier message is detected (Zeal pipe may arrive before the hit) |
+
+### Leaderboard
+
+Configure the community leaderboard upload feature. See [Section 10](#10-leaderboard).
+
+| Setting | Description |
+|---|---|
+| **Character Name** | Your character name for leaderboard records (auto-detected from log or Zeal) |
+| **Vercel URL** | URL of the community leaderboard API (e.g. `https://basketweaver.vercel.app`) |
+| **API Key** | Shared secret required for POST authentication |
+| **Upload records to community leaderboard** | Enable automatic upload of fight records after each fight |
+
+---
+
+## 9. Tray Menu Reference
 
 Right-click the Basketweaver icon in the system tray to open the menu.
 
 | Option | Description |
 |---|---|
+| **Settings…** | Open the Settings window |
 | **Status** | Shows IN COMBAT or IDLE (read-only) |
 | **Select Log File…** | Choose a different EQ log file |
 | **Reset Track** | Hard reset — clears all state if overlay gets out of sync |
-| **Recent Fights** | Last 5 fight results; click any entry to copy full stats to clipboard |
+| **Clear Buffs (AVT/SAV)** | Manually clear tracked Avatar and Savagery buff states |
+| **Buff Notification Sounds** | Toggle buff detection sounds on / off |
 | **Reset Window Position** | Snap overlay to a safe central position on the primary monitor |
-| **Tracking Source** | Switch between **Log File** (default), **Zeal Pipe**, or **Hybrid** event tracking |
-| **Overlay Style** | Choose Refined (default), Standard, or High Contrast |
-| **Mainhand Delay** | Select your mainhand weapon from the preset list |
-| **Offhand Delay** | Set your fist weapon delay manually |
-| **Interval** | Override the post-haste swing interval |
-| **Target Position** | Move the hit zone left or right on the highway |
-| **Target Offset** | Fine-tune hit zone timing (ms) |
-| **Latency Comp.** | Compensate for network/input delay (ms) |
-| **Clip Window** | How long after a weave to suppress duplicate detections |
-| **Opacity** | Overlay transparency (50% / 70% / 85% / 100%) |
+| **Freeze Window Position** | Lock the overlay window so it cannot be dragged |
+| **Recent Fights** | Last 5 fight results; click any entry to copy full stats to clipboard |
+| **Top Crits** | Your top critical hits this session (mob name, damage, date) |
+| **Top Huge Rounds** | Your top huge-round totals this session (mob name, damage, date) |
+| **Mainhand Delay** | Select your mainhand weapon from the full preset list |
+| **Offhand Delay** | Set your fist weapon delay by value |
 | **Audio** | Toggle all sounds on / off |
-| **Orientation** | Switch between horizontal and vertical highway layouts |
-| **Fist Sound on Miss** | Play a whiff sound when a fist weave misses (enabled by default) |
-| **Dynamic Weaving** | Show color-coded weave window zones (green/blue/red) based on offhand cooldown |
-| **Offhand Swing Timer** | Show a thin bar at the bottom of the highway indicating offhand weapon readiness |
-| **Keystroke Grading** | Grade weaves by keystrokes rather than log-detected fist attacks |
+| **Leaderboard…** | Open the Leaderboard window |
+| **Basketweaver vX.X.X** | Current version (read-only) |
 | **Quit Basketweaver** | Exit the app |
-
-> **Note:** Changing **Overlay Style** reloads the renderer. Your log file
-> reconnects automatically and persisted settings (offhand delay, tracking source,
-> dynamic weaving, offhand timer, window position) are restored.
 
 ---
 
-## 9. Keyboard Shortcuts
+## 10. Leaderboard
+
+The Leaderboard window stores and displays your fight records locally, and
+optionally uploads them to a shared community board.
+
+### Opening the Leaderboard
+
+Right-click the tray icon → **Leaderboard…**
+
+### What It Shows
+
+Each row in the table represents one completed fight and includes:
+
+| Column | Description |
+|---|---|
+| **Mob** | Name of the target you killed |
+| **Grade** | Weave grade for that fight (S / A / B / C / D / F) |
+| **Total DPS** | All melee DPS (mainhand + fist + procs) |
+| **Added DPS** | DPS contributed by fist weave attacks alone |
+| **Mainhand** | Detected mainhand weapon name |
+| **Offhand** | Offhand weapon from config |
+| **ATK** | Your ATK rating at the time of the fight |
+| **Haste** | Your haste percentage at the time of the fight |
+| **Disciplines** | Disciplines activated during the fight (e.g. Innerflame 45%) |
+| **Buffs** | Buffs active during the fight (e.g. Avatar 100%, Savagery 60%) |
+| **Engaged** | Time actually in melee range |
+| **Duration** | Total wall-clock fight length |
+| **Rounds** | Total mainhand rounds |
+| **Weave %** | Percentage of rounds where a weave attempt was made |
+| **Character** | Your character name |
+| **Date** | Date and time the fight ended |
+
+### Filtering and Sorting
+
+Use the **Mob** and **Character** filter boxes at the top to narrow results.
+Click any column header to sort by that column; click again to reverse the order.
+
+### DPS Chart
+
+Click any row to open a time-averaged DPS chart for that fight. The chart shows
+per-second DPS (normalized over a 15-second window for the first 15 seconds to
+remove the initial spike), a peak DPS marker, and a grid with 15-second intervals.
+Click **Close Chart** to dismiss.
+
+### Uploading to the Community Board
+
+Individual records can be uploaded by clicking the **Upload** button in each row.
+To upload all visible (filtered) records at once, click **Upload All**.
+
+Once sent, the button changes to **✓ Sent**.
+
+To configure upload credentials, open **Settings…** → **Leaderboard** section and
+enter your Vercel URL and API Key. Check **Upload records to community leaderboard**
+to upload automatically after each fight.
+
+A **View Community Board ↗** link appears in the leaderboard window once a Vercel
+URL is configured.
+
+> **Note:** Records are stored locally in `%APPDATA%\Basketweaver\leaderboard.json`.
+> Up to 100 records per mob name are kept, ranked by total DPS. History persists
+> between sessions.
+
+---
+
+## 11. Keyboard Shortcuts
 
 These work when the Basketweaver window is in focus (click it once).
-
-### All Styles
 
 | Key | Action |
 |---|---|
@@ -587,18 +742,9 @@ These work when the Basketweaver window is in focus (click it once).
 | `Space` | Dismiss grade screen |
 | `Escape` | Quit |
 
-### Standard Style Only
-
-| Key | Action |
-|---|---|
-| `]` / `[` | Target Offset +25ms / −25ms |
-| `'` / `;` | Latency Comp. +25ms / −25ms |
-| `,` / `.` | Shift hit zone visually left / right (no timing effect) |
-| `V` | Copy fight history to clipboard |
-
 ---
 
-## 10. Troubleshooting
+## 12. Troubleshooting
 
 **Overlay doesn't show weave windows**
 Weave windows only appear once you enter combat. Make sure logging is
@@ -610,7 +756,7 @@ Press `↑` or `↓` to nudge the interval, or run `/mystats` to let
 Basketweaver re-sync automatically.
 
 **Weaves land but are consistently late/early by the same amount**
-Use **Target Offset** or **Latency Comp.** in the tray menu.
+Use **Target Offset** or **Latency Comp.** in Settings.
 Start with 25 ms steps and adjust until the hit zone flashes gold
 reliably at the moment you click swap.
 
@@ -632,34 +778,43 @@ match your server's death/zone messages.
 
 **Audio not playing**
 Click the overlay window once to focus it, then press `M` to toggle
-audio. You can also toggle via tray → **Audio**.
+audio. You can also toggle via tray → **Audio** or Settings → **Audio Enabled**.
 
 **App asks for a log file every time**
 If the previously saved log file is deleted or moved, the picker will
 open on launch. Select the new path and it will be remembered. If you
-use Zeal Pipe mode, no log file is needed — switch via tray →
-**Tracking Source** → **Zeal Pipe** and the prompt will not appear on
-subsequent launches.
+use Hybrid mode, a log file is still recommended — switch tracking source
+in Settings if you prefer log-only mode.
 
-**Zeal Pipe mode shows no events**
+**Hybrid mode shows no events from Zeal**
 - Confirm Zeal is loaded in EverQuest (`/zeal` should respond in-game).
 - Both Basketweaver and EQ must be running on the same machine — pipes
   are local-only.
 - Basketweaver scans for `eqgame.exe` every 2 seconds after switching to
-  Zeal mode. If EQ was started after Basketweaver, wait a moment or
+  Hybrid mode. If EQ was started after Basketweaver, wait a moment or
   use tray → **Reset Track** to nudge the connection attempt.
 - If EQ crashes or exits, Basketweaver detects the pipe closing and will
   reconnect automatically when EQ relaunches.
 
-**Switched to Zeal Pipe but weave windows stopped**
+**Switched to Hybrid but weave windows stopped**
 The Zeal plugin must be actively loaded. If you zoned or camped and Zeal
 unloaded, it will stop sending pipe data. Reload Zeal in-game and
-Basketweaver will reconnect within 2 seconds.
+Basketweaver will reconnect within 2 seconds. Log-based events continue
+in the meantime.
 
 **Recent Fights submenu always shows "No fights recorded yet"**
 Fight history is recorded after each combat engagement ends (mob death or player
-death). If it is empty, no fights have completed since the app launched. History
-is not persisted between sessions.
+death). If it is empty, no fights have completed since the app launched.
+
+**Leaderboard shows no records**
+Records are only saved after a fight completes (mob or player death).
+If you have completed fights and still see nothing, check that
+`%APPDATA%\Basketweaver\leaderboard.json` exists and is readable.
+
+**Upload button does nothing**
+Ensure the Vercel URL and API Key are configured in Settings → **Leaderboard**.
+Check that your internet connection is available. Upload requests time out after
+8 seconds; if the community server is unreachable the button will silently fail.
 
 ---
 

@@ -14,21 +14,134 @@ declare global {
 
 // ── Constants (mirror tray.ts) ────────────────────────────────
 
-const WEAPON_PRESETS: Record<string, number> = {
-  "Bo Staff of Trorsmang":                35,
-  "Abashi's Rod of Disillusionment":      30,
-  "Caen's Bo Staff of Fury":              30,
-  "Tranquil Staff":                       30,
-  "Ton Po's Bo Stick of Understanding":   40,
-  "Imbued Fighter's Staff":               40,
+type AttackType = 'crush' | 'slash' | 'pierce' | 'punch'
+const WEAPON_PRESETS: Record<string, { delay: number; attackType: AttackType }> = {
+  "Skull Staff of Geoffrey":                 { delay: 20, attackType: 'crush' },
+  "Runed Fighters Staff":                    { delay: 20, attackType: 'crush' },
+  "Wu's Quivering Staff":                    { delay: 28, attackType: 'crush' },
+  "Abashi's Rod of Disempowerment":          { delay: 30, attackType: 'crush' },
+  "Caen's Bo Staff of Fury":                 { delay: 30, attackType: 'crush' },
+  "Peacebringer":                            { delay: 30, attackType: 'crush' },
+  "The Arm of Quellious":                    { delay: 30, attackType: 'crush' },
+  "Tranquil Staff":                          { delay: 30, attackType: 'crush' },
+  "Bo Staff of Trorsmang":                   { delay: 35, attackType: 'crush' },
+  "Efreeti Ice Staff":                       { delay: 35, attackType: 'crush' },
+  "Tae Ew Two Hand Hammer":                  { delay: 35, attackType: 'crush' },
+  "Amygdalan War Staff":                     { delay: 36, attackType: 'crush' },
+  "Exquisite Velium Brawl Stick":            { delay: 36, attackType: 'crush' },
+  "Rod of Mourning":                         { delay: 36, attackType: 'crush' },
+  "Tae Ew War Maul":                         { delay: 36, attackType: 'crush' },
+  "Wrapped Velium Brawl Stick":              { delay: 36, attackType: 'crush' },
+  "Carved Velium Brawl Stick":               { delay: 37, attackType: 'crush' },
+  "Massive Velium Brawl Stick":              { delay: 37, attackType: 'crush' },
+  "Staff of Battle":                         { delay: 37, attackType: 'crush' },
+  "Etched Velium Brawl Stick":              { delay: 38, attackType: 'crush' },
+  "Gaudralek, Sword of the Sky":             { delay: 38, attackType: 'slash' },
+  "Meljeldin, Bane of Giants":               { delay: 38, attackType: 'slash' },
+  "Runestone Maul":                          { delay: 38, attackType: 'crush' },
+  "Heavy Velium Brawl Stick":                { delay: 39, attackType: 'crush' },
+  "Petrified Heartwood Flamberge":           { delay: 39, attackType: 'slash' },
+  "Aggression":                              { delay: 40, attackType: 'crush' },
+  "Bloodied Berserker's Blade":              { delay: 40, attackType: 'slash' },
+  "Bruiser's Beatstick":                     { delay: 40, attackType: 'crush' },
+  "Feartouched Greatsword":                  { delay: 40, attackType: 'slash' },
+  "Great Maul of Slaughter":                 { delay: 40, attackType: 'crush' },
+  "Greatsword of the Disciple":              { delay: 40, attackType: 'slash' },
+  "Imbued Fighters Staff":                   { delay: 40, attackType: 'crush' },
+  "Scythe of Shadows":                       { delay: 40, attackType: 'slash' },
+  "Ton Po's Bo Stick of Understanding":      { delay: 40, attackType: 'crush' },
+  "Yttrium War Hammer":                      { delay: 40, attackType: 'crush' },
+  "Rocksmasher":                             { delay: 41, attackType: 'crush' },
+  "Facesmasher":                             { delay: 42, attackType: 'crush' },
+  "Palladius' Axe of Slaughter":             { delay: 42, attackType: 'slash' },
+  "The Sword of Ssraeshza":                  { delay: 42, attackType: 'slash' },
+  "Frostreaver":                             { delay: 43, attackType: 'slash' },
+  "Herbalists Spade":                        { delay: 43, attackType: 'crush' },
+  "Scalecracker":                            { delay: 43, attackType: 'crush' },
+  "Shovel of the Harvest":                   { delay: 43, attackType: 'crush' },
+  "Ancient Prismatic Brawl Stick":           { delay: 44, attackType: 'crush' },
+  "Petrified Rod":                           { delay: 44, attackType: 'crush' },
+  "Priceless Velium Brawl Stick":            { delay: 44, attackType: 'crush' },
+  "Premier Brawl Stick of Secundae":         { delay: 44, attackType: 'crush' },
+  "Primal Velium Brawl Stick":              { delay: 44, attackType: 'crush' },
+  "Emaciated Maul of the Overseer":          { delay: 45, attackType: 'crush' },
+  "Norge`tal":                               { delay: 45, attackType: 'slash' },
+  "Twisted Steel Bastard Sword":             { delay: 45, attackType: 'slash' },
+  "Blackstone Maul":                         { delay: 53, attackType: 'crush' },
 }
 
-const INTERVALS      = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]
+const OFFHAND_PRESETS: Record<string, number> = {
+  "Epic Fists":                              16,
+  "Dragonrib Club":                          17,
+  "Baton of Flame":                          17,
+  "Horns of Chaos":                          18,
+  "Fist of Nature":                          18,
+  "Sceptre of Destruction":                  18,
+  "Wurmscale Fistwraps":                     18,
+  "Essence Mace":                            18,
+  "Bone Spiked Crusher":                     18,
+  "Velium Maul of Superiority":              18,
+  "Acrylia Handled Broadsword":              19,
+  "Fangs of Vyzh`dra":                       19,
+  "Fist of Acrylia":                         19,
+  "Gharn's Rock of Smashing":                19,
+  "Fist of Glowing Acrylia":                 19,
+  "Howling Orb":                             19,
+  "Sap Encrusted Branch":                    19,
+  "Skybreaker":                              19,
+  "Fist of Pummeling Prowess":               19,
+  "Possessed Sacrificial Club":              19,
+  "Blade of Carnage":                        20,
+  "Glowing Mithril Ulak":                    20,
+  "Priceless Velium Fist Wraps":             20,
+  "Primal Velium Fist Wraps":                20,
+  "Fist of Mithril":                         22,
+  "Ancient Prismatic Fist Wraps":            20,
+  "Premier Fist Wraps of Secundae":          20,
+  "Etched Bone Ulak":                        20,
+  "Primal Velium Battlehammer":              20,
+  "Ancient Prismatic Staff":                 20,
+  "Priceless Velium Battlehammer":           20,
+  "Ancient Prismatic Mace":                  20,
+  "Ancient Prismatic Battlehammer":          20,
+  "Premier Battlehammer of Secundae":        20,
+  "Premier Mace of Secundae":                20,
+  "Hammer of the Ironfrost":                 20,
+  "Grats Bloodfrenzy":                       20,
+  "Bloodfrenzy":                             20,
+  "Braid of Golden Hair":                    21,
+  "Blackout":                                22,
+  "Vius Handwraps":                          22,
+  "Astral Handwraps":                        22,
+  "White Fire Handwraps":                    22,
+  "Wu's Fist of Mastery":                    22,
+  "Neb's Warbone":                           23,
+  "Vyzh`dra's Render of Souls":              24,
+  "Ribcracker":                              25,
+  "Ans Fiel`Tian":                           28,
+  "Sarnak Lightning Caller":                 28,
+  "Skullcrusher":                            28,
+  "Skullcrusher of Kragg":                   28,
+  "Longsword of Freedom":                    29,
+  "Sabertooth":                              29,
+  "Fist of Zek":                             30,
+  "Jagged Long Sword":                       30,
+  "Katana of Endurance":                     30,
+  "Smolder":                                 30,
+  "Katana of Enduring Stone":                31,
+  "Katana of Flowing Water":                 33,
+  "Green Jade Axe":                          34,
+  "Scimitar of the Emerald Dawn":            34,
+}
+
+// Unique sorted swing intervals derived from weapon presets (delay / 10)
+const INTERVALS: number[] = [
+  ...new Set(Object.values(WEAPON_PRESETS).map(w => w.delay / 10)),
+].sort((a, b) => a - b)
 const TARGET_OFFSETS = [0, 25, 50, 75, 100, 125, 150, 200, 250]     // ms
 const LATENCY_VALUES = [0, 25, 50, 75, 100, 125, 150, 200]           // ms
 const CLIP_WINDOWS   = [250, 500, 750, 1000, 1250, 1500, 2000]       // ms
 const TARGET_POSITIONS = [10, 14, 18, 22, 26, 30, 35, 40]
-const OFFHAND_DELAYS   = Array.from({ length: 13 }, (_, i) => 16 + i)
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -158,105 +271,158 @@ async function init(): Promise<void> {
     }
   }
 
-  // ── Mainhand delay select + custom override ──────────────────
-  // Sentinel 0 = "Custom" (no real EQ weapon has delay 0)
-  const CUSTOM = 0
-  const currentMainhand = s.BASE_WEAPON_DELAY as number
-  const mainhandInPresets = Object.values(WEAPON_PRESETS).includes(currentMainhand)
-  const mainhandOpts: [string, number][] = [
-    ...Object.entries(WEAPON_PRESETS).map(
-      ([name, delay]): [string, number] => [`${name}  (${(delay / 10).toFixed(1)}s)`, delay],
-    ),
-    ['── Custom ──', CUSTOM],
-  ]
-  populateSelect('mainhandDelay', mainhandOpts, mainhandInPresets ? currentMainhand : CUSTOM)
+  // ── Weapon search helper ─────────────────────────────────────
+  function setupWeaponSearch(
+    searchId: string,
+    dropdownId: string,
+    currentId: string,
+    customRowId: string,
+    customInputId: string,
+    customSecId: string,
+    presets: Record<string, number | { delay: number; attackType: AttackType }>,
+    currentDelay: number,
+    delayKey: string,
+    nameKey: string | null,
+    savedName: string | null = null,
+    onDelaySelected: ((delay: number, attackType?: AttackType) => void) | null = null,
+  ): void {
+    const searchEl     = document.getElementById(searchId)     as HTMLInputElement
+    const dropdown     = document.getElementById(dropdownId)   as HTMLElement
+    const currentEl    = document.getElementById(currentId)    as HTMLElement
+    const customRow    = document.getElementById(customRowId)  as HTMLElement
+    const customInput  = document.getElementById(customInputId) as HTMLInputElement
+    const customSec    = document.getElementById(customSecId)  as HTMLElement
 
-  const mainhandSel        = document.getElementById('mainhandDelay')    as HTMLSelectElement
-  const mainhandCustomRow  = document.getElementById('mainhandCustomRow') as HTMLElement
-  const mainhandCustom     = document.getElementById('mainhandCustom')    as HTMLInputElement
-  const mainhandCustomSec  = document.getElementById('mainhandCustomSec') as HTMLElement
+    // Prefer the saved name if it matches the current delay; fall back to first delay match.
+    const getDelay = (v: number | { delay: number; attackType: AttackType }) =>
+      typeof v === 'number' ? v : v.delay
+    const currentName = (savedName && getDelay(presets[savedName]) === currentDelay)
+      ? savedName
+      : Object.entries(presets).find(([, v]) => getDelay(v) === currentDelay)?.[0] ?? null
+    if (currentName) {
+      currentEl.textContent = `${currentName}  (${(currentDelay / 10).toFixed(1)}s)`
+    } else {
+      currentEl.textContent = `${(currentDelay / 10).toFixed(1)}s (custom)`
+      customRow.style.display = ''
+      customInput.value = String(currentDelay)
+      customSec.textContent = `= ${(currentDelay / 10).toFixed(1)}s`
+    }
 
-  const showMainhandSec = (v: number) => { mainhandCustomSec.textContent = `= ${(v / 10).toFixed(1)}s` }
+    const showDropdown = (query: string) => {
+      const q = query.toLowerCase()
+      const matches = Object.entries(presets).filter(([name]) => name.toLowerCase().includes(q))
+      dropdown.innerHTML = ''
+      if (matches.length === 0) { dropdown.classList.remove('open'); return }
+      for (const [name, val] of matches) {
+        const delay = getDelay(val)
+        const attackType = typeof val === 'object' ? val.attackType : undefined
+        const div = document.createElement('div')
+        div.textContent = `${name}  (${(delay / 10).toFixed(1)}s)`
+        div.addEventListener('mousedown', (e) => {
+          e.preventDefault()
+          searchEl.value = ''
+          dropdown.classList.remove('open')
+          currentEl.textContent = `${name}  (${(delay / 10).toFixed(1)}s)`
+          customRow.style.display = 'none'
+          window.settingsAPI.setSetting(delayKey, delay)
+          if (nameKey) window.settingsAPI.setSetting(nameKey, name)
+          if (onDelaySelected) onDelaySelected(delay, attackType)
+        })
+        dropdown.appendChild(div)
+      }
+      dropdown.classList.add('open')
+    }
 
-  if (!mainhandInPresets) {
-    mainhandCustomRow.style.display = ''
-    mainhandCustom.value = String(currentMainhand)
-    showMainhandSec(currentMainhand)
+    searchEl.addEventListener('input', () => showDropdown(searchEl.value))
+    searchEl.addEventListener('focus', () => { if (searchEl.value) showDropdown(searchEl.value) })
+    searchEl.addEventListener('blur', () => { setTimeout(() => dropdown.classList.remove('open'), 150) })
+
+    customInput.addEventListener('input', () => {
+      const v = parseInt(customInput.value, 10)
+      if (!isNaN(v) && v > 0) customSec.textContent = `= ${(v / 10).toFixed(1)}s`
+    })
+    customInput.addEventListener('change', () => {
+      const v = parseInt(customInput.value, 10)
+      if (!isNaN(v) && v > 0) {
+        customSec.textContent = `= ${(v / 10).toFixed(1)}s`
+        currentEl.textContent = `${(v / 10).toFixed(1)}s (custom)`
+        window.settingsAPI.setSetting(delayKey, v)
+        if (nameKey) window.settingsAPI.setSetting(nameKey, '')
+      }
+    })
   }
 
-  mainhandSel.addEventListener('change', () => {
-    const v = Number(mainhandSel.value)
-    if (v === CUSTOM) {
-      mainhandCustomRow.style.display = ''
-      mainhandCustom.focus()
-    } else {
-      mainhandCustomRow.style.display = 'none'
-      window.settingsAPI.setSetting('BASE_WEAPON_DELAY', v)
-    }
-  })
-  mainhandCustom.addEventListener('input', () => {
-    const v = parseInt(mainhandCustom.value, 10)
-    if (!isNaN(v) && v > 0) showMainhandSec(v)
-  })
-  mainhandCustom.addEventListener('change', () => {
-    const v = parseInt(mainhandCustom.value, 10)
-    if (!isNaN(v) && v > 0) {
-      showMainhandSec(v)
-      window.settingsAPI.setSetting('BASE_WEAPON_DELAY', v)
-    }
-  })
-
-  // ── Offhand delay select + custom override ───────────────────
-  const currentOffhand = s.OFFHAND_WEAPON_DELAY as number
-  const offhandInList  = OFFHAND_DELAYS.includes(currentOffhand)
-  const offhandOpts: [string, number][] = [
-    ...OFFHAND_DELAYS.map((d): [string, number] => [`${(d / 10).toFixed(1)}s  (delay ${d})`, d]),
-    ['── Custom ──', CUSTOM],
-  ]
-  populateSelect('offhandDelay', offhandOpts, offhandInList ? currentOffhand : CUSTOM)
-
-  const offhandSel       = document.getElementById('offhandDelay')    as HTMLSelectElement
-  const offhandCustomRow = document.getElementById('offhandCustomRow') as HTMLElement
-  const offhandCustom    = document.getElementById('offhandCustom')    as HTMLInputElement
-  const offhandCustomSec = document.getElementById('offhandCustomSec') as HTMLElement
-
-  const showOffhandSec = (v: number) => { offhandCustomSec.textContent = `= ${(v / 10).toFixed(1)}s` }
-
-  if (!offhandInList) {
-    offhandCustomRow.style.display = ''
-    offhandCustom.value = String(currentOffhand)
-    showOffhandSec(currentOffhand)
-  }
-
-  offhandSel.addEventListener('change', () => {
-    const v = Number(offhandSel.value)
-    if (v === CUSTOM) {
-      offhandCustomRow.style.display = ''
-      offhandCustom.focus()
-    } else {
-      offhandCustomRow.style.display = 'none'
-      window.settingsAPI.setSetting('OFFHAND_WEAPON_DELAY', v)
-    }
-  })
-  offhandCustom.addEventListener('input', () => {
-    const v = parseInt(offhandCustom.value, 10)
-    if (!isNaN(v) && v > 0) showOffhandSec(v)
-  })
-  offhandCustom.addEventListener('change', () => {
-    const v = parseInt(offhandCustom.value, 10)
-    if (!isNaN(v) && v > 0) {
-      showOffhandSec(v)
-      window.settingsAPI.setSetting('OFFHAND_WEAPON_DELAY', v)
-    }
-  })
-
-  // ── Punch interval select ────────────────────────────────────
-  const intervalOpts: [string, number][] = INTERVALS.map(v => [`${v.toFixed(1)}s`, v])
-  populateSelect('punchInterval', intervalOpts, s.PUNCH_INTERVAL as number)
+  // ── Mainhand swing interval select ──────────────────────────
+  // Value 0 = "Auto": derive from weapon delay. Set up before mainhand search
+  // so the weapon search callback can update the select.
   const intervalSel = document.getElementById('punchInterval') as HTMLSelectElement | null
+  const currentWeaponDelay = { value: s.BASE_WEAPON_DELAY as number }
+
+  function buildIntervalOpts(): [string, number][] {
+    return [
+      ['Auto (from weapon)', 0],
+      ...INTERVALS.map(v => [`${v.toFixed(1)}s`, v] as [string, number]),
+    ]
+  }
+
+  function populateIntervalSelect(matchInterval: number): void {
+    if (!intervalSel) return
+    const opts = buildIntervalOpts()
+    const autoInterval = currentWeaponDelay.value / 10
+    // Select "Auto" if the current interval matches the weapon's base interval
+    const effectiveMatch = Math.abs(matchInterval - autoInterval) < 0.01 ? 0 : matchInterval
+    populateSelect('punchInterval', opts, effectiveMatch)
+  }
+
+  function setIntervalFromWeapon(weaponDelay: number, attackType?: AttackType): void {
+    currentWeaponDelay.value = weaponDelay
+    const interval = weaponDelay / 10
+    populateIntervalSelect(interval)
+    window.settingsAPI.setSetting('PUNCH_INTERVAL', interval)
+    if (attackType) {
+      window.settingsAPI.setSetting('MAINHAND_ATTACK_TYPE', attackType)
+      const sel = document.getElementById('mainhandAttackType') as HTMLSelectElement | null
+      if (sel) sel.value = attackType
+    }
+  }
+
+  populateIntervalSelect(s.PUNCH_INTERVAL as number)
+
   if (intervalSel) {
     intervalSel.addEventListener('change', () => {
-      window.settingsAPI.setSetting('PUNCH_INTERVAL', Number(intervalSel.value))
+      const v = Number(intervalSel.value)
+      if (v === 0) {
+        // Auto: derive from current weapon delay
+        const interval = currentWeaponDelay.value / 10
+        window.settingsAPI.setSetting('PUNCH_INTERVAL', interval)
+      } else {
+        window.settingsAPI.setSetting('PUNCH_INTERVAL', v)
+      }
+    })
+  }
+
+  setupWeaponSearch(
+    'mainhandSearch', 'mainhandDropdown', 'mainhandCurrent',
+    'mainhandCustomRow', 'mainhandCustom', 'mainhandCustomSec',
+    WEAPON_PRESETS, s.BASE_WEAPON_DELAY as number,
+    'BASE_WEAPON_DELAY', 'BASE_WEAPON_NAME',
+    s.BASE_WEAPON_NAME as string | null ?? null,
+    setIntervalFromWeapon,
+  )
+
+  setupWeaponSearch(
+    'offhandSearch', 'offhandDropdown', 'offhandCurrent',
+    'offhandCustomRow', 'offhandCustom', 'offhandCustomSec',
+    OFFHAND_PRESETS, s.OFFHAND_WEAPON_DELAY as number,
+    'OFFHAND_WEAPON_DELAY', 'OFFHAND_WEAPON_NAME',
+  )
+
+  // ── Mainhand attack type dropdown ────────────────────────────
+  const attackTypeSel = document.getElementById('mainhandAttackType') as HTMLSelectElement | null
+  if (attackTypeSel) {
+    attackTypeSel.value = (s.MAINHAND_ATTACK_TYPE as string) ?? 'crush'
+    attackTypeSel.addEventListener('change', () => {
+      window.settingsAPI.setSetting('MAINHAND_ATTACK_TYPE', attackTypeSel.value)
     })
   }
 
@@ -304,6 +470,16 @@ async function init(): Promise<void> {
     })
   }
 
+  // ── Weave window override ────────────────────────────────────
+  const weaveWindowEl = document.getElementById('weaveWindowMs') as HTMLInputElement | null
+  if (weaveWindowEl) {
+    weaveWindowEl.value = String(s.WEAVE_WINDOW_MS ?? 500)
+    weaveWindowEl.addEventListener('change', () => {
+      const v = parseInt(weaveWindowEl.value, 10)
+      if (!isNaN(v) && v >= 0) window.settingsAPI.setSetting('WEAVE_WINDOW_MS', v)
+    })
+  }
+
   // ── Target position select ───────────────────────────────────
   const tgtPosOpts: [string, number][] = TARGET_POSITIONS.map(p => [`${p}%`, p])
   populateSelect('targetPosition', tgtPosOpts, s.TARGET_POSITION_PCT as number)
@@ -328,35 +504,44 @@ async function init(): Promise<void> {
   setupToggle('dynamicWeaving',     'DYNAMIC_WEAVING',     s.DYNAMIC_WEAVING    as boolean)
   setupToggle('offhandTimer',       'SHOW_OFFHAND_TIMER',  s.SHOW_OFFHAND_TIMER as boolean)
   setupToggle('keystrokeGrading',   'KEYSTROKE_GRADING',   s.KEYSTROKE_GRADING  as boolean)
-  setupToggle('orientationVertical','ORIENTATION_VERTICAL', s.ORIENTATION === 'vertical')
-  setupToggle('windowPinned',       'WINDOW_PINNED',       s.WINDOW_PINNED      as boolean)
-  setupToggle('showAllCrits',          'SHOW_ALL_CRITS',             s.SHOW_ALL_CRITS             as boolean)
-  setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
+  setupToggle('offhandCrush',       'OFFHAND_CRUSH_ENABLED', s.OFFHAND_CRUSH_ENABLED as boolean)
 
-  // ── Leaderboard settings ─────────────────────────────────────
-  const lbCharName      = document.getElementById('lbCharName')      as HTMLInputElement | null
-  const lbWorkerUrl     = document.getElementById('lbWorkerUrl')     as HTMLInputElement | null
-  const lbApiKey        = document.getElementById('lbApiKey')        as HTMLInputElement | null
-  const lbUploadEnabled = document.getElementById('lbUploadEnabled') as HTMLInputElement | null
-
-  if (lbCharName)      lbCharName.value      = (s.LEADERBOARD_CHARACTER_NAME as string) ?? ''
-  if (lbWorkerUrl)     lbWorkerUrl.value     = (s.LEADERBOARD_WORKER_URL     as string) ?? ''
-  if (lbApiKey)        lbApiKey.value        = (s.LEADERBOARD_API_KEY        as string) ?? ''
-  if (lbUploadEnabled) lbUploadEnabled.checked = (s.LEADERBOARD_UPLOAD_ENABLED as boolean) ?? false
-
-  const onLbChange = (el: HTMLInputElement | null, key: string, isCheckbox = false) => {
-    el?.addEventListener('change', () => {
-      window.settingsAPI.setSetting(key, isCheckbox ? el!.checked : el!.value)
+  const weaveBandolierOffDelayEl = document.getElementById('weaveBandolierOffDelay') as HTMLInputElement | null
+  if (weaveBandolierOffDelayEl) {
+    weaveBandolierOffDelayEl.value = String(s.WEAVE_BANDOLIER_OFF_DELAY_MS ?? 400)
+    weaveBandolierOffDelayEl.addEventListener('change', () => {
+      const v = parseInt(weaveBandolierOffDelayEl.value, 10)
+      if (!isNaN(v) && v >= 0) window.settingsAPI.setSetting('WEAVE_BANDOLIER_OFF_DELAY_MS', v)
     })
   }
 
-  onLbChange(lbCharName,      'LEADERBOARD_CHARACTER_NAME')
-  onLbChange(lbWorkerUrl,     'LEADERBOARD_WORKER_URL')
-  onLbChange(lbApiKey,        'LEADERBOARD_API_KEY')
-  onLbChange(lbUploadEnabled, 'LEADERBOARD_UPLOAD_ENABLED', true)
+  const audioDebounceEl = document.getElementById('audioDebounceMs') as HTMLInputElement | null
+  if (audioDebounceEl) {
+    audioDebounceEl.value = String(s.AUDIO_DEBOUNCE_MS ?? 0)
+    audioDebounceEl.addEventListener('change', () => {
+      const v = parseInt(audioDebounceEl.value, 10)
+      if (!isNaN(v) && v >= 0) window.settingsAPI.setSetting('AUDIO_DEBOUNCE_MS', v)
+    })
+  }
+  setupToggle('windowPinned',       'WINDOW_PINNED',       s.WINDOW_PINNED      as boolean)
+  setupToggle('showAllCrits',          'SHOW_ALL_CRITS',             s.SHOW_ALL_CRITS             as boolean)
+  setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
+  setupToggle('autoDetectLog',         'AUTO_DETECT_LOG',            s.AUTO_DETECT_LOG            as boolean)
 
-  // ── Close button ─────────────────────────────────────────────
+  // ── Leaderboard settings ─────────────────────────────────────
+  const lbCharName = document.getElementById('lbCharName') as HTMLInputElement | null
+
+  if (lbCharName) lbCharName.value = (s.LEADERBOARD_CHARACTER_NAME as string) ?? ''
+
+  lbCharName?.addEventListener('change', () => {
+    window.settingsAPI.setSetting('LEADERBOARD_CHARACTER_NAME', lbCharName.value)
+  })
+
+  // ── Close / Save & Close buttons ─────────────────────────────
   document.getElementById('btnClose')?.addEventListener('click', () => {
+    window.settingsAPI.close()
+  })
+  document.getElementById('btnSave')?.addEventListener('click', () => {
     window.settingsAPI.close()
   })
 }

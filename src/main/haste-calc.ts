@@ -38,3 +38,23 @@ export function calcInterval(hastePct: number, baseDelayTenths = 20): number {
   const effectiveDelay = Math.max(4, baseDelayTenths / (1.0 + hastePct / 100.0))
   return Math.max(0.5, Math.min(12.0, effectiveDelay / 10.0))
 }
+
+const ATK_PATTERNS: RegExp[] = [
+  /^attack[:\s]+(\d+)/i,
+  /^atk[:\s]+(\d+)/i,
+  /your attack(?: rating)? is[:\s]+(\d+)/i,
+  /attack rating[:\s]+(\d+)/i,
+  /\battack\s*:\s*(\d+)/i,
+]
+
+/** Returns attack rating as an integer (e.g. 850) or null if not found. */
+export function parseAtkRating(line: string): number | null {
+  for (const re of ATK_PATTERNS) {
+    const m = re.exec(line)
+    if (m) {
+      const val = parseInt(m[1], 10)
+      if (val > 0) return val
+    }
+  }
+  return null
+}

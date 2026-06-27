@@ -17,9 +17,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleAudio: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_AUDIO, () => cb()),
 
-  onToggleOrientation: (cb: () => void) =>
-    ipcRenderer.on(IPC.TOGGLE_ORIENTATION, () => cb()),
-
   onSetTargetPosition: (cb: (pct: number) => void) =>
     ipcRenderer.on(IPC.SET_TARGET_POSITION, (_e, pct: number) => cb(pct)),
 
@@ -50,9 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 
-  onSetVolumes: (cb: (master: number, proc: number, epic: number) => void) =>
-    ipcRenderer.on(IPC.SET_VOLUMES, (_e, d: { master: number; proc: number; epic: number }) =>
-      cb(d.master, d.proc, d.epic)),
+  onSetVolumes: (cb: (master: number, proc: number, epic: number, debounceMs: number) => void) =>
+    ipcRenderer.on(IPC.SET_VOLUMES, (_e, d: { master: number; proc: number; epic: number; debounceMs: number }) =>
+      cb(d.master, d.proc, d.epic, d.debounceMs)),
 
   onSetThresholds: (cb: (critDamage: number, hugeRound: number) => void) =>
     ipcRenderer.on(IPC.SET_THRESHOLDS, (_e, d: { critDamage: number; hugeRound: number }) =>
@@ -64,11 +61,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetPositiveAudioInWindow: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, (_e, enabled: boolean) => cb(enabled)),
 
+  onSetWeaveWindowMs: (cb: (ms: number) => void) =>
+    ipcRenderer.on(IPC.SET_WEAVE_WINDOW_MS, (_e, ms: number) => cb(ms)),
+
+  onSetPunchInterval: (cb: (interval: number) => void) =>
+    ipcRenderer.on(IPC.SET_PUNCH_INTERVAL, (_e, interval: number) => cb(interval)),
+
+  onSetBaseWeaponDelay: (cb: (delay: number) => void) =>
+    ipcRenderer.on(IPC.SET_BASE_WEAPON_DELAY, (_e, delay: number) => cb(delay)),
+
   sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),
 
   sendTopRecords: (crits: HitRecord[], hugeRounds: HitRecord[]) =>
     ipcRenderer.send(IPC.TOP_RECORDS_UPDATE, { crits, hugeRounds }),
+
+  sendLeaderboardRecord: (record: unknown) =>
+    ipcRenderer.send(IPC.LEADERBOARD_RECORD, record),
+
+  getLeaderboard: () => ipcRenderer.invoke(IPC.LEADERBOARD_GET),
+
+  onLeaderboardOpen: (cb: () => void) =>
+    ipcRenderer.on(IPC.LEADERBOARD_OPEN, () => cb()),
 
   // ── Renderer → main ─────────────────────────────────────
   quit: () => ipcRenderer.send(IPC.QUIT),

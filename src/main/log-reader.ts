@@ -14,7 +14,7 @@ import * as fs from 'fs'
 import { performance } from 'perf_hooks'
 import { EvType, type GameEvent } from '../shared/events'
 import { type ConfigType } from '../shared/config'
-import { parseHaste, calcInterval } from './haste-calc'
+import { parseHaste, calcInterval, parseAtkRating } from './haste-calc'
 
 const PREFIX_RE = /^\[.+?\]\s*/
 const DAMAGE_RE = /for\s+(\d+)\s+point/i
@@ -23,6 +23,11 @@ const DAMAGE_RE = /for\s+(\d+)\s+point/i
 // Matched lines are skipped during weapon and haste detection so only
 // the mainhand weapon delay and the character haste value are extracted.
 const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
+
+// Guard for weapon preset detection: only match within a /mystats weapon line,
+// which always contains a delay field.  Prevents chat messages that happen to
+// mention a weapon name from updating the equipped weapon.
+const MYSTATS_WEAPON_LINE_RE = /\bDl?[ay]y?\s*:\s*\d+/i
 
 function stripPrefix(line: string): string {
   const m = PREFIX_RE.exec(line)
@@ -48,9 +53,22 @@ export class LogReader {
   private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
   private lastHastePct    = -1   // dedup: last emitted haste value
   private lastHasteEmitTs = 0    // dedup: when it was emitted
+  private lastAtkRating   = 0
+  private lastAtkEmitTs   = 0
+
+  // ── Weapon track state ────────────────────────────────────
+  private weaponTrackActive = false
+  private weaponTrack2H     = ''
+  private weaponTrackOH     = ''
+
+  // ── Same-type offhand tracking (OFFHAND_CRUSH_ENABLED) ────
+  private offhandCrushPending = false
+  private offhandCrushExpiry  = 0   // performance.now() deadline (ms)
+
+  // ── Bandolier weave tracking: state shared via cfg.WEAVE_BANDOLIER_ACTIVE ──
 
   // Extracts target name from "You crush/punch/strike X for N points"
-  private static readonly TARGET_RE = /^You (?:crush|punch|strike) (.+?) for \d+/i
+  private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash) (.+?) for \d+/i
 
   private crushHitRe:    RegExp[]
   private crushMissRe:   RegExp[]
@@ -63,28 +81,44 @@ export class LogReader {
   private cursorBlockedRe: RegExp[]
   private startRe:      RegExp[]
   private endRe:        RegExp[]
-  private weaponRe:     Array<{ re: RegExp; name: string; delay: number }>
+  private weaponRe:     Array<{ re: RegExp; name: string; delay: number; attackType: string }>
   private avatarGainedRe: RegExp[]
   private avatarLostRe:   RegExp[]
   private savageryGainedRe: RegExp[]
   private savageryLostRe:   RegExp[]
-  private innerflamGainedRe: RegExp[]
-  private innerflamLostRe:   RegExp[]
+  private innerflamGainedRe:   RegExp[]
+  private innerflamLostRe:     RegExp[]
+  private whirlwindGainedRe:   RegExp[]
+  private whirlwindLostRe:     RegExp[]
   private critHitRe:    RegExp[]
-  private missOnly:     boolean
+  private missOnly:        boolean
+  private weaponTrackOnly: boolean
+  private noBandolier:     boolean
 
-  constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean } = {}) {
-    this.path     = path
-    this.cfg      = cfg
-    this.onEvent  = onEvent
-    this.missOnly = opts.missOnly ?? false
+  private static readonly verbPatterns: Record<string, { hit: string[]; miss: string[] }> = {
+    crush:  { hit: ['^You crush\\b'],  miss: ['^You try to crush\\b',  '^You attempt to crush\\b']  },
+    slash:  { hit: ['^You slash\\b'],  miss: ['^You try to slash\\b',  '^You attempt to slash\\b']   },
+    pierce: { hit: ['^You pierce\\b'], miss: ['^You try to pierce\\b', '^You attempt to pierce\\b']  },
+    punch:  { hit: ['^You punch\\b', '^You strike\\b'],
+              miss: ['^You try to punch\\b', '^You attempt to punch\\b',
+                     '^You try to strike\\b', '^You attempt to strike\\b'] },
+  }
+
+  constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean; weaponTrackOnly?: boolean; noBandolier?: boolean } = {}) {
+    this.path            = path
+    this.cfg             = cfg
+    this.onEvent         = onEvent
+    this.missOnly        = opts.missOnly        ?? false
+    this.weaponTrackOnly = opts.weaponTrackOnly ?? false
+    this.noBandolier     = opts.noBandolier     ?? false
 
     const compile = (patterns: string[]) =>
       patterns.map(p => new RegExp(p, 'i'))
 
     this.riposteRe    = compile(cfg.RIPOSTE_PATTERNS)
-    this.crushHitRe   = compile(cfg.CRUSH_HIT_PATTERNS)
-    this.crushMissRe  = compile(cfg.CRUSH_MISS_PATTERNS)
+    const vp = LogReader.verbPatterns[cfg.MAINHAND_ATTACK_TYPE] ?? LogReader.verbPatterns.crush
+    this.crushHitRe   = compile(vp.hit)
+    this.crushMissRe  = compile(vp.miss)
     this.fistHitRe    = compile(cfg.FIST_HIT_PATTERNS)
     this.fistMissRe   = compile(cfg.FIST_MISS_PATTERNS)
     this.flyingKickRe = compile(cfg.FLYING_KICK_PATTERNS)
@@ -98,15 +132,26 @@ export class LogReader {
     this.avatarLostRe     = compile(cfg.AVATAR_LOST_PATTERNS)
     this.savageryGainedRe  = compile(cfg.SAVAGERY_GAINED_PATTERNS)
     this.savageryLostRe    = compile(cfg.SAVAGERY_LOST_PATTERNS)
-    this.innerflamGainedRe = compile(cfg.INNERFLAME_GAINED_PATTERNS)
-    this.innerflamLostRe   = compile(cfg.INNERFLAME_LOST_PATTERNS)
-    this.critHitRe         = compile(cfg.CRIT_HIT_PATTERNS)
+    this.innerflamGainedRe  = compile(cfg.INNERFLAME_GAINED_PATTERNS)
+    this.innerflamLostRe    = compile(cfg.INNERFLAME_LOST_PATTERNS)
+    this.whirlwindGainedRe  = compile(cfg.WHIRLWIND_GAINED_PATTERNS)
+    this.whirlwindLostRe    = compile(cfg.WHIRLWIND_LOST_PATTERNS)
+    this.critHitRe          = compile(cfg.CRIT_HIT_PATTERNS)
 
-    this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
+    this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, { delay, attackType }]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
       name,
       delay,
+      attackType,
     }))
+  }
+
+  /** Recompile hit/miss regexes after the mainhand attack type changes (e.g. weapon swap). */
+  updateAttackType(attackType: string): void {
+    const vp = LogReader.verbPatterns[attackType] ?? LogReader.verbPatterns.crush
+    const compile = (patterns: string[]) => patterns.map(p => new RegExp(p, 'i'))
+    this.crushHitRe  = compile(vp.hit)
+    this.crushMissRe = compile(vp.miss)
   }
 
   /** Start tailing. Returns a cleanup function. */
@@ -164,11 +209,56 @@ export class LogReader {
     const content = stripPrefix(line)
     const now = performance.now()
 
+    // ── Weapon track — BW2H / BWOH work standalone in any channel ──
+    // Checked before missOnly so it works in hybrid mode too.
+    const m2h = /\bBW2H\s+(.+)/i.exec(content)
+    if (m2h) {
+      this.weaponTrack2H = m2h[1].trim().replace(/['"]\s*$/, '')
+      this.emitWeaponTrack(now)
+      return
+    }
+    const moh = /\bBWOH\s+(.+)/i.exec(content)
+    if (moh) {
+      this.weaponTrackOH = moh[1].trim().replace(/['"]\s*$/, '')
+      this.emitWeaponTrack(now)
+      return
+    }
+    if (this.weaponTrackOnly) return
+
     // ── missOnly mode: emit crush/fist misses and buff changes, ignore everything else ──
     if (this.missOnly) {
+      // Ripostes must never affect the swing timer — drop them before the miss checks
+      // so a riposte miss with a slash/pierce weapon doesn't look like a mainhand miss.
+      if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) return
+
+      // Track bandolier swaps in missOnly mode only when noBandolier is not set.
+      // In hybrid mode the Zeal pipe owns bandolier detection (with off-delay);
+      // reading bandolier from the log would immediately clear WEAVE_BANDOLIER_ACTIVE
+      // and defeat the off-delay, causing in-flight weave hits to misclassify.
+      if (!this.noBandolier) {
+        const bm = /^Loading bandolier set (.+?)\.?\s*$/i.exec(content)
+        if (bm) {
+          const setName = bm[1].trim().replace(/^\[|\]$/g, '')
+          const isWeaveSet = setName.toLowerCase().includes('weave')
+          this.cfg.WEAVE_BANDOLIER_ACTIVE = isWeaveSet
+          this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet } })
+          return
+        }
+      }
       if (this.crushMissRe.some(r => r.test(content))) {
-        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-          data: { damage: 0, hit: false, line: content } })
+        const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
+        if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
+          this.offhandCrushPending = false
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage: 0, hit: false, line: content } })
+        } else {
+          this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+            data: { damage: 0, hit: false, line: content } })
+          if (this.cfg.OFFHAND_CRUSH_ENABLED) {
+            this.offhandCrushPending = true
+            this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+          }
+        }
       } else if (this.fistMissRe.some(r => r.test(content))) {
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
@@ -184,15 +274,39 @@ export class LogReader {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: true } })
       } else if (this.innerflamLostRe.some(r => r.test(content))) {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: false } })
+      } else if (this.whirlwindGainedRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: true } })
+      } else if (this.whirlwindLostRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
       }
       return
     }
 
+    // ── Bandolier swap detection ────────────────────────────────
+    if (!this.noBandolier) {
+      const bm = /^Loading bandolier set (.+?)\.?\s*$/i.exec(content)
+      if (bm) {
+        const setName = bm[1].trim().replace(/^\[|\]$/g, '')
+        const isWeaveSet = setName.toLowerCase().includes('weave')
+        this.cfg.WEAVE_BANDOLIER_ACTIVE = isWeaveSet
+        this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet } })
+        return
+      }
+      if (/^bandolier set swap complete\.?\s*$/i.test(content)) return
+    }
+
     // ── Riposte — count damage toward DPS but no track/sound effect ──
-    if (this.riposteRe.some(r => r.test(content))) {
-      const damage = parseDamage(content)
-      if (this.inCombat && damage > 0)
-        this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+    // Ripostes must never affect swing-timer state regardless of weapon type.
+    // The fallback uses a prefix-anchored pattern so it catches "ripostes" and
+    // "riposted" in addition to "riposte", covering all EQ client variants
+    // (e.g. "You slash NAME for X (ripostes)").  MISC_DAMAGE is only emitted
+    // for lines starting with "You " to prevent mob-riposte lines
+    // ("NAME ripostes your slash!") from being credited as player damage.
+    if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
+      if (this.inCombat && content.startsWith('You ')) {
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+      }
       return
     }
 
@@ -200,17 +314,41 @@ export class LogReader {
     if (this.crushHitRe.some(r => r.test(content))) {
       this.ensureCombat(now)
       const tm = LogReader.TARGET_RE.exec(content)
-      if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
-      this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-        data: { damage: parseDamage(content), hit: true, line: content, target: this.currentTarget } })
+      const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
+      if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
+        // Offhand weave — classified by bandolier state or timing window
+        this.offhandCrushPending = false
+        if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+        this.emit({ type: EvType.FIST_ATTACK, ts: now,
+          data: { damage: parseDamage(content), hit: true, line: content } })
+      } else {
+        if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+          data: { damage: parseDamage(content), hit: true, line: content, target: this.currentTarget } })
+        if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
+          this.offhandCrushPending = true
+          this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+        }
+      }
       return
     }
 
     // ── Mainhand crush miss ─────────────────────────────────
     if (this.crushMissRe.some(r => r.test(content))) {
       this.ensureCombat(now)
-      this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-        data: { damage: 0, hit: false, line: content } })
+      const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
+      if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
+        this.offhandCrushPending = false
+        this.emit({ type: EvType.FIST_ATTACK, ts: now,
+          data: { damage: 0, hit: false, line: content } })
+      } else {
+        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+          data: { damage: 0, hit: false, line: content } })
+        if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
+          this.offhandCrushPending = true
+          this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+        }
+      }
       return
     }
 
@@ -337,17 +475,31 @@ export class LogReader {
       this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: false } })
       return
     }
+    if (this.whirlwindGainedRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: true } })
+      return
+    }
+    if (this.whirlwindLostRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
+      return
+    }
 
     // Offhand/secondary slot lines from /mystats — skip weapon and haste detection
     // so only the mainhand weapon delay and the character haste value are extracted.
     if (OFFHAND_LINE_RE.test(content)) return
 
     // ── Weapon preset detection ─────────────────────────────
-    for (const { re, name, delay } of this.weaponRe) {
-      if (re.test(content)) {
-        this.cfg.BASE_WEAPON_DELAY = delay  // keep main-process cfg in sync for haste calc
-        this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
-        return
+    // Only fire inside a /mystats weapon line (must contain a Delay field).
+    // BW2H / BWOH are handled earlier in processLine and never reach this point.
+    if (MYSTATS_WEAPON_LINE_RE.test(content)) {
+      for (const { re, name, delay, attackType } of this.weaponRe) {
+        if (re.test(content)) {
+          this.cfg.BASE_WEAPON_DELAY     = delay
+          this.cfg.BASE_WEAPON_NAME      = name
+          this.cfg.MAINHAND_ATTACK_TYPE  = attackType as 'crush' | 'slash' | 'pierce' | 'punch'
+          this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
+          return
+        }
       }
     }
 
@@ -365,17 +517,51 @@ export class LogReader {
         this.emit({ type: EvType.HASTE_DETECTED, ts: now,
           data: { haste_pct: hastePct, interval, source: content } })
       }
+      const atkForHaste = this.lastAtkRating > 0 ? this.lastAtkRating : undefined
+      this.emit({ type: EvType.STATS_UPDATE, ts: now, data: { hastePct, atkRating: atkForHaste } })
+      return
+    }
+
+    // ── ATK rating detection (/mystats) ─────────────────────
+    const atkRating = parseAtkRating(content)
+    if (atkRating !== null) {
+      const sameValue  = atkRating === this.lastAtkRating
+      const recentEmit = now - this.lastAtkEmitTs < 2000
+      if (!sameValue || !recentEmit) {
+        this.lastAtkRating  = atkRating
+        this.lastAtkEmitTs  = now
+        const hastePctNow = this.lastHastePct >= 0 ? this.lastHastePct : undefined
+        this.emit({ type: EvType.STATS_UPDATE, ts: now, data: { atkRating, hastePct: hastePctNow } })
+      }
     }
   }
 
   private ensureCombat(now: number): void {
     if (!this.inCombat) {
       this.inCombat = true
+      this.offhandCrushPending = false
       this.emit({ type: EvType.COMBAT_START, ts: now })
     }
   }
 
   private emit(ev: GameEvent): void {
     this.onEvent(ev)
+  }
+
+  private emitWeaponTrack(now: number): void {
+    const offhandDelay = this.lookupWeaponDelay(this.weaponTrackOH)
+    this.emit({ type: EvType.WEAPON_TRACK, ts: now,
+      data: { mainhand: this.weaponTrack2H, offhand: this.weaponTrackOH, offhandDelay } })
+    this.weaponTrackActive = false
+    this.weaponTrack2H = ''
+    this.weaponTrackOH = ''
+  }
+
+  private lookupWeaponDelay(name: string): number | null {
+    const lower = name.toLowerCase()
+    for (const [preset, delay] of Object.entries(this.cfg.OFFHAND_PRESETS)) {
+      if (preset.toLowerCase() === lower) return delay
+    }
+    return null
   }
 }

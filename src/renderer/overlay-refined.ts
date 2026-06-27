@@ -138,16 +138,20 @@ export class RefinedOverlay {
   private static readonly RAPID_MUTE_MS = 6000
   private avatarActive = false
   private savageryActive = false
+  private weaveBandolierActive = false
   private lastKnownMainhand = ''
   private lastKnownAtkRating = 0
   private lastKnownHastePct = 0
   private avatarFightMs = 0;     private avatarFightStart:      number | null = null
   private savageryFightMs = 0;   private savageryFightStart:    number | null = null
   private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
-  private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
+  private innerflameUntil  = 0   // performance.now() expiry; 0 = inactive
+  private whirlwindUntil   = 0   // performance.now() expiry; 0 = inactive
 
   pinned = true
   charName = ''
+  logSelected = false
+  private lastLogActivityTs = 0  // updated on log-selected or any game event
   private currentTarget = ''
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
@@ -222,8 +226,13 @@ export class RefinedOverlay {
             Math.trunc(this.hzY + vo - (targetTime - t) * this.speed)]
   }
 
+  showBanner(text: string, color: string, duration?: number): void {
+    this.banners.push(new Banner(text, color, duration))
+  }
+
   // ── IPC entry ───────────────────────────────────────────────
   handleGameEvent(ev: GameEvent): void {
+    this.lastLogActivityTs = now()
     const ts = ev.ts
     switch (ev.type) {
       case EvType.COMBAT_START:
@@ -280,7 +289,7 @@ export class RefinedOverlay {
           this.postCombatGlideUntil = 0
           this.rhythm.resumeCombat(crushTs)
         }
-        this.rhythm.onMainhandCrush(crushTs, damage, hit)
+        this.rhythm.onMainhandCrush(crushTs, damage, hit, this.weaveBandolierActive)
         this.lastCombatActivity = crushTs
         this.consecutiveCrushesWithoutFist++
         if (this.consecutiveCrushesWithoutFist >= RefinedOverlay.RAPID_CRUSH_THRESHOLD) {
@@ -435,8 +444,15 @@ export class RefinedOverlay {
             else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
           }
         }
+        if (buff === 'whirlwind') {
+          this.whirlwindUntil = active ? now() + 12000 : 0
+          if (active) this.banners.push(new Banner('Whirlwind', '#c084fc', 3000))
+        }
         break
       }
+      case EvType.BANDOLIER_CHANGED:
+        this.weaveBandolierActive = (ev.data?.isWeaveSet as boolean) ?? false
+        break
       case EvType.STATS_UPDATE: {
         const atk   = ev.data?.atkRating as number | undefined
         const haste = ev.data?.hastePct  as number | undefined
@@ -466,7 +482,6 @@ export class RefinedOverlay {
       case 'Escape': window.electronAPI?.quit(); break
       case ' ': this.gradeScreen?.dismiss(); break
       case 'm': case 'M': this.audio.toggle(); break
-      case 'h': case 'H': this.toggleOrientation(); break
       case 'ArrowUp':   this.rhythm.adjustInterval(+0.25); break
       case 'ArrowDown': this.rhythm.adjustInterval(-0.25); break
       case 'r': case 'R': this.resetTrack(); break
@@ -573,15 +588,6 @@ export class RefinedOverlay {
     })
   }
 
-  toggleOrientation(): void {
-    this.cfg.ORIENTATION = this.cfg.ORIENTATION === 'horizontal' ? 'vertical' : 'horizontal'
-    this.resizeCanvas(); this.computeLayout()
-    window.electronAPI?.resizeWindow(
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_WIDTH  : this.cfg.WINDOW_WIDTH,
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_HEIGHT : this.cfg.WINDOW_HEIGHT,
-    )
-  }
-
   applyTargetPosition(pct: number): void {
     this.cfg.TARGET_POSITION_PCT = pct
     this.cfg.HIT_ZONE_X = Math.max(10, Math.trunc(this.cfg.WINDOW_WIDTH * pct / 100))
@@ -601,7 +607,11 @@ export class RefinedOverlay {
     this.cfg.OFFHAND_WEAPON_DELAY = delayTenths
     this.cfg.OFFHAND_WEAPON_NAME  = name
     const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
-    this.cfg.GOOD_WINDOW = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay) / 2
+    const autoWidth = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay)
+    const baseWidth = this.cfg.WEAVE_WINDOW_MS > 0
+      ? Math.min(this.cfg.WEAVE_WINDOW_MS / 1000, autoWidth)
+      : autoWidth
+    this.cfg.GOOD_WINDOW = baseWidth / 2
   }
 
   private clearRapidAttackMute(): void {
@@ -709,8 +719,34 @@ export class RefinedOverlay {
     this.drawMissFlash()
     this.drawClipWarn()
     this.drawOffhandSwingTimer()
+    this.drawNoLogNotice()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
+  }
+
+  private drawNoLogNotice(): void {
+    if (this.rhythm.inCombat || this.gradeScreen) return
+    const t = now()
+    const stale = this.logSelected && (t - this.lastLogActivityTs) > 60_000
+    if (!this.logSelected || stale) {
+      const line1 = this.logSelected ? 'Log not updating' : 'No log file selected'
+      const line2 = this.logSelected ? 'Is EQ running?' : 'Right-click tray → Select Log'
+      // Gentle pulse: 0→1→0 on a ~4s half-cycle
+      const pulse = (1 + Math.sin(t / 2000 * Math.PI)) / 2
+      const alpha = 0.15 + pulse * 0.30
+      const ctx = this.ctx
+      const w = this.canvas.width
+      const cy = this.highwayY + this.highwayH / 2
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.font = '600 10px "JetBrains Mono", monospace'
+      ctx.fillStyle = `rgba(160,168,210,${alpha.toFixed(3)})`
+      ctx.fillText(line1, w / 2, cy - 7)
+      ctx.font = '400 9px "JetBrains Mono", monospace'
+      ctx.fillStyle = `rgba(130,138,180,${(alpha * 0.75).toFixed(3)})`
+      ctx.fillText(line2, w / 2, cy + 7)
+      ctx.textAlign = 'left'
+    }
   }
 
   private drawOffhandSwingTimer(): void {
@@ -775,9 +811,18 @@ export class RefinedOverlay {
     if (frac <= 0) return
     const w = this.canvas.width
     const ctx = this.ctx
-    // Ember gold that pulses slightly with the remaining fraction
     const alpha = 0.55 + frac * 0.35
     ctx.fillStyle = `rgba(232,144,32,${alpha.toFixed(2)})`
+    ctx.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
+  private drawWhirlwindBar(y: number, h: number): void {
+    const frac = this.whirlwindUntil > 0 ? Math.max(0, (this.whirlwindUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const ctx = this.ctx
+    const alpha = 0.55 + frac * 0.35
+    ctx.fillStyle = `rgba(192,132,252,${alpha.toFixed(2)})`
     ctx.fillRect(0, y, Math.trunc(w * frac), h)
   }
 
@@ -787,24 +832,28 @@ export class RefinedOverlay {
     ctx.fillStyle = PAL.headerFooter; ctx.fillRect(0, 0, w, HEADER_H)
     ctx.fillStyle = PAL.divider;      ctx.fillRect(0, HEADER_H - 1, w, 1)
     this.drawInnerflameBar(HEADER_H - 2, 2)
+    this.drawWhirlwindBar(HEADER_H - 4, 2)
 
     ctx.font = '600 12px "Inter", sans-serif'
     ctx.textBaseline = 'middle'
     ctx.fillStyle = PAL.text
     ctx.fillText(this.charName || '—', 10, HEADER_H / 2)
 
-    // Phase pill
+    // Phase pill — start after the name, with a minimum gap
+    const nameW = ctx.measureText(this.charName || '—').width
+    const pillX = Math.max(58, Math.ceil(nameW) + 18)
+
     const phase = this.rhythm.inCombat ? 'COMBAT' : this.gradeScreen ? 'RESULT' : 'IDLE'
     const color = phase === 'COMBAT' ? PAL.combat : phase === 'RESULT' ? PAL.result : PAL.idle
     ctx.font = '600 9px "JetBrains Mono", monospace'
     const pw = ctx.measureText(phase).width + 12
     ctx.fillStyle = this.rgba(color, 0.15)
-    this.roundRect(58, 5, pw, 14, 7); ctx.fill()
+    this.roundRect(pillX, 5, pw, 14, 7); ctx.fill()
     ctx.fillStyle = color
-    ctx.fillText(phase, 64, 12)
+    ctx.fillText(phase, pillX + 6, 12)
 
     // Buff indicators (Avatar, Savagery)
-    let buffX = 58 + pw + 5
+    let buffX = pillX + pw + 5
     ctx.font = '600 9px "JetBrains Mono", monospace'
     if (this.avatarActive) {
       const bw = ctx.measureText('AVT').width + 10
@@ -829,6 +878,15 @@ export class RefinedOverlay {
       this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
       ctx.fillStyle = '#e89020'
       ctx.fillText(label, buffX + 5, 12)
+      buffX += bw + 4
+    }
+    if (this.whirlwindUntil > 0 && now() < this.whirlwindUntil) {
+      const label = 'WHIRLWIND'
+      const bw = ctx.measureText(label).width + 10
+      ctx.fillStyle = this.rgba('#c084fc', 0.22)
+      this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
+      ctx.fillStyle = '#c084fc'
+      ctx.fillText(label, buffX + 5, 12)
     }
 
     // Right-side
@@ -848,6 +906,7 @@ export class RefinedOverlay {
     ctx.fillStyle = PAL.headerFooter; ctx.fillRect(0, h - FOOTER_H, w, FOOTER_H)
     ctx.fillStyle = PAL.divider;      ctx.fillRect(0, h - FOOTER_H, w, 1)
     this.drawInnerflameBar(h - FOOTER_H, 2)
+    this.drawWhirlwindBar(h - FOOTER_H + 2, 2)
     ctx.textBaseline = 'middle'
 
     const fy = h - FOOTER_H / 2
@@ -895,7 +954,9 @@ export class RefinedOverlay {
     const ctx = this.ctx
     const intervalMs = this.cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = this.rhythm.effectiveOffhandDelay * 1000
-    const weaveMs    = Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
+    const weaveMs    = this.cfg.WEAVE_WINDOW_MS > 0
+      ? this.cfg.WEAVE_WINDOW_MS
+      : Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
 
     const nextSwing = gliding
       ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
@@ -969,7 +1030,7 @@ export class RefinedOverlay {
       const swingTime = firstSwing + k * intervalMs
       const safeEnd   = swingTime + weaveMs    // deadline to punch and stay ready for next swing
       const windowEnd = swingTime + intervalMs  // full window extent = next mainhand swing
-      const winStart  = Math.max(swingTime, projectedNextReady)
+      const winStart  = this.cfg.WEAVE_WINDOW_MS > 0 ? swingTime : Math.max(swingTime, projectedNextReady)
 
       const [sx, sy] = this.projectAt(swingTime, t)
 

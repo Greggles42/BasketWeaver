@@ -3,7 +3,7 @@
  * storage and community leaderboard upload.
  *
  * All GradeResult fields are inlined (not extended) so the type survives
- * JSON serialization across IPC and the Cloudflare Worker API boundary.
+ * JSON serialization across IPC and the Vercel API boundary.
  */
 
 export interface EncounterRecord {

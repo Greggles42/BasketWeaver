@@ -220,14 +220,78 @@
       flex-shrink: 0;
     }
 
-    /* ── Footer close button ────────────────────────── */
+    /* ── Weapon search ──────────────────────────────── */
+    .weapon-search-wrap {
+      position: relative;
+      flex: 1;
+    }
+    .weapon-search-wrap input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 3px 8px;
+      font-size: 13px;
+    }
+    .weapon-search-wrap input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .weapon-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 100;
+    }
+    .weapon-dropdown.open { display: block; }
+    .weapon-dropdown div {
+      padding: 5px 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .weapon-dropdown div:hover { background: #1a1f38; color: var(--accent); }
+    .weapon-current {
+      font-size: 11px;
+      color: var(--gold);
+      margin-left: 4px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    /* ── Footer buttons ─────────────────────────────── */
     .footer {
       background: var(--surface);
       border-top: 1px solid var(--border);
       padding: 8px 16px;
       display: flex;
       justify-content: flex-end;
+      gap: 8px;
       flex-shrink: 0;
+    }
+
+    .btn-save {
+      background: var(--accent);
+      color: #0a0c16;
+      border: 1px solid var(--accent);
+      padding: 5px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .btn-save:hover {
+      background: #64beff;
     }
 
     .btn-close {
@@ -276,6 +340,11 @@
         <input type="range" id="volumeEpic" min="0" max="100" step="1" />
         <span class="val" id="volumeEpicVal">100</span>
       </div>
+
+      <div class="row">
+        <label for="audioDebounceMs">Sound Debounce <span class="hint">(ms, 0=off)</span></label>
+        <input type="number" id="audioDebounceMs" min="0" max="500" step="10" style="width:80px" />
+      </div>
     </div>
 
     <!-- ── Sound Triggers ────────────────────────────── -->
@@ -301,8 +370,7 @@
         <label>Source</label>
         <div class="radio-group" id="trackingSource">
           <label><input type="radio" name="tracking" value="log" /> Log File</label>
-          <label><input type="radio" name="tracking" value="zeal" /> Zeal Pipe</label>
-          <label><input type="radio" name="tracking" value="hybrid" /> Hybrid</label>
+          <label><input type="radio" name="tracking" value="hybrid" /> Hybrid (Zeal + Log)</label>
         </div>
       </div>
     </div>
@@ -315,7 +383,6 @@
         <label>Style</label>
         <div class="radio-group" id="overlayStyle">
           <label><input type="radio" name="style" value="refined" /> Refined</label>
-          <label><input type="radio" name="style" value="standard" /> Standard</label>
           <label><input type="radio" name="style" value="highcontrast" /> High Contrast</label>
         </div>
       </div>
@@ -326,8 +393,22 @@
       <div class="section-title">Weapon &amp; Timing</div>
 
       <div class="row">
-        <label for="mainhandDelay">Mainhand Delay</label>
-        <select id="mainhandDelay"></select>
+        <label for="mainhandAttackType">Mainhand Attack Type</label>
+        <select id="mainhandAttackType">
+          <option value="crush">Crush (blunt)</option>
+          <option value="slash">Slash</option>
+          <option value="pierce">Pierce</option>
+          <option value="punch">Punch / Strike (hand-to-hand)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>Mainhand Weapon</label>
+        <div class="weapon-search-wrap">
+          <input type="text" id="mainhandSearch" placeholder="Search weapon…" autocomplete="off" />
+          <div class="weapon-dropdown" id="mainhandDropdown"></div>
+        </div>
+        <span class="weapon-current" id="mainhandCurrent"></span>
       </div>
       <div class="row row-sub" id="mainhandCustomRow" style="display:none">
         <label for="mainhandCustom">Custom (EQ tenths)</label>
@@ -336,8 +417,12 @@
       </div>
 
       <div class="row">
-        <label for="offhandDelay">Offhand Delay</label>
-        <select id="offhandDelay"></select>
+        <label>Offhand Weapon</label>
+        <div class="weapon-search-wrap">
+          <input type="text" id="offhandSearch" placeholder="Search weapon…" autocomplete="off" />
+          <div class="weapon-dropdown" id="offhandDropdown"></div>
+        </div>
+        <span class="weapon-current" id="offhandCurrent"></span>
       </div>
       <div class="row row-sub" id="offhandCustomRow" style="display:none">
         <label for="offhandCustom">Custom (EQ tenths)</label>
@@ -346,7 +431,7 @@
       </div>
 
       <div class="row">
-        <label for="punchInterval">Punch Interval</label>
+        <label for="punchInterval">Mainhand Swing Interval</label>
         <select id="punchInterval"></select>
       </div>
 
@@ -363,6 +448,11 @@
       <div class="row">
         <label for="clipWindow">Clip Window</label>
         <select id="clipWindow"></select>
+      </div>
+
+      <div class="row">
+        <label for="weaveWindowMs">Weave Window <span class="hint">(ms, 0=auto)</span></label>
+        <input type="number" id="weaveWindowMs" min="0" max="2000" step="50" style="width:80px" />
       </div>
     </div>
 
@@ -393,10 +483,15 @@
         <label><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
         <label><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
         <label><input type="checkbox" id="keystrokeGrading" /> Keystroke Grading</label>
-        <label><input type="checkbox" id="orientationVertical" /> Vertical Orientation</label>
+        <label><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
         <label><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
         <label><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
         <label><input type="checkbox" id="positiveAudioInWindow" /> Positive Feedback Audio in Weave Windows</label>
+        <label><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <label for="weaveBandolierOffDelay">Weave Off Delay (ms)</label>
+        <input type="number" id="weaveBandolierOffDelay" min="0" max="2000" step="50" style="width:80px" />
       </div>
     </div>
 
@@ -408,23 +503,13 @@
         <label>Character Name</label>
         <input type="text" id="lbCharName" placeholder="auto-detected from log / Zeal" style="flex:1" />
       </div>
-      <div class="row">
-        <label>Worker URL</label>
-        <input type="text" id="lbWorkerUrl" placeholder="https://…workers.dev" style="flex:1" />
-      </div>
-      <div class="row">
-        <label>API Key</label>
-        <input type="password" id="lbApiKey" placeholder="shared secret" style="flex:1" />
-      </div>
-      <div class="checkbox-grid" style="margin-top:6px">
-        <label><input type="checkbox" id="lbUploadEnabled" /> Upload records to community leaderboard</label>
-      </div>
     </div>
 
   </div>
 
   <div class="footer">
     <button class="btn-close" id="btnClose">Close</button>
+    <button class="btn-save" id="btnSave">Save &amp; Close</button>
   </div>
 
   <script type="module" src="./settings.ts"></script>

@@ -167,6 +167,7 @@ export class Overlay {
   private lastCombatActivity = 0
   private combatStartTs = 0
   private swingTimerEverValid = false
+  private weaveBandolierActive = false
 
   private highContrast = false
   private defaultColors: Partial<ConfigType> = {}
@@ -183,7 +184,8 @@ export class Overlay {
 
   private avatarActive = false
   private savageryActive = false
-  private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
+  private innerflameUntil  = 0   // performance.now() expiry; 0 = inactive
+  private whirlwindUntil   = 0   // performance.now() expiry; 0 = inactive
   private avatarFightMs = 0;    private avatarFightStart:     number | null = null
   private savageryFightMs = 0;  private savageryFightStart:   number | null = null
   private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
@@ -193,6 +195,7 @@ export class Overlay {
   private lastKnownAtkRating = 0
   private lastKnownHastePct  = 0
   private lastKnownMainhand  = ''
+  private lastKnownOffhand   = ''
   private avatarAtFightStart   = false
   private savageryAtFightStart = false
   private lastOhSnapTs = 0
@@ -256,6 +259,9 @@ export class Overlay {
           this.avatarFightMs = 0;     this.avatarFightStart     = this.avatarActive             ? t0 : null
           this.savageryFightMs = 0;   this.savageryFightStart   = this.savageryActive            ? t0 : null
           this.innerflameFlightMs = 0; this.innerflameFlightStart = this.innerflameUntil > t0    ? t0 : null
+          // Re-seed disciplinesUsed for any disc already active when combat starts
+          // (resetScore cleared the set; BUFF_CHANGED already fired before first swing)
+          if (this.innerflameUntil > t0) this.rhythm.disciplinesUsed.add('innerflame')
         }
         this.lastCombatActivity = ts
         break
@@ -303,7 +309,7 @@ export class Overlay {
         }
         // A mainhand crush means the player is back in range
         this.rhythm.onReturnInRange(crushTs)
-        this.rhythm.onMainhandCrush(crushTs, damage, hit)
+        this.rhythm.onMainhandCrush(crushTs, damage, hit, this.weaveBandolierActive)
         this.lastCombatActivity = crushTs
         this.swingLog.push(crushTs)
         if (this.swingLog.length > 9) this.swingLog.shift()
@@ -464,7 +470,7 @@ export class Overlay {
         if (buff === 'savagery') {
           this.savageryActive = active
           if (this.rhythm.inCombat) {
-            if (active) { this.savageryFightStart = now(); this.rhythm.disciplinesUsed.add('savagery') }
+            if (active) { this.savageryFightStart = now() }
             else if (this.savageryFightStart !== null) { this.savageryFightMs += now() - this.savageryFightStart; this.savageryFightStart = null }
           }
           if (active) { this.showBanner('Savagery ON', '#f97316', 4000); this.audio.playFileSound('savagery') }
@@ -477,6 +483,32 @@ export class Overlay {
             else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
           }
         }
+        if (buff === 'whirlwind') {
+          this.whirlwindUntil = active ? now() + 12000 : 0
+          if (active) this.showBanner('Whirlwind', '#c084fc', 3000)
+        }
+        break
+      }
+
+      case EvType.BANDOLIER_CHANGED:
+        this.weaveBandolierActive = (ev.data?.isWeaveSet as boolean) ?? false
+        break
+
+      case EvType.WEAPON_TRACK: {
+        const mainhand     = ev.data?.mainhand     as string         ?? ''
+        const offhand      = ev.data?.offhand      as string         ?? ''
+        const offhandDelay = ev.data?.offhandDelay as number | null  ?? null
+        if (mainhand) this.lastKnownMainhand = mainhand
+        if (offhand)  this.lastKnownOffhand  = offhand
+        if (offhandDelay !== null) {
+          this.applyDynamicWeaveWindow(offhandDelay, offhand)
+        }
+        const delayNote = offhandDelay !== null ? ` (${(offhandDelay / 10).toFixed(1)}s)` : ' (unknown delay)'
+        const msg = [
+          mainhand ? `2H: ${mainhand}` : '',
+          offhand  ? `OH: ${offhand}${delayNote}` : '',
+        ].filter(Boolean).join('  |  ')
+        if (msg) this.showBanner(msg, this.cfg.C_GOOD, 5000)
         break
       }
 
@@ -516,7 +548,6 @@ export class Overlay {
         console.log(`[Basketweaver] Audio ${on ? 'ON' : 'OFF'}`)
         break
       }
-      case 'h': case 'H': this.toggleOrientation(); break
       case 'ArrowUp':   this.rhythm.adjustInterval(+0.25); break
       case 'ArrowDown': this.rhythm.adjustInterval(-0.25); break
       case ']': this.cfg.TARGET_OFFSET = Math.round(Math.min(1000, this.cfg.TARGET_OFFSET * 1000 + 25)) / 1000; break
@@ -549,16 +580,6 @@ export class Overlay {
 
   // ── IPC commands from tray/main ───────────────────────────────
 
-  toggleOrientation(): void {
-    this.cfg.ORIENTATION = this.cfg.ORIENTATION === 'horizontal' ? 'vertical' : 'horizontal'
-    this.resizeCanvas()
-    this.computeLayout()
-    window.electronAPI?.resizeWindow(
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_WIDTH  : this.cfg.WINDOW_WIDTH,
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_HEIGHT : this.cfg.WINDOW_HEIGHT,
-    )
-  }
-
   applyTargetPosition(pct: number): void {
     this.cfg.TARGET_POSITION_PCT = pct
     // Keep HIT_ZONE_X in sync for any code that still reads it directly
@@ -590,7 +611,11 @@ export class Overlay {
     this.cfg.OFFHAND_WEAPON_DELAY = delayTenths
     this.cfg.OFFHAND_WEAPON_NAME  = name
     const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
-    this.cfg.GOOD_WINDOW = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay) / 2
+    const autoWidth = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay)
+    const baseWidth = this.cfg.WEAVE_WINDOW_MS > 0
+      ? Math.min(this.cfg.WEAVE_WINDOW_MS / 1000, autoWidth)
+      : autoWidth
+    this.cfg.GOOD_WINDOW = baseWidth / 2
   }
 
   private recordHit(list: HitRecord[], damage: number, target: string): void {
@@ -605,7 +630,14 @@ export class Overlay {
   }
 
   private sendLeaderboardRecord(result: GradeResult): void {
-    if (result.fightDuration < 10_000) return
+    if (result.fightDuration < 5_000) {
+      console.log(`[Leaderboard] Skipped short fight: ${result.mobName} ${(result.fightDuration / 1000).toFixed(1)}s`)
+      return
+    }
+    if (result.weaveAttempts < 10) {
+      console.log(`[Leaderboard] Skipped low weave count: ${result.mobName} ${result.weaveAttempts} weaves`)
+      return
+    }
     const record: EncounterRecord = {
       // GradeResult fields
       grade:                    result.grade,
@@ -629,7 +661,7 @@ export class Overlay {
       serverName:               'Project Quarm',
       weapons: {
         mainhand: this.lastKnownMainhand || 'Unknown',
-        offhand:  this.cfg.OFFHAND_WEAPON_NAME || 'Unknown',
+        offhand:  this.lastKnownOffhand || this.cfg.OFFHAND_WEAPON_NAME || 'Unknown',
       },
       atkRating:        this.lastKnownAtkRating,
       hastePct:         this.lastKnownHastePct,
@@ -863,8 +895,8 @@ export class Overlay {
     this.drawHighway()
     this.drawResyncingNotice()
 
-    this.drawDynamicWeaveWindows()
     this.drawNotes()
+    this.drawDynamicWeaveWindows()
     this.drawHitZone()
     this.drawEffects()
     this.drawOffhandSwingTimer()
@@ -1270,7 +1302,9 @@ export class Overlay {
 
     const intervalMs = cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = rhy.effectiveOffhandDelay * 1000
-    const weaveMs    = Math.max(50, (cfg.PUNCH_INTERVAL - rhy.effectiveOffhandDelay) * 1000)
+    const weaveMs    = cfg.WEAVE_WINDOW_MS > 0
+      ? cfg.WEAVE_WINDOW_MS
+      : Math.max(50, (cfg.PUNCH_INTERVAL - rhy.effectiveOffhandDelay) * 1000)
 
     const nextSwing = gliding
       ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
@@ -1310,7 +1344,7 @@ export class Overlay {
       // windowEnd = next mainhand swing = full window extent
       const safeEnd   = swingTime + weaveMs
       const windowEnd = swingTime + intervalMs
-      const winStart  = Math.max(swingTime, projectedNextReady)
+      const winStart  = cfg.WEAVE_WINDOW_MS > 0 ? swingTime : Math.max(swingTime, projectedNextReady)
 
       const [swingX, swingY] = this.noteScreenPos(swingTime, t)
 
@@ -1840,6 +1874,15 @@ export class Overlay {
     this.ctx2d.fillRect(0, y, Math.trunc(w * frac), h)
   }
 
+  private drawWhirlwindBar(y: number, h: number): void {
+    const frac = this.whirlwindUntil > 0 ? Math.max(0, (this.whirlwindUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const alpha = 0.55 + frac * 0.35
+    this.ctx2d.fillStyle = `rgba(192,132,252,${alpha.toFixed(2)})`
+    this.ctx2d.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
   // ── Header ────────────────────────────────────────────────────
 
   private drawHeader(): void {
@@ -1882,6 +1925,11 @@ export class Overlay {
     if (this.innerflameUntil > 0 && now() < this.innerflameUntil) {
       ctx.fillStyle = '#e89020'
       ctx.fillText('INNERFLAME', buffX, h / 2)
+      buffX += ctx.measureText('INNERFLAME').width + 6
+    }
+    if (this.whirlwindUntil > 0 && now() < this.whirlwindUntil) {
+      ctx.fillStyle = '#c084fc'
+      ctx.fillText('WHIRLWIND', buffX, h / 2)
     }
 
     ctx.fillStyle = cfg.C_TEXT
@@ -1890,6 +1938,7 @@ export class Overlay {
     ctx.textBaseline = 'alphabetic'
 
     this.drawInnerflameBar(cfg.HEADER_H - 2, 2)
+    this.drawWhirlwindBar(cfg.HEADER_H - 4, 2)
   }
 
   // ── Footer ────────────────────────────────────────────────────
@@ -1907,6 +1956,7 @@ export class Overlay {
     ctx.strokeStyle = cfg.C_TRACK_LINE; ctx.lineWidth = 1
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke()
     this.drawInnerflameBar(y, 2)
+    this.drawWhirlwindBar(y + 2, 2)
 
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`
     ctx.fillStyle = cfg.C_TEXT_DIM

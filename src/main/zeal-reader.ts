@@ -26,7 +26,7 @@ import { performance } from 'perf_hooks'
 import { EvType, type GameEvent } from '../shared/events'
 import { type ConfigType } from '../shared/config'
 import { type EventCallback } from './log-reader'
-import { parseHaste, calcInterval } from './haste-calc'
+import { parseHaste, calcInterval, parseAtkRating } from './haste-calc'
 
 // PipeMessageType.LogText = 0
 const PIPE_MSG_LOGTEXT = 0
@@ -114,6 +114,12 @@ export class ZealReader {
   private currentTarget = ''
   private lastAttackTs = 0    // last time player attacked currentTarget
 
+  // ── Bandolier deactivation buffer ────────────────────────────
+  // Zeal pipe delivers the swap-back message before the combat hit arrives.
+  // Delay clearing WEAVE_BANDOLIER_ACTIVE so in-flight hits still register as weaves.
+  // Duration is cfg.WEAVE_BANDOLIER_OFF_DELAY_MS (user-adjustable).
+  private weaveBandolierOffTimer: ReturnType<typeof setTimeout> | null = null
+
   // ── Swing tracking for miss classification ────────────────────
   // Zeal's YouMissOther sends "missed TARGET" with no verb, making it impossible to
   // distinguish a crush miss from a fist miss. We track the most recent hit timestamps
@@ -121,19 +127,28 @@ export class ZealReader {
   private lastCrushHitTs = 0  // last YouHitOther crush hit (ms)
   private lastFistHitTs  = 0  // last YouHitOther punch/strike hit (ms)
 
-  // ── Haste dedup ───────────────────────────────────────────────
+  // ── Haste / ATK dedup ────────────────────────────────────────
   private lastHastePct = -1
   private lastHasteEmitTs = 0
+  private lastAtkRating = 0
+  private lastAtkEmitTs = 0
 
-  private weaponRe: Array<{ re: RegExp; name: string; delay: number }>
+  // ── Weapon track state ────────────────────────────────────
+  private weaponTrackActive = false
+  private weaponTrack2H     = ''
+  private weaponTrackOH     = ''
+
+  private weaponRe: Array<{ re: RegExp; name: string; delay: number; attackType: string }>
   private oorRe: RegExp[]
   private cursorBlockedRe: RegExp[]
   private avatarGainedRe: RegExp[]
   private avatarLostRe: RegExp[]
   private savageryGainedRe: RegExp[]
   private savageryLostRe: RegExp[]
-  private innerflamGainedRe: RegExp[]
-  private innerflamLostRe: RegExp[]
+  private innerflamGainedRe:  RegExp[]
+  private innerflamLostRe:    RegExp[]
+  private whirlwindGainedRe:  RegExp[]
+  private whirlwindLostRe:    RegExp[]
 
   constructor(cfg: ConfigType, onEvent: EventCallback) {
     this.cfg     = cfg
@@ -146,12 +161,15 @@ export class ZealReader {
     this.avatarLostRe      = compile(cfg.AVATAR_LOST_PATTERNS)
     this.savageryGainedRe  = compile(cfg.SAVAGERY_GAINED_PATTERNS)
     this.savageryLostRe    = compile(cfg.SAVAGERY_LOST_PATTERNS)
-    this.innerflamGainedRe = compile(cfg.INNERFLAME_GAINED_PATTERNS)
-    this.innerflamLostRe   = compile(cfg.INNERFLAME_LOST_PATTERNS)
-    this.weaponRe       = Object.entries(cfg.WEAPON_PRESETS).map(([name, delay]) => ({
+    this.innerflamGainedRe  = compile(cfg.INNERFLAME_GAINED_PATTERNS)
+    this.innerflamLostRe    = compile(cfg.INNERFLAME_LOST_PATTERNS)
+    this.whirlwindGainedRe  = compile(cfg.WHIRLWIND_GAINED_PATTERNS)
+    this.whirlwindLostRe    = compile(cfg.WHIRLWIND_LOST_PATTERNS)
+    this.weaponRe       = Object.entries(cfg.WEAPON_PRESETS).map(([name, { delay, attackType }]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
       name,
       delay,
+      attackType,
     }))
   }
 
@@ -232,6 +250,10 @@ export class ZealReader {
     if (!this.characterName && outer.character) {
       this.characterName = outer.character
       console.log(`[ZealReader] Character: "${this.characterName}"`)
+      // Populate leaderboard character name if not already set by user
+      if (!this.cfg.LEADERBOARD_CHARACTER_NAME) {
+        this.cfg.LEADERBOARD_CHARACTER_NAME = this.characterName
+      }
     }
 
     const logType = inner.type ?? -1
@@ -254,37 +276,51 @@ export class ZealReader {
 
       // ── You hit something ──────────────────────────────────────
       case LOG.YouHitOther: {
+        // Riposte check MUST precede verb parsing. Weapon-class ripostes (warrior/ranger)
+        // arrive as YouHitOther with the weapon verb ("slash NAME for 250 (riposte)") and
+        // no separate riposte verb, so they would otherwise be mis-classified as mainhand
+        // swings and corrupt swing-interval calibration.  H2H ripostes come with verb
+        // "strike" and "(riposte)" in the text.  Either way, "riposte" always appears in
+        // the text — catching it here before verb dispatch is the safe guard.
+        if (/riposte/i.test(text)) {
+          const dmg = parseDamageShort(text)
+          if (dmg > 0)
+            this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage: dmg } })
+          return
+        }
+
         const m = ZEAL_HIT_RE.exec(text)
         if (!m) return
         const verb   = m[1].toLowerCase()
         const target = m[2]
         const damage = parseInt(m[3], 10)
 
-        // Ripostes arrive as YouHitOther with verb "strike" and "(riposte)" in the text.
-        // They are counter-attacks triggered by mob attacks — not deliberate weave attempts.
-        // Count the damage toward net DPS but never treat them as swing-timer events.
-        if (/riposte/i.test(text)) {
-          if (damage > 0)
-            this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
-          return
-        }
-
         this.ensureCombat(now)
         this.currentTarget = target
         this.lastAttackTs  = now
 
-        if (verb === 'crush') {
+        const mainhandVerb = this.cfg.MAINHAND_ATTACK_TYPE
+        const isMainhand = verb === mainhandVerb ||
+          (mainhandVerb === 'punch' && (verb === 'punch' || verb === 'strike'))
+        const isFist = (verb === 'punch' || verb === 'strike') && !isMainhand
+
+        if (isMainhand) {
           this.lastCrushHitTs = now
-          this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-            data: { damage, hit: true, line: text, target } })
-        } else if (verb === 'punch' || verb === 'strike') {
+          if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
+            this.emit({ type: EvType.FIST_ATTACK, ts: now,
+              data: { damage, hit: true, line: text } })
+          } else {
+            this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+              data: { damage, hit: true, line: text, target } })
+          }
+        } else if (isFist) {
           this.lastFistHitTs = now
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage, hit: true, line: text } })
         } else if (verb === 'flying kick' || verb === 'kick') {
           this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
         } else {
-          // hit (proc), slash, pierce, bash → misc damage
+          // hit (proc), slash, pierce, bash, or non-mainhand verb → misc damage
           if (damage > 0)
             this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
         }
@@ -321,16 +357,7 @@ export class ZealReader {
         const mre = ZEAL_MISS_RE.exec(text)
         if (mre) { this.currentTarget = mre[1]; this.lastAttackTs = now }
 
-        if (this.cfg.TRACKING_SOURCE === 'hybrid') {
-          // Log reader owns miss classification in hybrid mode; just keep combat alive.
-          return
-        }
-
-        // Zeal-only: treat every miss as a mainhand miss.  The weave window stays
-        // visible; fist hits are tracked by YouHitOther so scoring remains accurate.
-        this.lastCrushHitTs = now
-        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-          data: { damage: 0, hit: false, line: text } })
+        // Log reader owns miss classification in hybrid mode; just keep combat alive.
         return
       }
 
@@ -415,6 +442,49 @@ export class ZealReader {
    *  handler: OOR, cursor blocked, haste, and weapon detection. */
   private processTextPatterns(text: string, now: number): void {
 
+    // ── Weapon track (/say command sequence) ──────────────────
+    // ── Weapon track — BW2H / BWOH work standalone in any channel ──
+    const m2h = /\bBW2H\s+(.+)/i.exec(text)
+    if (m2h) {
+      this.weaponTrack2H = m2h[1].trim().replace(/['"]\s*$/, '')
+      this.emitWeaponTrack(now)
+      return
+    }
+    const moh = /\bBWOH\s+(.+)/i.exec(text)
+    if (moh) {
+      this.weaponTrackOH = moh[1].trim().replace(/['"]\s*$/, '')
+      this.emitWeaponTrack(now)
+      return
+    }
+
+    // Bandolier swap detection — "Loading bandolier set NAME" / "Bandolier set swap complete"
+    {
+      const bm = /^Loading bandolier set (.+?)\.?\s*$/i.exec(text)
+      if (bm) {
+        const setName = bm[1].trim().replace(/^\[|\]$/g, '')
+        const isWeaveSet = setName.toLowerCase().includes('weave')
+        // Emit BANDOLIER_CHANGED immediately (before any delayed deactivation)
+        this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet } })
+        if (isWeaveSet) {
+          // Switching TO the weave set — activate immediately, cancel any pending deactivation
+          if (this.weaveBandolierOffTimer !== null) {
+            clearTimeout(this.weaveBandolierOffTimer)
+            this.weaveBandolierOffTimer = null
+          }
+          this.cfg.WEAVE_BANDOLIER_ACTIVE = true
+        } else {
+          // Switching AWAY — delay deactivation so in-flight hits still register as weaves
+          if (this.weaveBandolierOffTimer !== null) clearTimeout(this.weaveBandolierOffTimer)
+          this.weaveBandolierOffTimer = setTimeout(() => {
+            this.cfg.WEAVE_BANDOLIER_ACTIVE = false
+            this.weaveBandolierOffTimer = null
+          }, this.cfg.WEAVE_BANDOLIER_OFF_DELAY_MS)
+        }
+        return
+      }
+      if (/^bandolier set swap complete\.?\s*$/i.test(text)) return
+    }
+
     // Out of range (text-based, catches server-message variants)
     if (this.oorRe.some(r => r.test(text))) {
       this.emit({ type: EvType.OUT_OF_RANGE, ts: now, data: { line: text } })
@@ -456,11 +526,21 @@ export class ZealReader {
       this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: false } })
       return
     }
+    if (this.whirlwindGainedRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: true } })
+      return
+    }
+    if (this.whirlwindLostRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
+      return
+    }
 
     // Weapon preset detection
-    for (const { re, name, delay } of this.weaponRe) {
+    for (const { re, name, delay, attackType } of this.weaponRe) {
       if (re.test(text)) {
-        this.cfg.BASE_WEAPON_DELAY = delay
+        this.cfg.BASE_WEAPON_DELAY    = delay
+        this.cfg.BASE_WEAPON_NAME     = name
+        this.cfg.MAINHAND_ATTACK_TYPE = attackType as 'crush' | 'slash' | 'pierce' | 'punch'
         this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
         return
       }
@@ -489,7 +569,49 @@ export class ZealReader {
         this.emit({ type: EvType.HASTE_DETECTED, ts: now,
           data: { haste_pct: hastePct, interval, source: text } })
       }
+      // Always emit STATS_UPDATE with latest known atk + haste when haste changes
+      this.emitStatsUpdate(now, { hastePct })
+      return
     }
+
+    // ATK rating detection (/mystats)
+    const atkRating = parseAtkRating(text)
+    if (atkRating !== null) {
+      const sameValue  = atkRating === this.lastAtkRating
+      const recentEmit = now - this.lastAtkEmitTs < 2000
+      if (!sameValue || !recentEmit) {
+        this.lastAtkRating  = atkRating
+        this.lastAtkEmitTs  = now
+        this.emitStatsUpdate(now, { atkRating })
+      }
+    }
+  }
+
+  private emitWeaponTrack(now: number): void {
+    const offhandDelay = this.lookupWeaponDelay(this.weaponTrackOH)
+    this.emit({ type: EvType.WEAPON_TRACK, ts: now,
+      data: { mainhand: this.weaponTrack2H, offhand: this.weaponTrackOH, offhandDelay } })
+    this.weaponTrackActive = false
+    this.weaponTrack2H = ''
+    this.weaponTrackOH = ''
+  }
+
+  private lookupWeaponDelay(name: string): number | null {
+    const lower = name.toLowerCase()
+    for (const [preset, delay] of Object.entries(this.cfg.OFFHAND_PRESETS)) {
+      if (preset.toLowerCase() === lower) return delay
+    }
+    return null
+  }
+
+  private emitStatsUpdate(now: number, changed: { hastePct?: number; atkRating?: number }): void {
+    const data: Record<string, unknown> = {}
+    if (changed.hastePct  !== undefined) data.hastePct  = changed.hastePct
+    if (changed.atkRating !== undefined) data.atkRating = changed.atkRating
+    // Always include the other value so the renderer can update its full snapshot
+    if (data.hastePct  === undefined) data.hastePct  = this.lastHastePct  >= 0 ? this.lastHastePct  : undefined
+    if (data.atkRating === undefined) data.atkRating = this.lastAtkRating > 0  ? this.lastAtkRating : undefined
+    this.emit({ type: EvType.STATS_UPDATE, ts: now, data })
   }
 
   private ensureCombat(now: number): void {
@@ -515,10 +637,22 @@ export class ZealReader {
     this.connectedPids.clear()
     this.characterName   = ''
     this.seenLogTypes.clear()
-    this.inCombat        = false
-    this.currentTarget   = ''
-    this.lastAttackTs    = 0
-    this.lastCrushHitTs  = 0
-    this.lastFistHitTs   = 0
+    this.inCombat            = false
+    this.currentTarget       = ''
+    this.lastAttackTs        = 0
+    this.lastCrushHitTs      = 0
+    this.lastFistHitTs       = 0
+    this.cfg.WEAVE_BANDOLIER_ACTIVE = false
+    if (this.weaveBandolierOffTimer !== null) {
+      clearTimeout(this.weaveBandolierOffTimer)
+      this.weaveBandolierOffTimer = null
+    }
+    this.lastHastePct    = -1
+    this.lastHasteEmitTs = 0
+    this.lastAtkRating   = 0
+    this.lastAtkEmitTs   = 0
+    this.weaponTrackActive = false
+    this.weaponTrack2H   = ''
+    this.weaponTrackOH   = ''
   }
 }

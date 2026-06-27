@@ -111,6 +111,7 @@ export class HighContrastOverlay {
   private combatStartTs = 0
   private swingTimerEverValid = false
   private hasteCalibrated = false  // true when haste% was derived from measured swings, not /mystats
+  private weaveBandolierActive = false
   private oorLastSoundTs = 0
   private lastOhSnapTs = 0
   private lastFistAttackTs = 0
@@ -127,10 +128,13 @@ export class HighContrastOverlay {
   private avatarFightMs = 0;     private avatarFightStart:      number | null = null
   private savageryFightMs = 0;   private savageryFightStart:    number | null = null
   private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
-  private innerflameUntil = 0   // performance.now() expiry; 0 = inactive
+  private innerflameUntil  = 0   // performance.now() expiry; 0 = inactive
+  private whirlwindUntil   = 0   // performance.now() expiry; 0 = inactive
 
   pinned = true
   charName = ''
+  logSelected = false
+  private lastLogActivityTs = 0
   private currentTarget = ''
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
@@ -204,8 +208,13 @@ export class HighContrastOverlay {
             Math.trunc(this.hzY + vo - (targetTime - t) * this.speed)]
   }
 
+  showBanner(text: string, color: string, duration?: number): void {
+    this.banners.push(new Banner(text, color, duration))
+  }
+
   // ── IPC ─────────────────────────────────────────────────────
   handleGameEvent(ev: GameEvent): void {
+    this.lastLogActivityTs = now()
     const ts = ev.ts
     switch (ev.type) {
       case EvType.COMBAT_START:
@@ -262,7 +271,7 @@ export class HighContrastOverlay {
           this.postCombatGlideUntil = 0
           this.rhythm.resumeCombat(ct)
         }
-        this.rhythm.onMainhandCrush(ct, damage, hit)
+        this.rhythm.onMainhandCrush(ct, damage, hit, this.weaveBandolierActive)
         this.lastCombatActivity = ct
         this.consecutiveCrushesWithoutFist++
         if (this.consecutiveCrushesWithoutFist >= HighContrastOverlay.RAPID_CRUSH_THRESHOLD) {
@@ -392,8 +401,15 @@ export class HighContrastOverlay {
             else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
           }
         }
+        if (buff === 'whirlwind') {
+          this.whirlwindUntil = active ? now() + 12000 : 0
+          if (active) this.banners.push(new Banner('WHIRLWIND', '#c084fc', 3000))
+        }
         break
       }
+      case EvType.BANDOLIER_CHANGED:
+        this.weaveBandolierActive = (ev.data?.isWeaveSet as boolean) ?? false
+        break
       case EvType.STATS_UPDATE: {
         const atk   = ev.data?.atkRating as number | undefined
         const haste = ev.data?.hastePct  as number | undefined
@@ -423,7 +439,6 @@ export class HighContrastOverlay {
       case 'Escape': window.electronAPI?.quit(); break
       case ' ': this.gradeScreen?.dismiss(); break
       case 'm': case 'M': this.audio.toggle(); break
-      case 'h': case 'H': this.toggleOrientation(); break
       case 'ArrowUp':   this.rhythm.adjustInterval(+0.25); break
       case 'ArrowDown': this.rhythm.adjustInterval(-0.25); break
       case 'r': case 'R': this.resetTrack(); break
@@ -530,14 +545,6 @@ export class HighContrastOverlay {
     })
   }
 
-  toggleOrientation(): void {
-    this.cfg.ORIENTATION = this.cfg.ORIENTATION === 'horizontal' ? 'vertical' : 'horizontal'
-    this.resizeCanvas(); this.computeLayout()
-    window.electronAPI?.resizeWindow(
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_WIDTH  : this.cfg.WINDOW_WIDTH,
-      this.cfg.ORIENTATION === 'vertical' ? this.cfg.VERT_WINDOW_HEIGHT : this.cfg.WINDOW_HEIGHT,
-    )
-  }
   applyTargetPosition(pct: number): void {
     this.cfg.TARGET_POSITION_PCT = pct
     this.cfg.HIT_ZONE_X = Math.max(10, Math.trunc(this.cfg.WINDOW_WIDTH * pct / 100))
@@ -556,7 +563,11 @@ export class HighContrastOverlay {
     this.cfg.OFFHAND_WEAPON_DELAY = delayTenths
     this.cfg.OFFHAND_WEAPON_NAME  = name
     const effectiveDelay = delayTenths / 10 / (1 + this.cfg.HASTE_PCT / 100)
-    this.cfg.GOOD_WINDOW = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay) / 2
+    const autoWidth = Math.max(0.1, this.cfg.PUNCH_INTERVAL - effectiveDelay)
+    const baseWidth = this.cfg.WEAVE_WINDOW_MS > 0
+      ? Math.min(this.cfg.WEAVE_WINDOW_MS / 1000, autoWidth)
+      : autoWidth
+    this.cfg.GOOD_WINDOW = baseWidth / 2
   }
 
   private clearRapidAttackMute(): void {
@@ -643,11 +654,36 @@ export class HighContrastOverlay {
     this.drawClipWarn()
     this.drawOffhandSwingTimer()
     this.drawFooter()
+    this.drawNoLogNotice()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
 
     // Bottom accent rule
     ctx.fillStyle = HC.accent; ctx.fillRect(0, h - 2, w, 2)
+  }
+
+  private drawNoLogNotice(): void {
+    if (this.rhythm.inCombat || this.gradeScreen) return
+    const t = now()
+    const stale = this.logSelected && (t - this.lastLogActivityTs) > 60_000
+    if (!this.logSelected || stale) {
+      const line1 = this.logSelected ? 'Log not updating' : 'No log file selected'
+      const line2 = this.logSelected ? 'Is EQ running?' : 'Right-click tray → Select Log'
+      const pulse = (1 + Math.sin(t / 2000 * Math.PI)) / 2
+      const alpha = 0.20 + pulse * 0.35
+      const ctx = this.ctx
+      const w = this.canvas.width
+      const cy = this.highwayY + this.highwayH / 2
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.font = '700 10px "JetBrains Mono", monospace'
+      ctx.fillStyle = `rgba(220,220,220,${alpha.toFixed(3)})`
+      ctx.fillText(line1, w / 2, cy - 7)
+      ctx.font = '400 9px "JetBrains Mono", monospace'
+      ctx.fillStyle = `rgba(180,180,180,${(alpha * 0.75).toFixed(3)})`
+      ctx.fillText(line2, w / 2, cy + 7)
+      ctx.textAlign = 'left'
+    }
   }
 
   private drawOffhandSwingTimer(): void {
@@ -695,6 +731,15 @@ export class HighContrastOverlay {
     this.ctx.fillRect(0, y, Math.trunc(w * frac), h)
   }
 
+  private drawWhirlwindBar(y: number, h: number): void {
+    const frac = this.whirlwindUntil > 0 ? Math.max(0, (this.whirlwindUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const alpha = 0.65 + frac * 0.30
+    this.ctx.fillStyle = `rgba(192,132,252,${alpha.toFixed(2)})`
+    this.ctx.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
   private drawHeader(): void {
     const ctx = this.ctx
     const w = this.canvas.width
@@ -709,19 +754,20 @@ export class HighContrastOverlay {
       nx += ctx.measureText(ch).width + 1.5
     }
 
-    // Phase chip
+    // Phase chip — start after the name, with a minimum gap
+    const chipX = Math.max(86, Math.ceil(nx) + 8)
     const phase = this.rhythm.inCombat ? 'COMBAT' : this.gradeScreen ? 'RESULT' : 'IDLE'
     const color = phase === 'COMBAT' ? HC.combat : phase === 'RESULT' ? HC.result : HC.idle
     ctx.fillStyle = color
-    ctx.fillRect(86, 8, 68, 16)
+    ctx.fillRect(chipX, 8, 68, 16)
     ctx.font = '800 10px "Archivo", sans-serif'
     ctx.fillStyle = color === HC.result ? '#000' : '#fff'
     ctx.textAlign = 'center'
-    ctx.fillText(phase, 86 + 34, 20)
+    ctx.fillText(phase, chipX + 34, 20)
     ctx.textAlign = 'left'
 
     // Buff indicators (Avatar, Savagery)
-    let buffX = 86 + 68 + 6
+    let buffX = chipX + 68 + 6
     ctx.font = '800 9px "Archivo", sans-serif'
     if (this.avatarActive) {
       ctx.fillStyle = '#a855f7'
@@ -751,6 +797,18 @@ export class HighContrastOverlay {
       ctx.textAlign = 'center'
       ctx.fillText(label, buffX + lw / 2, 20)
       ctx.textAlign = 'left'
+      buffX += lw + 4
+    }
+    if (this.whirlwindUntil > 0 && now() < this.whirlwindUntil) {
+      const label = 'WHIRLWIND'
+      ctx.font = '800 9px "Archivo", sans-serif'
+      const lw = ctx.measureText(label).width + 10
+      ctx.fillStyle = '#c084fc'
+      ctx.fillRect(buffX, 8, lw, 16)
+      ctx.fillStyle = '#000'
+      ctx.textAlign = 'center'
+      ctx.fillText(label, buffX + lw / 2, 20)
+      ctx.textAlign = 'left'
     }
 
     // Stats right
@@ -763,6 +821,7 @@ export class HighContrastOverlay {
     ctx.textAlign = 'left'
 
     this.drawInnerflameBar(27, 3)
+    this.drawWhirlwindBar(24, 3)
   }
 
   private drawHighwayBox(): void {
@@ -779,7 +838,9 @@ export class HighContrastOverlay {
     const ctx = this.ctx
     const intervalMs = this.cfg.PUNCH_INTERVAL * 1000
     const offhandMs  = this.rhythm.effectiveOffhandDelay * 1000
-    const weaveMs    = Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
+    const weaveMs    = this.cfg.WEAVE_WINDOW_MS > 0
+      ? this.cfg.WEAVE_WINDOW_MS
+      : Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
 
     const nextSwing = gliding
       ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
@@ -853,7 +914,7 @@ export class HighContrastOverlay {
       const swingTime = firstSwing + k * intervalMs
       const safeEnd   = swingTime + weaveMs    // deadline to punch and stay ready for next swing
       const windowEnd = swingTime + intervalMs  // full window extent = next mainhand swing
-      const winStart  = Math.max(swingTime, projectedNextReady)
+      const winStart  = this.cfg.WEAVE_WINDOW_MS > 0 ? swingTime : Math.max(swingTime, projectedNextReady)
 
       const [sx, sy] = this.projectAt(swingTime, t)
 
@@ -1152,6 +1213,7 @@ export class HighContrastOverlay {
     ctx.textBaseline = 'alphabetic'
 
     this.drawInnerflameBar(h - 30, 3)
+    this.drawWhirlwindBar(h - 33, 3)
 
     // WEAVES
     ctx.font = '600 9px "Archivo", sans-serif'

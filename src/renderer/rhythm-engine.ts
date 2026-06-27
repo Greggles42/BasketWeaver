@@ -58,6 +58,7 @@ export class RhythmEngine {
   roundOpen = false
   lastCrushTime = 0.0
   private lastRoundCloseTime = 0.0
+  private roundSkipCalibration = false
 
   nextSwingTime = 0.0
   swingTimerValid = false
@@ -139,8 +140,7 @@ export class RhythmEngine {
     // Pre-populate the note track immediately using the last known weapon speed.
     // The first real swing will recalibrate via closeRound() as normal.
     const interval    = this.predictedInterval          // seconds
-    const fistDelay   = this.effectiveOffhandDelay
-    const halfWindow  = Math.max(0.2, interval - fistDelay) / 2
+    const halfWindow  = this.computeWindowWidth(interval) / 2
     this.cfg.GOOD_WINDOW    = halfWindow
     this.cfg.PUNCH_INTERVAL = interval
     this.lastKnownInterval  = interval   // seconds, matching PUNCH_INTERVAL units
@@ -167,8 +167,7 @@ export class RhythmEngine {
     this.calibrationEvent   = null
     this.lastRoundCloseTime = 0
     const interval   = this.predictedInterval   // derive fresh from weapon delay + haste
-    const fistDelay  = this.effectiveOffhandDelay
-    const halfWindow = Math.max(0.2, interval - fistDelay) / 2
+    const halfWindow = this.computeWindowWidth(interval) / 2
     this.cfg.PUNCH_INTERVAL  = interval
     this.cfg.GOOD_WINDOW     = halfWindow
     this.nextSwingTime   = ts + s(interval)
@@ -200,7 +199,7 @@ export class RhythmEngine {
     return this.makeGrade()
   }
 
-  onMainhandCrush(ts: number, damage: number, _hit: boolean): void {
+  onMainhandCrush(ts: number, damage: number, _hit: boolean, skipCalibration = false): void {
     if (damage > 0) this.totalMeleeDamage += damage
     if (!this.inCombat) return
     if (damage > 0) this.damageLog.push([ts - this.combatStartTime, damage])
@@ -209,6 +208,7 @@ export class RhythmEngine {
       this.lastCrushTime = ts
     } else {
       this.roundOpen = true
+      this.roundSkipCalibration = skipCalibration
       this.lastCrushTime = ts
       this.lastMainhandTs = ts
       this.roundReactionCounted = false
@@ -354,6 +354,15 @@ export class RhythmEngine {
     return this.cfg.PUNCH_INTERVAL * this.cfg.OFFHAND_WEAPON_DELAY / this.cfg.BASE_WEAPON_DELAY
   }
 
+  /** Full weave window width in seconds for a given swing interval.
+   *  When WEAVE_WINDOW_MS is set the manual value is used directly (can exceed the
+   *  auto-calculated window).  Dynamic weaving (applyDynamicWeaveWindow) may still
+   *  clamp the window down to the real available time when a weapon-swap signal fires. */
+  computeWindowWidth(interval: number, effectiveDelay = this.effectiveOffhandDelay): number {
+    if (this.cfg.WEAVE_WINDOW_MS > 0) return this.cfg.WEAVE_WINDOW_MS / 1000
+    return Math.max(0.2, interval - effectiveDelay)
+  }
+
   adjustInterval(delta: number): void {
     this.cfg.PUNCH_INTERVAL = Math.max(0.5, Math.min(12.0, this.cfg.PUNCH_INTERVAL + delta))
   }
@@ -464,7 +473,7 @@ export class RhythmEngine {
       // weapon delay — a skipped/OOR swing appears as ≥2× the real interval and
       // would otherwise drag the median too low.
       const maxPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) * 1.3
-      if (measured >= 0.5 && measured <= maxPlausible) {
+      if (!this.roundSkipCalibration && measured >= 0.5 && measured <= maxPlausible) {
         this.measuredIntervals.push(measured)
         if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
           this.measuredIntervals.shift()
@@ -495,8 +504,7 @@ export class RhythmEngine {
     this.lastRoundCloseTime = roundEnd
     this.cfg.PUNCH_INTERVAL = interval
 
-    const fistDelay   = this.effectiveOffhandDelay
-    const windowWidth = Math.max(0.2, interval - fistDelay)
+    const windowWidth = this.computeWindowWidth(interval)
     const halfWindow  = windowWidth / 2.0
     this.cfg.GOOD_WINDOW = halfWindow
 

@@ -5,7 +5,6 @@
 
 import { Config } from '../shared/config'
 import type { GameEvent, HitRecord } from '../shared/events'
-import { Overlay } from './overlay'
 import { RefinedOverlay } from './overlay-refined'
 import { HighContrastOverlay } from './overlay-highcontrast'
 
@@ -15,7 +14,6 @@ declare global {
       onGameEvent:        (cb: (ev: GameEvent) => void) => void
       onLogSelected:      (cb: (path: string) => void) => void
       onToggleAudio:        (cb: () => void) => void
-      onToggleOrientation:  (cb: () => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:           (cb: () => void) => void
       onToggleFistMissSound:    (cb: () => void) => void
@@ -26,12 +24,14 @@ declare global {
       onClearBuffs:             (cb: () => void) => void
       onToggleBuffSound:        (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
-      onSetVolumes:           (cb: (master: number, proc: number, epic: number) => void) => void
+      onSetVolumes:           (cb: (master: number, proc: number, epic: number, debounceMs: number) => void) => void
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
       onSetShowAllCrits:             (cb: (enabled: boolean) => void) => void
       onSetPositiveAudioInWindow:    (cb: (enabled: boolean) => void) => void
+      onSetWeaveWindowMs:            (cb: (ms: number) => void) => void
+      onSetPunchInterval:            (cb: (interval: number) => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -49,11 +49,8 @@ declare global {
 const canvas = document.getElementById('overlay') as HTMLCanvasElement
 
 function initCanvasSize() {
-  const [w, h] = Config.ORIENTATION === 'vertical'
-    ? [Config.VERT_WINDOW_WIDTH, Config.VERT_WINDOW_HEIGHT]
-    : [Config.WINDOW_WIDTH, Config.WINDOW_HEIGHT]
-  canvas.width  = w
-  canvas.height = h
+  canvas.width  = Config.WINDOW_WIDTH
+  canvas.height = Config.WINDOW_HEIGHT
 }
 
 initCanvasSize()
@@ -66,18 +63,16 @@ const overlay: {
   start(): void
   handleGameEvent(ev: GameEvent): void
   handleKey(key: string): void
-  toggleOrientation(): void
   applyTargetPosition(pct: number): void
   toggleLaneLines(): void
   toggleFistMissSound(): void
   toggleDynamicWeaving(): void
   toggleOffhandTimer(): void
   pinned: boolean
+  logSelected: boolean
 } = overlayStyle === 'highcontrast'
   ? new HighContrastOverlay(canvas)
-  : overlayStyle === 'standard'
-    ? new Overlay(canvas)
-    : new RefinedOverlay(canvas)
+  : new RefinedOverlay(canvas)
 
 overlay.start()
 
@@ -88,18 +83,15 @@ window.electronAPI.onGameEvent(ev => overlay.handleGameEvent(ev))
 window.electronAPI.onLogSelected(p => {
   const filename = p.replace(/\\/g, '/').split('/').pop() ?? ''
   const m = filename.match(/^eqlog_([^_]+)_/)
-  if (m) (overlay as any).charName = m[1]
+  if (m) { Config.LEADERBOARD_CHARACTER_NAME = m[1]; (overlay as any).charName = m[1] }
+  overlay.logSelected = true
+  ;(overlay as any).lastLogActivityTs = performance.now()  // reset stale-log timer
   ;(overlay as any).showBanner?.(`Log: ${filename}`, Config.C_GOOD, 3000)
 })
 
 window.electronAPI.onToggleAudio(() => {
   // Audio toggle is handled internally by AudioManager; trigger via key handler
   overlay.handleKey('m')
-})
-
-window.electronAPI.onToggleOrientation(() => {
-  overlay.toggleOrientation()
-  initCanvasSize()
 })
 
 window.electronAPI.onSetTargetPosition((pct: number) => {
@@ -145,12 +137,13 @@ window.electronAPI.onSetOffhandDelay((delay, name) => {
   ;(overlay as any).applyDynamicWeaveWindow?.(delay, name)
 })
 
-window.electronAPI.onSetVolumes((master, proc, epic) => {
+window.electronAPI.onSetVolumes((master, proc, epic, debounceMs) => {
   if (audio) {
     audio.masterVolume = master
     audio.procVolume   = proc
     audio.epicVolume   = epic
   }
+  Config.AUDIO_DEBOUNCE_MS = debounceMs
 })
 
 window.electronAPI.onSetThresholds((critDamage, hugeRound) => {
@@ -164,6 +157,18 @@ window.electronAPI.onSetShowAllCrits((enabled) => {
 
 window.electronAPI.onSetPositiveAudioInWindow((enabled) => {
   Config.POSITIVE_AUDIO_IN_WINDOW = enabled
+})
+
+window.electronAPI.onSetWeaveWindowMs((ms) => {
+  Config.WEAVE_WINDOW_MS = ms
+})
+
+window.electronAPI.onSetPunchInterval((interval) => {
+  Config.PUNCH_INTERVAL = interval
+})
+
+window.electronAPI.onSetBaseWeaponDelay((delay) => {
+  Config.BASE_WEAPON_DELAY = delay
 })
 
 // ── Status requests from tray ─────────────────────────────────

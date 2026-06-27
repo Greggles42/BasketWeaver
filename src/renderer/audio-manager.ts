@@ -20,6 +20,8 @@ export class AudioManager {
   private cfg: ConfigType
   private fileBuffers: Map<string, AudioBuffer> = new Map()
   private fileGains:   Map<string, number>      = new Map()
+  private lastPlayTime: Map<string, number>     = new Map()
+  private static readonly DEBOUNCED_SOUNDS = new Set(['crush', 'punch', 'whiff'])
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
@@ -308,6 +310,12 @@ export class AudioManager {
 
   play(name: string, when?: number): void {
     if (!this.enabled || this.tempMuted) return
+    if (this.cfg.AUDIO_DEBOUNCE_MS > 0 && AudioManager.DEBOUNCED_SOUNDS.has(name)) {
+      const last = this.lastPlayTime.get(name) ?? 0
+      const now  = performance.now()
+      if (now - last < this.cfg.AUDIO_DEBOUNCE_MS) return
+      this.lastPlayTime.set(name, now)
+    }
     try {
       const ctx  = this.getCtx()
       const src  = ctx.createBufferSource()

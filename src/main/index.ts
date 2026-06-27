@@ -11,7 +11,11 @@
 import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import * as path from 'path'
 import { Config } from '../shared/config'
-import { IPC, type GameEvent, type HitRecord } from '../shared/events'
+import { IPC, EvType, type GameEvent, type HitRecord } from '../shared/events'
+
+// Build-time constants injected by electron-vite define (see electron.vite.config.ts).
+declare const __LEADERBOARD_WORKER_URL__: string
+declare const __LEADERBOARD_API_KEY__:    string
 import { LogReader } from './log-reader'
 import { ZealReader } from './zeal-reader'
 import { LeaderboardManager } from './leaderboard-manager'
@@ -60,11 +64,16 @@ function loadSettings(): void {
       const saved = JSON.parse(fs.readFileSync(p, 'utf8'))
       if (typeof saved.OFFHAND_WEAPON_DELAY === 'number') Config.OFFHAND_WEAPON_DELAY = saved.OFFHAND_WEAPON_DELAY
       if (typeof saved.OFFHAND_WEAPON_NAME  === 'string') Config.OFFHAND_WEAPON_NAME  = saved.OFFHAND_WEAPON_NAME
-      if (saved.OVERLAY_STYLE === 'refined' || saved.OVERLAY_STYLE === 'standard' || saved.OVERLAY_STYLE === 'highcontrast') {
+      if (typeof saved.BASE_WEAPON_NAME     === 'string') Config.BASE_WEAPON_NAME     = saved.BASE_WEAPON_NAME
+      if (saved.OVERLAY_STYLE === 'refined' || saved.OVERLAY_STYLE === 'highcontrast') {
         Config.OVERLAY_STYLE = saved.OVERLAY_STYLE
+      } else if (saved.OVERLAY_STYLE === 'standard') {
+        Config.OVERLAY_STYLE = 'refined'  // migrate old 'standard' setting to 'refined'
       }
-      if (saved.TRACKING_SOURCE === 'log' || saved.TRACKING_SOURCE === 'zeal' || saved.TRACKING_SOURCE === 'hybrid') {
+      if (saved.TRACKING_SOURCE === 'log' || saved.TRACKING_SOURCE === 'hybrid') {
         Config.TRACKING_SOURCE = saved.TRACKING_SOURCE
+      } else if (saved.TRACKING_SOURCE === 'zeal') {
+        Config.TRACKING_SOURCE = 'hybrid'  // migrate old 'zeal' setting to 'hybrid'
       }
       if (typeof saved.windowX === 'number' && typeof saved.windowY === 'number') {
         savedWindowPos = { x: saved.windowX, y: saved.windowY }
@@ -80,10 +89,13 @@ function loadSettings(): void {
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
       if (typeof saved.POSITIVE_AUDIO_IN_WINDOW   === 'boolean') Config.POSITIVE_AUDIO_IN_WINDOW   = saved.POSITIVE_AUDIO_IN_WINDOW
-      if (typeof saved.LEADERBOARD_UPLOAD_ENABLED  === 'boolean') Config.LEADERBOARD_UPLOAD_ENABLED  = saved.LEADERBOARD_UPLOAD_ENABLED
       if (typeof saved.LEADERBOARD_CHARACTER_NAME  === 'string')  Config.LEADERBOARD_CHARACTER_NAME  = saved.LEADERBOARD_CHARACTER_NAME
-      if (typeof saved.LEADERBOARD_WORKER_URL      === 'string')  Config.LEADERBOARD_WORKER_URL      = saved.LEADERBOARD_WORKER_URL
-      if (typeof saved.LEADERBOARD_API_KEY         === 'string')  Config.LEADERBOARD_API_KEY         = saved.LEADERBOARD_API_KEY
+      if (typeof saved.AUTO_DETECT_LOG             === 'boolean') Config.AUTO_DETECT_LOG             = saved.AUTO_DETECT_LOG
+      if (typeof saved.BASE_WEAPON_DELAY === 'number') Config.BASE_WEAPON_DELAY = saved.BASE_WEAPON_DELAY
+      if (saved.MAINHAND_ATTACK_TYPE === 'crush' || saved.MAINHAND_ATTACK_TYPE === 'slash' ||
+          saved.MAINHAND_ATTACK_TYPE === 'pierce' || saved.MAINHAND_ATTACK_TYPE === 'punch') {
+        Config.MAINHAND_ATTACK_TYPE = saved.MAINHAND_ATTACK_TYPE
+      }
     }
   } catch {}
 }
@@ -94,6 +106,8 @@ export function saveSettings(): void {
     const data: Record<string, unknown> = {
       OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
       OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
+      BASE_WEAPON_DELAY:    Config.BASE_WEAPON_DELAY,
+      BASE_WEAPON_NAME:     Config.BASE_WEAPON_NAME,
       OVERLAY_STYLE:        Config.OVERLAY_STYLE,
       TRACKING_SOURCE:      Config.TRACKING_SOURCE,
       DYNAMIC_WEAVING:      Config.DYNAMIC_WEAVING,
@@ -107,17 +121,16 @@ export function saveSettings(): void {
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
       POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
-      LEADERBOARD_UPLOAD_ENABLED: Config.LEADERBOARD_UPLOAD_ENABLED,
       LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
-      LEADERBOARD_WORKER_URL:     Config.LEADERBOARD_WORKER_URL,
-      LEADERBOARD_API_KEY:        Config.LEADERBOARD_API_KEY,
+      MAINHAND_ATTACK_TYPE:       Config.MAINHAND_ATTACK_TYPE,
+      AUTO_DETECT_LOG:            Config.AUTO_DETECT_LOG,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
   } catch {}
 }
 
-export function setOverlayStyle(style: 'refined' | 'standard' | 'highcontrast'): void {
+export function setOverlayStyle(style: 'refined' | 'highcontrast'): void {
   Config.OVERLAY_STYLE = style
   saveSettings()
   if (!win) return
@@ -193,6 +206,51 @@ export function createSettingsWindow(): void {
   settingsWin.on('closed', () => { settingsWin = null })
 }
 
+// ── Auto log detection ────────────────────────────────────────
+
+let autoDetectTimer: ReturnType<typeof setInterval> | null = null
+const autoDetectPrevSizes = new Map<string, number>()
+
+function normalizePath(p: string): string {
+  return path.normalize(p).toLowerCase()
+}
+
+function startAutoDetect(): void {
+  stopAutoDetect()
+  const dir = lastLogPath ? path.dirname(lastLogPath) : null
+  if (!dir) return
+
+  autoDetectTimer = setInterval(() => {
+    const currentNorm = normalizePath(lastLogPath)
+    try {
+      const files = fs.readdirSync(dir).filter(f => /^eqlog_.+\.txt$/i.test(f))
+      for (const file of files) {
+        const fullPath = path.join(dir, file)
+        try {
+          const stat = fs.statSync(fullPath)
+          const prev = autoDetectPrevSizes.get(fullPath) ?? stat.size
+          autoDetectPrevSizes.set(fullPath, stat.size)
+          if (stat.size > prev && normalizePath(fullPath) !== currentNorm) {
+            console.log(`[AutoDetect] Switching to active log: ${fullPath}`)
+            handleLogSelected(fullPath)
+            // Restart watcher with the new directory (may be same dir, but clears stale sizes)
+            startAutoDetect()
+            return
+          }
+        } catch {}
+      }
+    } catch {}
+  }, 2000)
+}
+
+function stopAutoDetect(): void {
+  if (autoDetectTimer) {
+    clearInterval(autoDetectTimer)
+    autoDetectTimer = null
+  }
+  autoDetectPrevSizes.clear()
+}
+
 // ── App lifecycle ─────────────────────────────────────────────
 
 let win:          BrowserWindow | null = null
@@ -200,6 +258,7 @@ let settingsWin:  BrowserWindow | null = null
 let leaderboardWin: BrowserWindow | null = null
 let stopLog:   (() => void) | null  = null
 let stopZeal:  (() => void) | null  = null
+let activeLogReader: import('./log-reader').LogReader | null = null
 let lastLogPath = ''
 
 let leaderboardManager: LeaderboardManager
@@ -225,6 +284,7 @@ function createWindow(): void {
     x: usePos.x,
     y: usePos.y,
     icon: iconPath,
+    title: 'Basketweaver',
 
     // Overlay properties
     frame:       false,
@@ -264,6 +324,16 @@ function createWindow(): void {
 function stopAllReaders(): void {
   if (stopLog)  { stopLog();  stopLog  = null }
   if (stopZeal) { stopZeal(); stopZeal = null }
+  activeLogReader = null
+}
+
+function forwardEvent(ev: GameEvent): void {
+  // When a weapon is detected, update the active log reader's attack-type regexes
+  // so miss patterns stay in sync (e.g. switching to a slash weapon mid-session).
+  if (ev.type === EvType.WEAPON_DETECTED && activeLogReader) {
+    activeLogReader.updateAttackType(Config.MAINHAND_ATTACK_TYPE)
+  }
+  win?.webContents.send(IPC.GAME_EVENT, ev)
 }
 
 function startReader(logPath: string): void {
@@ -272,24 +342,11 @@ function startReader(logPath: string): void {
   Config.TRACKING_SOURCE = 'log'
   saveSettings()
 
-  const reader = new LogReader(logPath, Config, (ev: GameEvent) => {
-    win?.webContents.send(IPC.GAME_EVENT, ev)
-  })
+  const reader = new LogReader(logPath, Config, forwardEvent)
+  activeLogReader = reader
   stopLog = reader.start()
   saveLastLog(logPath)
   console.log(`[Basketweaver] Tailing: ${logPath}`)
-}
-
-function startZealReader(): void {
-  stopAllReaders()
-  Config.TRACKING_SOURCE = 'zeal'
-  saveSettings()
-
-  const reader = new ZealReader(Config, (ev: GameEvent) => {
-    win?.webContents.send(IPC.GAME_EVENT, ev)
-  })
-  stopZeal = reader.start()
-  console.log('[Basketweaver] Zeal pipe tracking active')
 }
 
 function startHybridReader(): void {
@@ -297,24 +354,21 @@ function startHybridReader(): void {
   Config.TRACKING_SOURCE = 'hybrid'
   saveSettings()
 
-  const zealReader = new ZealReader(Config, (ev: GameEvent) => {
-    win?.webContents.send(IPC.GAME_EVENT, ev)
-  })
+  const zealReader = new ZealReader(Config, forwardEvent)
   stopZeal = zealReader.start()
 
   if (lastLogPath) {
-    const missReader = new LogReader(lastLogPath, Config, (ev: GameEvent) => {
-      win?.webContents.send(IPC.GAME_EVENT, ev)
-    }, { missOnly: true })
+    // missOnly + noBandolier: log handles misses; Zeal pipe owns bandolier detection
+    const missReader = new LogReader(lastLogPath, Config, forwardEvent,
+      { missOnly: true, noBandolier: true })
+    activeLogReader = missReader
     stopLog = missReader.start()
   }
   console.log('[Basketweaver] Hybrid tracking active (Zeal hits + Log misses)')
 }
 
-export function setTrackingSource(source: 'log' | 'zeal' | 'hybrid'): void {
-  if (source === 'zeal') {
-    startZealReader()
-  } else if (source === 'hybrid') {
+export function setTrackingSource(source: 'log' | 'hybrid'): void {
+  if (source === 'hybrid') {
     startHybridReader()
   } else {
     if (lastLogPath) {
@@ -417,6 +471,7 @@ function setupIPC(): void {
     TRACKING_SOURCE:          Config.TRACKING_SOURCE,
     OVERLAY_STYLE:            Config.OVERLAY_STYLE,
     BASE_WEAPON_DELAY:        Config.BASE_WEAPON_DELAY,
+    BASE_WEAPON_NAME:         Config.BASE_WEAPON_NAME,
     OFFHAND_WEAPON_DELAY:     Config.OFFHAND_WEAPON_DELAY,
     PUNCH_INTERVAL:           Config.PUNCH_INTERVAL,
     TARGET_POSITION_PCT:      Config.TARGET_POSITION_PCT,
@@ -425,7 +480,6 @@ function setupIPC(): void {
     CLIP_AUTO:                Config.CLIP_AUTO,
     CLIP_DETECTION_WINDOW:    Config.CLIP_DETECTION_WINDOW,
     WINDOW_OPACITY:           Config.WINDOW_OPACITY,
-    ORIENTATION:              Config.ORIENTATION,
     DYNAMIC_WEAVING:          Config.DYNAMIC_WEAVING,
     SHOW_OFFHAND_TIMER:       Config.SHOW_OFFHAND_TIMER,
     KEYSTROKE_GRADING:        Config.KEYSTROKE_GRADING,
@@ -435,10 +489,12 @@ function setupIPC(): void {
     BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
     WINDOW_PINNED:            Config.WINDOW_PINNED,
-    LEADERBOARD_UPLOAD_ENABLED: Config.LEADERBOARD_UPLOAD_ENABLED,
     LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
-    LEADERBOARD_WORKER_URL:     Config.LEADERBOARD_WORKER_URL,
-    LEADERBOARD_API_KEY:        Config.LEADERBOARD_API_KEY,
+    OFFHAND_CRUSH_ENABLED:        Config.OFFHAND_CRUSH_ENABLED,
+    WEAVE_BANDOLIER_OFF_DELAY_MS: Config.WEAVE_BANDOLIER_OFF_DELAY_MS,
+    AUDIO_DEBOUNCE_MS:            Config.AUDIO_DEBOUNCE_MS,
+    WEAVE_WINDOW_MS:              Config.WEAVE_WINDOW_MS,
+    MAINHAND_ATTACK_TYPE:         Config.MAINHAND_ATTACK_TYPE,
   }))
 
   ipcMain.on(IPC.SETTINGS_SET, (_e, { key, value }: { key: string; value: unknown }) => {
@@ -446,11 +502,13 @@ function setupIPC(): void {
       case 'VOLUME_MASTER':
       case 'VOLUME_PROC':
       case 'VOLUME_EPIC':
+      case 'AUDIO_DEBOUNCE_MS':
         (Config as any)[key] = value
         win?.webContents.send(IPC.SET_VOLUMES, {
-          master: Config.VOLUME_MASTER,
-          proc:   Config.VOLUME_PROC,
-          epic:   Config.VOLUME_EPIC,
+          master:     Config.VOLUME_MASTER,
+          proc:       Config.VOLUME_PROC,
+          epic:       Config.VOLUME_EPIC,
+          debounceMs: Config.AUDIO_DEBOUNCE_MS,
         })
         break
 
@@ -464,17 +522,21 @@ function setupIPC(): void {
         break
 
       case 'TRACKING_SOURCE':
-        setTrackingSource(value as 'log' | 'zeal' | 'hybrid')
+        setTrackingSource(value as 'log' | 'hybrid')
         return  // setTrackingSource already calls saveSettings
 
       case 'OVERLAY_STYLE':
-        setOverlayStyle(value as 'refined' | 'standard' | 'highcontrast')
+        setOverlayStyle(value as 'refined' | 'highcontrast')
         return  // setOverlayStyle already calls saveSettings
 
       case 'OFFHAND_WEAPON_DELAY':
         Config.OFFHAND_WEAPON_DELAY = value as number
-        Config.OFFHAND_WEAPON_NAME  = ''
-        win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: value, name: '' })
+        win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: value, name: Config.OFFHAND_WEAPON_NAME })
+        break
+
+      case 'OFFHAND_WEAPON_NAME':
+        Config.OFFHAND_WEAPON_NAME = value as string
+        win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: Config.OFFHAND_WEAPON_DELAY, name: value })
         break
 
       case 'TARGET_POSITION_PCT':
@@ -521,15 +583,6 @@ function setupIPC(): void {
         }
         break
 
-      case 'ORIENTATION_VERTICAL': {
-        const newOri = (value as boolean) ? 'vertical' : 'horizontal'
-        if (Config.ORIENTATION !== newOri) {
-          Config.ORIENTATION = newOri
-          win?.webContents.send(IPC.TOGGLE_ORIENTATION)
-        }
-        break
-      }
-
       case 'WINDOW_PINNED':
         if (Config.WINDOW_PINNED !== value) {
           Config.WINDOW_PINNED = value as boolean
@@ -547,11 +600,42 @@ function setupIPC(): void {
         win?.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, value)
         break
 
+      case 'PUNCH_INTERVAL':
+        Config.PUNCH_INTERVAL = value as number
+        win?.webContents.send(IPC.SET_PUNCH_INTERVAL, value)
+        break
+
+      case 'WEAVE_WINDOW_MS':
+        Config.WEAVE_WINDOW_MS = value as number
+        win?.webContents.send(IPC.SET_WEAVE_WINDOW_MS, value)
+        break
+
+      case 'BASE_WEAPON_DELAY':
+        Config.BASE_WEAPON_DELAY = value as number
+        win?.webContents.send(IPC.SET_BASE_WEAPON_DELAY, value)
+        break
+
+      case 'MAINHAND_ATTACK_TYPE':
+        Config.MAINHAND_ATTACK_TYPE = value as 'crush' | 'slash' | 'pierce' | 'punch'
+        // Restart reader to recompile verb patterns
+        if (Config.TRACKING_SOURCE === 'hybrid') {
+          startHybridReader()
+        } else if (lastLogPath) {
+          startReader(lastLogPath)
+        }
+        break
+
       case 'LEADERBOARD_CHARACTER_NAME':
-      case 'LEADERBOARD_WORKER_URL':
-      case 'LEADERBOARD_API_KEY':
-      case 'LEADERBOARD_UPLOAD_ENABLED':
         (Config as any)[key] = value
+        break
+
+      case 'AUTO_DETECT_LOG':
+        Config.AUTO_DETECT_LOG = value as boolean
+        if (Config.AUTO_DETECT_LOG) {
+          startAutoDetect()
+        } else {
+          stopAutoDetect()
+        }
         break
 
       default:
@@ -573,10 +657,15 @@ function setupIPC(): void {
     if (leaderboardWin && !leaderboardWin.isDestroyed()) {
       leaderboardWin.webContents.send(IPC.LEADERBOARD_DATA, leaderboardManager.getAll())
     }
-    // Upload if enabled
-    if (Config.LEADERBOARD_UPLOAD_ENABLED && Config.LEADERBOARD_WORKER_URL && Config.LEADERBOARD_API_KEY) {
-      const ok = await leaderboardManager.upload(record, Config.LEADERBOARD_WORKER_URL, Config.LEADERBOARD_API_KEY)
-      console.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for ${record.mobName}`)
+    // Upload automatically when a character is identified and mob is on the allowlist.
+    // Worker URL and API key are embedded at build time — no user configuration required.
+    if (Config.LEADERBOARD_CHARACTER_NAME && __LEADERBOARD_WORKER_URL__ && __LEADERBOARD_API_KEY__) {
+      if (LeaderboardManager.isOnlineEligible(record.mobName)) {
+        const ok = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
+        console.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for ${record.mobName}`)
+      } else {
+        console.log(`[Leaderboard] Skipping upload for ${record.mobName} (not on allowlist)`)
+      }
     }
   })
 
@@ -596,7 +685,7 @@ export function createLeaderboardWindow(): void {
     : path.join(__dirname, '../../src/icon/basketweaver-icon-256.png')
 
   leaderboardWin = new BrowserWindow({
-    width:  1000,
+    width:  1380,
     height: 640,
     title:  'Basketweaver Leaderboard',
     icon:   iconPath,
@@ -624,9 +713,8 @@ export function createLeaderboardWindow(): void {
   leaderboardWin.webContents.on('did-finish-load', () => {
     leaderboardWin?.webContents.send(IPC.LEADERBOARD_DATA, leaderboardManager.getAll())
     leaderboardWin?.webContents.send('leaderboard-config', {
-      workerUrl:      Config.LEADERBOARD_WORKER_URL,
       characterName:  Config.LEADERBOARD_CHARACTER_NAME,
-      uploadEnabled:  Config.LEADERBOARD_UPLOAD_ENABLED,
+      uploadEnabled:  !!(__LEADERBOARD_WORKER_URL__ && __LEADERBOARD_API_KEY__),
     })
   })
 
@@ -692,6 +780,20 @@ function recomputeGoodWindow(): void {
   Config.GOOD_WINDOW = Math.max(0.1, Config.PUNCH_INTERVAL - fistDelay) / 2
 }
 
+app.setName('Basketweaver')
+if (process.platform === 'win32') app.setAppUserModelId('com.basketweaver.app')
+
+// Single-instance lock: if a second instance is launched with --open-settings,
+// forward the request to the running instance.
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', (_e, argv) => {
+    if (argv.includes('--open-settings')) createSettingsWindow()
+  })
+}
+
 app.whenReady().then(async () => {
   loadSettings()
   recomputeGoodWindow()
@@ -699,11 +801,24 @@ app.whenReady().then(async () => {
   setupIPC()
   createWindow()
 
+  // Add Settings to the Windows taskbar right-click Jump List (packaged only —
+  // in dev mode process.execPath is the bare Electron binary, not the app)
+  if (process.platform === 'win32' && app.isPackaged) {
+    app.setUserTasks([{
+      program:     process.execPath,
+      arguments:   '--open-settings',
+      iconPath:    process.execPath,
+      iconIndex:   0,
+      title:       'Settings',
+      description: 'Open Basketweaver settings',
+    }])
+  }
+
   // Create tray
   createTray(win!, () => app.quit(), saveSettings, async () => {
     const p = await pickLogFile()
     if (p) handleLogSelected(p)
-  }, resetWindowPosition, setOverlayStyle, setTrackingSource, createSettingsWindow, createLeaderboardWindow)
+  }, resetWindowPosition, createSettingsWindow, createLeaderboardWindow)
 
   // Check for updates (no-op in dev mode)
   setupAutoUpdater()
@@ -719,14 +834,16 @@ app.whenReady().then(async () => {
       delay: Config.OFFHAND_WEAPON_DELAY,
       name:  Config.OFFHAND_WEAPON_NAME,
     })
+    win!.webContents.send(IPC.SET_BASE_WEAPON_DELAY, Config.BASE_WEAPON_DELAY)
     if (!Config.DYNAMIC_WEAVING)    win!.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
     if (!Config.SHOW_OFFHAND_TIMER) win!.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
 
     // Sync audio volumes and thresholds to renderer
     win!.webContents.send(IPC.SET_VOLUMES, {
-      master: Config.VOLUME_MASTER,
-      proc:   Config.VOLUME_PROC,
-      epic:   Config.VOLUME_EPIC,
+      master:     Config.VOLUME_MASTER,
+      proc:       Config.VOLUME_PROC,
+      epic:       Config.VOLUME_EPIC,
+      debounceMs: Config.AUDIO_DEBOUNCE_MS,
     })
     win!.webContents.send(IPC.SET_THRESHOLDS, {
       critDamage: Config.CRIT_DAMAGE_THRESHOLD,
@@ -738,10 +855,6 @@ app.whenReady().then(async () => {
     if (Config.SHOW_ALL_CRITS)           win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
     if (Config.POSITIVE_AUDIO_IN_WINDOW) win!.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, true)
 
-    if (Config.TRACKING_SOURCE === 'zeal') {
-      startZealReader()
-      return
-    }
     if (Config.TRACKING_SOURCE === 'hybrid') {
       const logPath = loadLastLog()
       if (logPath) {
@@ -750,6 +863,7 @@ app.whenReady().then(async () => {
         win?.webContents.send(IPC.LOG_SELECTED, logPath)
       }
       startHybridReader()
+      if (Config.AUTO_DETECT_LOG) startAutoDetect()
       return
     }
     const logPath = loadLastLog()
@@ -765,11 +879,13 @@ app.whenReady().then(async () => {
         }
       })
     }
+    if (Config.AUTO_DETECT_LOG) startAutoDetect()
   })
 })
 
 app.on('window-all-closed', () => {
   stopAllReaders()
+  stopAutoDetect()
   if (process.platform !== 'darwin') app.quit()
 })
 

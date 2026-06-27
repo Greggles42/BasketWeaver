@@ -101,12 +101,17 @@ function render(): void {
   }
 
   tbody.innerHTML = rows.map(r => {
-    const discs = r.disciplinesUsed.join(', ') || '—'
     const ba = r.buffsActive ?? { avatar: 0, savagery: 0, innerflame: 0 }
+    // Disciplines: named discs used + innerflame % if active during fight
+    const discParts = [...r.disciplinesUsed]
+    if (ba.innerflame > 0 && !discParts.includes('innerflame'))
+      discParts.push(`Innerflame ${(ba.innerflame * 100).toFixed(0)}%`)
+    else if (discParts.includes('innerflame'))
+      discParts.splice(discParts.indexOf('innerflame'), 1, `Innerflame ${(ba.innerflame * 100).toFixed(0)}%`)
+    const discs = discParts.join(', ') || '—'
     const buffs = [
-      ba.avatar     > 0 ? `Avatar ${(ba.avatar     * 100).toFixed(0)}%` : '',
-      ba.savagery   > 0 ? `Savagery ${(ba.savagery   * 100).toFixed(0)}%` : '',
-      ba.innerflame > 0 ? `Innerflame ${(ba.innerflame * 100).toFixed(0)}%` : '',
+      ba.avatar   > 0 ? `Avatar ${(ba.avatar   * 100).toFixed(0)}%`   : '',
+      ba.savagery > 0 ? `Savagery ${(ba.savagery * 100).toFixed(0)}%` : '',
     ].filter(Boolean).join(', ') || '—'
 
     const uploaded = uploadedIds.has(r.id)

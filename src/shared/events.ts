@@ -17,8 +17,11 @@ export const enum EvType {
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
   WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
-  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame', active: boolean }
+  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame'|'whirlwind', active: boolean }
   CRIT_HIT        = 'CRIT_HIT',        // data: { damage: number }
+  STATS_UPDATE    = 'STATS_UPDATE',    // data: { atkRating?: number, hastePct?: number }
+  WEAPON_TRACK       = 'WEAPON_TRACK',       // data: { mainhand: string, offhand: string }
+  BANDOLIER_CHANGED  = 'BANDOLIER_CHANGED',  // data: { setName: string, isWeaveSet: boolean }
 }
 
 export interface GameEvent {
@@ -40,7 +43,6 @@ export const IPC = {
   LOG_SELECTED:      'log-selected',       // main → renderer: string (path)
   QUIT:              'quit',               // tray → main
   TOGGLE_AUDIO:          'toggle-audio',          // tray → renderer
-  TOGGLE_ORIENTATION:    'toggle-orientation',    // tray → renderer
   SET_TARGET_POSITION:  'set-target-position',  // tray → renderer: number (pct)
   SET_OPACITY:       'set-opacity',        // tray → main: number (0–1)
   REQUEST_STATUS:    'request-status',     // tray → renderer
@@ -68,4 +70,11 @@ export const IPC = {
   TOP_RECORDS_UPDATE:     'top-records-update',
   SET_SHOW_ALL_CRITS:           'set-show-all-crits',
   SET_POSITIVE_AUDIO_IN_WINDOW: 'set-positive-audio-in-window',
+  SET_WEAVE_WINDOW_MS:          'set-weave-window-ms',
+  SET_PUNCH_INTERVAL:           'set-punch-interval',
+  SET_BASE_WEAPON_DELAY:        'set-base-weapon-delay',
+  LEADERBOARD_RECORD:  'leaderboard-record',   // renderer → main: EncounterRecord
+  LEADERBOARD_GET:     'leaderboard-get',       // renderer → main: request records
+  LEADERBOARD_DATA:    'leaderboard-data',      // main → renderer: EncounterRecord[]
+  LEADERBOARD_OPEN:    'leaderboard-open',      // tray/renderer → main: open leaderboard window
 } as const
