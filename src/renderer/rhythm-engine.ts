@@ -473,7 +473,11 @@ export class RhythmEngine {
       // weapon delay — a skipped/OOR swing appears as ≥2× the real interval and
       // would otherwise drag the median too low.
       const maxPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) * 1.3
-      if (!this.roundSkipCalibration && measured >= 0.5 && measured <= maxPlausible) {
+      // Minimum plausible interval = weapon at 125% haste cap (base / 2.25).
+      // Any measured gap shorter than this must be a riposte or other non-swing event
+      // that slipped through — reject it before it can pollute the rolling median.
+      const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 2.25
+      if (!this.roundSkipCalibration && measured >= minPlausible && measured <= maxPlausible) {
         this.measuredIntervals.push(measured)
         if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
           this.measuredIntervals.shift()
@@ -483,9 +487,6 @@ export class RhythmEngine {
       const raw = this.measuredIntervals.length >= 3
         ? RhythmEngine.median(this.measuredIntervals)
         : this.cfg.PUNCH_INTERVAL
-      // 125% haste cap: if the median implies haste > 125%, the buffer is corrupted
-      // (wrong weapon reference or proc counted as mainhand). Reject and reset.
-      const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 2.25
       if (raw < minPlausible) {
         this.measuredIntervals = []
         interval = this.cfg.PUNCH_INTERVAL
