@@ -8,6 +8,7 @@ declare global {
       getSettings(): Promise<Record<string, unknown>>
       setSetting(key: string, value: unknown): void
       close(): void
+      onCharacterWeaponsLoaded?(cb: (ws: Record<string, unknown>) => void): void
     }
   }
 }
@@ -425,6 +426,33 @@ async function init(): Promise<void> {
       window.settingsAPI.setSetting('MAINHAND_ATTACK_TYPE', attackTypeSel.value)
     })
   }
+
+  // ── Character weapon set live-reload ─────────────────────────
+  // When the user switches characters (auto-detect or manual log select), the main
+  // process loads that character's saved weapons and sends this event so the display
+  // updates without needing to close and reopen the settings window.
+  window.settingsAPI.onCharacterWeaponsLoaded?.((ws) => {
+    const mhDelay = ws.BASE_WEAPON_DELAY as number
+    const mhName  = ws.BASE_WEAPON_NAME  as string
+    const ohDelay = ws.OFFHAND_WEAPON_DELAY as number
+    const ohName  = ws.OFFHAND_WEAPON_NAME  as string
+
+    const mhCurrent = document.getElementById('mainhandCurrent')
+    if (mhCurrent) {
+      mhCurrent.textContent = mhName
+        ? `${mhName}  (${(mhDelay / 10).toFixed(1)}s)`
+        : `${(mhDelay / 10).toFixed(1)}s (custom)`
+    }
+
+    const ohCurrent = document.getElementById('offhandCurrent')
+    if (ohCurrent) {
+      ohCurrent.textContent = ohName
+        ? `${ohName}  (${(ohDelay / 10).toFixed(1)}s)`
+        : `${(ohDelay / 10).toFixed(1)}s (custom)`
+    }
+
+    if (attackTypeSel) attackTypeSel.value = (ws.MAINHAND_ATTACK_TYPE as string) ?? 'crush'
+  })
 
   // ── Target offset select (stored in seconds, displayed in ms) ──
   const offsetOpts: [string, number][] = TARGET_OFFSETS.map(ms => [`${ms} ms`, ms / 1000])

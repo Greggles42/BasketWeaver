@@ -51,6 +51,83 @@ function saveLastLog(logPath: string): void {
   } catch {}
 }
 
+// ── Per-character weapon sets ─────────────────────────────────
+
+interface WeaponSet {
+  BASE_WEAPON_DELAY:   number
+  BASE_WEAPON_NAME:    string
+  MAINHAND_ATTACK_TYPE: string
+  OFFHAND_WEAPON_DELAY: number
+  OFFHAND_WEAPON_NAME:  string
+}
+
+const CHAR_WEAPONS_FILE = () => path.join(configDir(), 'character-weapons.json')
+
+function loadAllCharacterWeapons(): Record<string, WeaponSet> {
+  try {
+    const p = CHAR_WEAPONS_FILE()
+    if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf8'))
+  } catch {}
+  return {}
+}
+
+function saveCharacterWeapons(): void {
+  const charName = Config.LEADERBOARD_CHARACTER_NAME
+  if (!charName) return
+  try {
+    const all = loadAllCharacterWeapons()
+    all[charName] = {
+      BASE_WEAPON_DELAY:    Config.BASE_WEAPON_DELAY,
+      BASE_WEAPON_NAME:     Config.BASE_WEAPON_NAME,
+      MAINHAND_ATTACK_TYPE: Config.MAINHAND_ATTACK_TYPE,
+      OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
+      OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
+    }
+    fs.writeFileSync(CHAR_WEAPONS_FILE(), JSON.stringify(all, null, 2), 'utf8')
+  } catch (err) {
+    console.error('[CharWeapons] Failed to save:', err)
+  }
+}
+
+function applyCharacterWeapons(charName: string, skipReaderRestart = false): void {
+  const all = loadAllCharacterWeapons()
+  const ws = all[charName]
+  if (!ws) return
+
+  const prevAttackType = Config.MAINHAND_ATTACK_TYPE
+  Config.BASE_WEAPON_DELAY    = ws.BASE_WEAPON_DELAY
+  Config.BASE_WEAPON_NAME     = ws.BASE_WEAPON_NAME
+  Config.MAINHAND_ATTACK_TYPE = ws.MAINHAND_ATTACK_TYPE as 'crush' | 'slash' | 'pierce' | 'punch'
+  Config.OFFHAND_WEAPON_DELAY = ws.OFFHAND_WEAPON_DELAY
+  Config.OFFHAND_WEAPON_NAME  = ws.OFFHAND_WEAPON_NAME
+
+  // Notify overlay renderer
+  win?.webContents.send(IPC.SET_BASE_WEAPON_DELAY, ws.BASE_WEAPON_DELAY)
+  win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: ws.OFFHAND_WEAPON_DELAY, name: ws.OFFHAND_WEAPON_NAME })
+
+  // Refresh settings window if open — it will re-read SETTINGS_GET on next open,
+  // but if already open send a reload signal so weapon fields update immediately.
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.webContents.send('character-weapons-loaded', ws)
+  }
+
+  // Restart the log reader only when the attack type changed and not already restarting.
+  // handleLogSelected always restarts the reader itself so we skip it there.
+  if (!skipReaderRestart) {
+    if (ws.MAINHAND_ATTACK_TYPE !== prevAttackType) {
+      if (Config.TRACKING_SOURCE === 'hybrid') {
+        startHybridReader()
+      } else if (lastLogPath) {
+        startReader(lastLogPath)
+      }
+    } else if (activeLogReader) {
+      activeLogReader.updateAttackType(Config.MAINHAND_ATTACK_TYPE)
+    }
+  }
+
+  console.log(`[CharWeapons] Loaded weapons for ${charName}: ${ws.BASE_WEAPON_NAME} / ${ws.OFFHAND_WEAPON_NAME}`)
+}
+
 // ── Persist user settings ─────────────────────────────────────
 
 const SETTINGS_FILE = () => path.join(configDir(), 'settings.json')
@@ -404,7 +481,10 @@ function handleLogSelected(p: string): void {
   // Auto-derive character name from log filename: eqlog_CharName_Server.txt
   const filename = path.basename(p)
   const m = filename.match(/^eqlog_([^_]+)_/i)
-  if (m) Config.LEADERBOARD_CHARACTER_NAME = m[1]
+  if (m) {
+    Config.LEADERBOARD_CHARACTER_NAME = m[1]
+    applyCharacterWeapons(m[1], true)
+  }
   if (Config.TRACKING_SOURCE === 'hybrid') {
     startHybridReader()
   } else {
@@ -613,6 +693,22 @@ function setupIPC(): void {
       case 'BASE_WEAPON_DELAY':
         Config.BASE_WEAPON_DELAY = value as number
         win?.webContents.send(IPC.SET_BASE_WEAPON_DELAY, value)
+        saveCharacterWeapons()
+        break
+
+      case 'BASE_WEAPON_NAME':
+        Config.BASE_WEAPON_NAME = value as string
+        saveCharacterWeapons()
+        break
+
+      case 'OFFHAND_WEAPON_DELAY':
+        Config.OFFHAND_WEAPON_DELAY = value as number
+        saveCharacterWeapons()
+        break
+
+      case 'OFFHAND_WEAPON_NAME':
+        Config.OFFHAND_WEAPON_NAME = value as string
+        saveCharacterWeapons()
         break
 
       case 'MAINHAND_ATTACK_TYPE':
@@ -623,6 +719,7 @@ function setupIPC(): void {
         } else if (lastLogPath) {
           startReader(lastLogPath)
         }
+        saveCharacterWeapons()
         break
 
       case 'LEADERBOARD_CHARACTER_NAME':

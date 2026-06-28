@@ -14,4 +14,8 @@ contextBridge.exposeInMainWorld('settingsAPI', {
 
   close: (): void =>
     ipcRenderer.send('close-settings'),
+
+  onCharacterWeaponsLoaded: (cb: (ws: Record<string, unknown>) => void): void => {
+    ipcRenderer.on('character-weapons-loaded', (_e, ws) => cb(ws))
+  },
 })
