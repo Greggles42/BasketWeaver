@@ -259,7 +259,7 @@
     function buildTable(records) {
       const rows = records.map((r, i) => {
         const discs = (() => { try { const d = JSON.parse(r.disciplines_used ?? '[]'); return d.join(', ') || '—' } catch { return '—' } })()
-        const buffs = (() => { try { const b = JSON.parse(r.buffs_at_start ?? '{}'); return [b.avatar ? 'Avatar' : '', b.savagery ? 'Savagery' : ''].filter(Boolean).join(', ') || '—' } catch { return '—' } })()
+        const buffs = (() => { try { const b = JSON.parse(r.buffs_at_start ?? '{}'); return [b.avatar ? `Avatar ${b.avatar}%` : '', b.savagery ? `Savagery ${b.savagery}%` : ''].filter(Boolean).join(', ') || '—' } catch { return '—' } })()
         return `<tr>
           <td>${i + 1}</td>
           <td>${escHtml(r.mob_name)}</td>

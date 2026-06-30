@@ -1,5 +1,5 @@
 # Basketweaver — User Manual
-## Version 2.2.0-beta.1
+## Version 2.2.0
 
 Basketweaver is a real-time timing overlay for EverQuest weapon-weaving.
 It draws a scrolling highway showing when to swap to your offhand weapon set
@@ -52,7 +52,7 @@ scale to other classes.
 
 ### What Basketweaver Does
 
-Basketweaver watches every mainhand crush in real time and calculates exactly when
+Basketweaver watches every mainhand swing in real time and calculates exactly when
 your next swing will fire. It draws a scrolling **highway** overlay on top of
 EverQuest with a **green weave window** that shows the safe zone for your weapon
 swap. The window approaches a fixed **hit zone** at the left of the highway — when
@@ -77,7 +77,7 @@ EverQuest game client
 Both paths converge here:
         │
         ▼
-   Event parser  (detects crush hits/misses, fist attacks, haste, death)
+   Event parser  (detects hits/misses, fist attacks, haste, death)
         │
         ▼
    Rhythm engine  (measures swing intervals, places weave windows, scores attempts)
@@ -89,7 +89,7 @@ Both paths converge here:
 ### Interval Measurement & Auto-Calibration
 
 Basketweaver does not rely solely on your configured weapon delay. After each
-mainhand crush, it measures the actual elapsed time since the previous crush and
+mainhand swing, it measures the actual elapsed time since the previous swing and
 maintains a rolling median of the last 6 measurements. When the measured median
 drifts more than 50 ms from the current interval, the overlay silently adjusts
 and shows a brief **Auto-calibrated** banner.
@@ -97,6 +97,13 @@ and shows a brief **Auto-calibrated** banner.
 Calibration samples are filtered: any gap larger than 130% of the unhasted weapon
 delay is discarded as a skipped swing (out of range, interrupted, etc.) and does
 not pollute the median.
+
+### Weapon Attack Types
+
+Basketweaver tracks mainhand swings for all attack types — **crush**, **slash**,
+and **pierce** — and automatically switches verb matching when a weapon preset is
+detected. Ripostes are never counted as mainhand swing events, regardless of weapon
+type; they are credited only toward total DPS.
 
 ### Grading
 
@@ -187,12 +194,12 @@ scoring timestamp backward by the configured amount so the hit is judged at the
 correct point on the highway. Typical values: 25–75 ms.
 
 **Round**
-A complete mainhand swing cycle — from one crush (or miss) to the next. Basketweaver
+A complete mainhand swing cycle — from one swing (or miss) to the next. Basketweaver
 clusters rapid successive mainhand events within a 500 ms window into the same round
 to handle dual-wield proc firings.
 
 **Reaction time**
-The delay between your mainhand crush landing and your first fist attempt in that
+The delay between your mainhand swing landing and your first fist attempt in that
 round. Shown as **avg reaction** on the grade screen. Lower is better — ideally
 under 200 ms.
 
@@ -235,6 +242,18 @@ Your character name is read from the log filename and displayed in the header.
 If the overlay ever ends up off-screen, use tray → **Reset Window Position** to
 snap it back to the center of your primary monitor.
 
+### Auto-Detect Active Log
+
+If you play multiple characters or frequently switch between them, enable
+**Auto-detect Active Log** in Settings → **Options**. When active, Basketweaver
+monitors all `eqlog_*.txt` files in your log directory every 2 seconds and
+automatically switches to whichever file is actively growing — no manual log
+selection needed when changing characters.
+
+> **Note:** Auto-detect only starts scanning once an initial log file has been
+> selected (it needs to know which directory to watch). Select any log file once
+> at first launch.
+
 ### Open Settings
 Right-click the tray icon → **Settings…** to open the Settings window.
 All major configuration options live here. See [Section 8](#8-settings-window) for
@@ -245,30 +264,60 @@ In Settings → **Weapon & Timing** → **Mainhand Weapon**, type to search your
 by name and select it from the dropdown. Alternatively, use tray → **Mainhand Delay**
 to pick from the full preset list.
 
-| Weapon | Delay |
-|---|---|
-| Imbued Fighters Staff | 4.0s |
-| Norge`tal | 4.5s |
-| Ton Po's Bo Stick of Understanding | 4.0s |
-| Twisted Steel Bastard Sword | 4.5s |
-| Bo Staff of Trorsmang | 3.5s |
-| Abashi's Rod of Disempowerment | 3.0s |
-| Aggression | 4.0s |
-| Bloodied Berserker's Blade | 4.0s |
-| Caen's Bo Staff of Fury | 3.0s |
-| Emaciated Maul of the Overseer | 4.5s |
-| Facesmasher | 4.2s |
-| Feartouched Greatsword | 4.0s |
-| Gaudralek, Sword of the Sky | 3.8s |
-| Greatsword of the Disciple | 4.0s |
-| Meljeldin, Bane of Giants | 3.8s |
-| Palladius' Axe of Slaughter | 4.2s |
-| Rocksmasher | 4.1s |
-| Scalecracker | 4.3s |
-| Scythe of Shadows | 4.0s |
-| Shovel of the Harvest | 4.3s |
-| The Sword of Ssraeshza | 4.2s |
-| Tranquil Staff | 3.0s |
+| Weapon | Delay | Type |
+|---|---|---|
+| Skull Staff of Geoffrey | 2.0s | crush |
+| Runed Fighters Staff | 2.0s | crush |
+| Wu's Quivering Staff | 2.8s | crush |
+| Abashi's Rod of Disempowerment | 3.0s | crush |
+| Caen's Bo Staff of Fury | 3.0s | crush |
+| Peacebringer | 3.0s | crush |
+| The Arm of Quellious | 3.0s | crush |
+| Tranquil Staff | 3.0s | crush |
+| Bo Staff of Trorsmang | 3.5s | crush |
+| Efreeti Ice Staff | 3.5s | crush |
+| Tae Ew Two Hand Hammer | 3.5s | crush |
+| Amygdalan War Staff | 3.6s | crush |
+| Exquisite Velium Brawl Stick | 3.6s | crush |
+| Rod of Mourning | 3.6s | crush |
+| Tae Ew War Maul | 3.6s | crush |
+| Wrapped Velium Brawl Stick | 3.6s | crush |
+| Carved Velium Brawl Stick | 3.7s | crush |
+| Massive Velium Brawl Stick | 3.7s | crush |
+| Staff of Battle | 3.7s | crush |
+| Etched Velium Brawl Stick | 3.8s | crush |
+| Gaudralek, Sword of the Sky | 3.8s | slash |
+| Meljeldin, Bane of Giants | 3.8s | slash |
+| Runestone Maul | 3.8s | crush |
+| Heavy Velium Brawl Stick | 3.9s | crush |
+| Petrified Heartwood Flamberge | 3.9s | slash |
+| Aggression | 4.0s | crush |
+| Bloodied Berserker's Blade | 4.0s | slash |
+| Bruiser's Beatstick | 4.0s | crush |
+| Feartouched Greatsword | 4.0s | slash |
+| Great Maul of Slaughter | 4.0s | crush |
+| Greatsword of the Disciple | 4.0s | slash |
+| Imbued Fighters Staff | 4.0s | crush |
+| Scythe of Shadows | 4.0s | slash |
+| Ton Po's Bo Stick of Understanding | 4.0s | crush |
+| Yttrium War Hammer | 4.0s | crush |
+| Rocksmasher | 4.1s | crush |
+| Facesmasher | 4.2s | crush |
+| Palladius' Axe of Slaughter | 4.2s | slash |
+| The Sword of Ssraeshza | 4.2s | slash |
+| Frostreaver | 4.3s | slash |
+| Herbalists Spade | 4.3s | crush |
+| Scalecracker | 4.3s | crush |
+| Shovel of the Harvest | 4.3s | crush |
+| Ancient Prismatic Brawl Stick | 4.4s | crush |
+| Petrified Rod | 4.4s | crush |
+| Priceless Velium Brawl Stick | 4.4s | crush |
+| Premier Brawl Stick of Secundae | 4.4s | crush |
+| Primal Velium Brawl Stick | 4.4s | crush |
+| Emaciated Maul of the Overseer | 4.5s | crush |
+| Norge\`tal | 4.5s | slash |
+| Twisted Steel Bastard Sword | 4.5s | slash |
+| Blackstone Maul | 5.3s | crush |
 
 ### Set Your Offhand (Fist) Weapon Delay
 In Settings → **Weapon & Timing** → **Offhand Weapon**, search and select your fist
@@ -404,6 +453,19 @@ If you try to swap weapons while holding an item on your cursor, EQ will
 block the swap. Basketweaver detects this, shows a **CURSOR!** banner,
 and plays an error sound so you know to clear your cursor immediately.
 
+### No-Log / Stale-Log Notice
+
+When no log file is selected, or when the selected log has not received any
+new events for more than 60 seconds, a pulsing message appears on the highway:
+
+| Situation | Line 1 | Line 2 |
+|---|---|---|
+| No log selected | *No log file selected* | *Right-click tray → Select Log* |
+| Log inactive (60 s) | *Log not updating* | *Is EQ running?* |
+
+The notice is hidden as soon as combat events begin arriving. It does not appear
+during active combat or on the grade screen.
+
 ### Footer Stats
 
 | Stat | Description |
@@ -480,7 +542,7 @@ your performance for that fight:
 - **Grade** is based on what fraction of mainhand rounds had a fist weave attempt.
 - **Net DPS** is your total melee damage output divided by fight duration.
 - **+N dps from weaving** is the DPS contribution from fist attacks alone.
-- **Avg reaction** is the average time from your mainhand crush to the first fist
+- **Avg reaction** is the average time from your mainhand swing to the first fist
   attack in that round — measured per round, one sample per round.
 
 Press **Space** to dismiss.
@@ -592,7 +654,7 @@ all persisted settings are restored.
 
 | Setting | Description |
 |---|---|
-| **Mainhand Weapon** | Search and select your 2H weapon; sets the base delay |
+| **Mainhand Weapon** | Search and select your 2H weapon; sets the base delay and attack type |
 | **Offhand Weapon** | Search and select your fist/offhand weapon; sets offhand delay |
 | **Mainhand Swing Interval** | Override the post-haste swing interval manually |
 | **Target Offset** | Fine-tune hit zone timing in ms (positive = later) |
@@ -625,17 +687,13 @@ the custom field that appears when no preset matches your search.
 | **Show All Crits on Track** | Display all critical hit banners on the highway, not just those above the epic threshold |
 | **Positive Feedback Audio in Weave Windows** | Play the punch sound on any in-window attempt; play the whiff sound only for out-of-window swings |
 | **Weave Off Delay (ms)** | How long to keep the weave state active after a swap-back bandolier message is detected (Zeal pipe may arrive before the hit) |
+| **Auto-detect Active Log** | Monitor all eqlog_*.txt files in the log directory and automatically switch to whichever file is actively growing. Useful when changing characters without restarting Basketweaver. |
 
 ### Leaderboard
 
-Configure the community leaderboard upload feature. See [Section 10](#10-leaderboard).
-
 | Setting | Description |
 |---|---|
-| **Character Name** | Your character name for leaderboard records (auto-detected from log or Zeal) |
-| **Vercel URL** | URL of the community leaderboard API (e.g. `https://basketweaver.vercel.app`) |
-| **API Key** | Shared secret required for POST authentication |
-| **Upload records to community leaderboard** | Enable automatic upload of fight records after each fight |
+| **Character Name** | Your character name for leaderboard records. Auto-detected from the log filename — only set this manually if you want to override it. |
 
 ---
 
@@ -667,8 +725,8 @@ Right-click the Basketweaver icon in the system tray to open the menu.
 
 ## 10. Leaderboard
 
-The Leaderboard window stores and displays your fight records locally, and
-optionally uploads them to a shared community board.
+The Leaderboard window stores your fight records locally and automatically uploads
+eligible kills to the shared community board at **basketweaver.vercel.app**.
 
 ### Opening the Leaderboard
 
@@ -709,21 +767,54 @@ per-second DPS (normalized over a 15-second window for the first 15 seconds to
 remove the initial spike), a peak DPS marker, and a grid with 15-second intervals.
 Click **Close Chart** to dismiss.
 
-### Uploading to the Community Board
+### Community Leaderboard Uploads
 
-Individual records can be uploaded by clicking the **Upload** button in each row.
-To upload all visible (filtered) records at once, click **Upload All**.
+Fight records are **uploaded automatically** after each fight — no configuration
+required. Uploads happen when:
 
-Once sent, the button changes to **✓ Sent**.
+1. Your character name has been identified (from the log filename or Zeal pipe), **and**
+2. The killed mob is on the approved raid boss list (see below).
 
-To configure upload credentials, open **Settings…** → **Leaderboard** section and
-enter your Vercel URL and API Key. Check **Upload records to community leaderboard**
-to upload automatically after each fight.
+All kills are saved to your **local** leaderboard regardless of whether they qualify
+for the community board. Only specific Classic, Kunark, Velious, and Luclin raid
+bosses are eligible for community upload.
 
-A **View Community Board ↗** link appears in the leaderboard window once a Vercel
-URL is configured.
+**Eligible mobs by expansion:**
 
-> **Note:** Records are stored locally in `%APPDATA%\Basketweaver\leaderboard.json`.
+| Expansion | Zone | Mobs |
+|---|---|---|
+| **Classic** | Nagafen's Lair | Lord Nagafen |
+| | Permafrost Keep | Lady Vox |
+| | Plane of Fear | Cazic Thule, Dread, Fright, Terror |
+| | Plane of Hate | Innoruuk |
+| | Plane of Sky | Thunder Spirit Princess, Noble Dojorn, Protector of Sky, Gorgalosk, Keeper of Souls, Overseer of Air, Spiroc Guardian, The Spiroc Lord, Bazzt Zzzt, Sister of the Spire, Hand of Veeshan, Eye of Veeshan |
+| **Kunark** | Emerald Jungle | Severilous |
+| | Skyfire Mountains | Talendor |
+| | Timorous Deep | Faydedar |
+| | Dreadlands | Gorenaire |
+| | Old Sebilis | Trakanon |
+| | Karnor's Castle | Venril Sathir |
+| | Chardok | King Tearis Thex, Queen Velazul Di'Zok |
+| | Veeshan's Peak | Silverwing, Hoshkar, Phara Dar, Nexona, Druushk, Xygoz |
+| **Velious** | Icewell Keep | Dain Frostreaver IV |
+| | Western Wastes | Klandicar, Sontalak |
+| | Dragon Necropolis | Zlandicar |
+| | Kael Drakkal | Derakor the Vindicator, Statue of Rallos Zek, King Tormax |
+| | Skyshrine | Lord Yelinak |
+| | Velketor's Labyrinth | Velketor the Sorcerer |
+| | Plane of Growth | Tunare |
+| | Wakening Land | Wuoshi, Lord Doljonijiarnimorinar |
+| | Sleeper's Tomb | Hraashna, Nanzata, Tukaarak, Ventani, The Progenitor, Master of the Guard, The Final Arbiter, Kerafyrm |
+| | Temple of Veeshan | Zeixshi-Kar, Tjudawos, Vyskudra, Kildrukaun the Ancients, Casalem, Essedera, Grozzmel, Krigara, Lepethida, Midayor, Tavekalem, Ymmeln, Zemm |
+| | North Temple of Veeshan | Aaryonar, Dozekar the Cursed, Cekenar, Lord Feshlak, Jorlleag, Lord Koi'Doken, Lord Kreizenn, Lendiniara the Keeper, Lady Mirenilla, Lady Nevederia, Sevalak, Lord Vyemm, Dagarn the Destroyer, Zlexak, Eashen of the Sky, Ikatiar the Venom, Gozzrem, Telkorenar, Vulak\`Aerr |
+| **Luclin** | Ssraeshza Temple | Xerikizh the Creator, The High Priest of Ssraeshza, Emperor Ssraeshza, A Glyph Covered Serpent, Vyzh\`dra the Exiled, Vyzh\`dra the Cursed |
+| | Sanctus Seru | Lord Inquisitor Seru |
+| | Acrylia Caverns | Khati Sha the Twisted |
+| | Akheva Ruins | The Itraer Vius, Shei Vinitras, The Insanity Crawler |
+| | Grieg's End | Grieg Veneficus |
+| | Vex Thal | Kaas Thox Xi Ans Dyek, Diabo Xi Xin, Diabo Xi Va, Diabo Xi Xin Thall, Thall Va Kelun, Diabo Xi Va Terminiel, Thunderos Xi Diabo, Va Xi Aten Ha Ra, Aten Ha Ra |
+
+> **Records are stored locally in `%APPDATA%\Basketweaver\leaderboard.json`.**
 > Up to 100 records per mob name are kept, ranked by total DPS. History persists
 > between sessions.
 
@@ -751,6 +842,16 @@ Weave windows only appear once you enter combat. Make sure logging is
 enabled (`/log on`) and the correct log file is selected. The header
 shows IDLE when no combat is detected.
 
+**"No log file selected" message on the overlay**
+No log file has been selected yet. Right-click the tray icon and choose
+**Select Log File…**, or enable **Auto-detect Active Log** in Settings to
+have Basketweaver find it automatically.
+
+**"Log not updating" message on the overlay**
+The selected log file has not received new events in over 60 seconds.
+Check that EverQuest is running and that logging is enabled (`/log on`).
+The message clears automatically as soon as new events arrive.
+
 **Interval seems wrong after zoning or getting a haste buff**
 Press `↑` or `↓` to nudge the interval, or run `/mystats` to let
 Basketweaver re-sync automatically.
@@ -770,6 +871,12 @@ or `TARGET has been slain by X` — provided you attacked that target within the
 last 10 seconds. It also fires when you die. Zone and logout end combat silently
 with no grade screen.
 
+**Mainhand miss audio not playing after switching weapons**
+Basketweaver updates its attack-verb patterns automatically when a weapon
+preset is detected via `/mystats`. If you swap to a slash or pierce weapon
+mid-session without running `/mystats`, the patterns may not have updated
+yet. Run `/mystats` to trigger re-detection.
+
 **Out-of-range alert sound keeps playing**
 The two-tone blip plays at most once every 1.5 seconds while you are in
 combat and out of range. It stops as soon as your mainhand connects again.
@@ -782,9 +889,9 @@ audio. You can also toggle via tray → **Audio** or Settings → **Audio Enable
 
 **App asks for a log file every time**
 If the previously saved log file is deleted or moved, the picker will
-open on launch. Select the new path and it will be remembered. If you
-use Hybrid mode, a log file is still recommended — switch tracking source
-in Settings if you prefer log-only mode.
+open on launch. Select the new path and it will be remembered. Enable
+**Auto-detect Active Log** in Settings to avoid manual selection when
+switching characters.
 
 **Hybrid mode shows no events from Zeal**
 - Confirm Zeal is loaded in EverQuest (`/zeal` should respond in-game).
@@ -811,10 +918,11 @@ Records are only saved after a fight completes (mob or player death).
 If you have completed fights and still see nothing, check that
 `%APPDATA%\Basketweaver\leaderboard.json` exists and is readable.
 
-**Upload button does nothing**
-Ensure the Vercel URL and API Key are configured in Settings → **Leaderboard**.
-Check that your internet connection is available. Upload requests time out after
-8 seconds; if the community server is unreachable the button will silently fail.
+**Kill record was not uploaded to the community board**
+Only the approved raid boss mobs are uploaded (see [Section 10](#10-leaderboard)
+for the full list). All other kills are saved locally only. Also confirm that
+your character name has been identified — check the header of the overlay or
+the Character Name field in Settings → Leaderboard.
 
 ---
 

@@ -20,9 +20,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const client = await db.connect()
   try {
     const result = await client.query(
-      `SELECT mob_name, COUNT(*) AS count, MAX(total_dps) AS best_dps
+      `SELECT mob_name, COUNT(*) AS count, MAX(total_dps) AS best_dps, MAX(timestamp) AS last_upload
        FROM records ${where}
-       GROUP BY mob_name ORDER BY count DESC`,
+       GROUP BY mob_name ORDER BY last_upload DESC`,
       params
     )
     return res.status(200).json({ mobs: result.rows })

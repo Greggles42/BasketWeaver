@@ -67,8 +67,8 @@ export class LogReader {
 
   // ── Bandolier weave tracking: state shared via cfg.WEAVE_BANDOLIER_ACTIVE ──
 
-  // Extracts target name from "You crush/punch/strike X for N points"
-  private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash) (.+?) for \d+/i
+  // Extracts target name from "You crush/punch/strike/hit X for N points"
+  private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash|hit) (.+?) for \d+/i
 
   private crushHitRe:    RegExp[]
   private crushMissRe:   RegExp[]
@@ -96,12 +96,13 @@ export class LogReader {
   private noBandolier:     boolean
 
   private static readonly verbPatterns: Record<string, { hit: string[]; miss: string[] }> = {
-    crush:  { hit: ['^You crush\\b'],  miss: ['^You try to crush\\b',  '^You attempt to crush\\b']  },
-    slash:  { hit: ['^You slash\\b'],  miss: ['^You try to slash\\b',  '^You attempt to slash\\b']   },
-    pierce: { hit: ['^You pierce\\b'], miss: ['^You try to pierce\\b', '^You attempt to pierce\\b']  },
-    punch:  { hit: ['^You punch\\b', '^You strike\\b'],
+    crush:  { hit: ['^You crush\\b',  '^You hit\\b'],  miss: ['^You try to crush\\b',  '^You attempt to crush\\b',  '^You try to hit\\b', '^You attempt to hit\\b']  },
+    slash:  { hit: ['^You slash\\b',  '^You hit\\b'],  miss: ['^You try to slash\\b',  '^You attempt to slash\\b',  '^You try to hit\\b', '^You attempt to hit\\b']   },
+    pierce: { hit: ['^You pierce\\b', '^You hit\\b'],  miss: ['^You try to pierce\\b', '^You attempt to pierce\\b', '^You try to hit\\b', '^You attempt to hit\\b']  },
+    punch:  { hit: ['^You punch\\b', '^You strike\\b', '^You hit\\b'],
               miss: ['^You try to punch\\b', '^You attempt to punch\\b',
-                     '^You try to strike\\b', '^You attempt to strike\\b'] },
+                     '^You try to strike\\b', '^You attempt to strike\\b',
+                     '^You try to hit\\b',    '^You attempt to hit\\b'] },
   }
 
   constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean; weaponTrackOnly?: boolean; noBandolier?: boolean } = {}) {
