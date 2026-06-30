@@ -362,9 +362,14 @@ export class ZealReader {
       }
 
       // ── Something hit/missed you — combat start indicator ──────
+      // Only trigger combat start when not already in combat.  When already in combat,
+      // being hit by ANY mob (not just the current target) would call ensureCombat()
+      // which always re-emits COMBAT_START and refreshes lastCombatActivity.  That
+      // prevented the 10-second idle timeout from firing after the target mob died
+      // whenever other mobs in the area continued attacking the player.
       case LOG.OtherHitsYou:
       case LOG.OtherMissesYou:
-        this.ensureCombat(now)
+        if (!this.inCombat) this.ensureCombat(now)
         return
 
       // ── You died ───────────────────────────────────────────────

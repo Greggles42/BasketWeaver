@@ -119,9 +119,9 @@ export class RefinedOverlay {
   private gradeScreen: GradeScreen | null = null
   private lastGradeResult: import('./rhythm-engine').GradeResult | null = null
   private fightHistory: GradeResult[] = []
-  private dpsDisplayTotal = 0
-  private dpsDisplayFist = 0
-  private dpsLastUpdate = 0
+  private dpsDisplayTotal   = 0
+  private dpsDisplayFist    = 0
+  private dpsLastUpdate     = 0
   private lastFrameTime = 0
   private lastOhSnapTs = 0
   private lastCombatActivity = 0
@@ -696,8 +696,8 @@ export class RefinedOverlay {
 
     // DPS
     if (t - this.dpsLastUpdate >= 1000) {
-      this.dpsDisplayTotal = Math.trunc(this.rhythm.liveTotalDps)
-      this.dpsDisplayFist  = Math.trunc(this.rhythm.liveDps)
+      this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
+      this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
       this.dpsLastUpdate = t
     }
   }
@@ -917,7 +917,7 @@ export class RefinedOverlay {
     const lw = ctx.measureText('WEAVES').width
     ctx.font = '600 11px "JetBrains Mono", monospace'
     ctx.fillStyle = PAL.text
-    ctx.fillText(`${this.rhythm.roundsWithWeave}`, 10 + lw + 6, fy)
+    ctx.fillText(`${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, 10 + lw + 6, fy)
 
     // NET DPS (center)
     ctx.textAlign = 'center'

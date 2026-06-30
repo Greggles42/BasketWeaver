@@ -155,9 +155,9 @@ export class Overlay {
   private hitFlash    = 0
   private flashColor  = Config.C_PERFECT
   private scoreDisplay = 0
-  private dpsDisplayTotal = 0
-  private dpsDisplayFist  = 0
-  private dpsLastUpdate   = 0
+  private dpsDisplayTotal  = 0
+  private dpsDisplayFist   = 0
+  private dpsLastUpdate    = 0
   private particles:  Particle[] = []
   private rings:      Ring[]     = []
   private missDrops:  MissDrop[] = []
@@ -249,9 +249,9 @@ export class Overlay {
           this.swingLog = []
           this.clearRapidAttackMute()
           this.oorLastSoundTs = 0
-          this.dpsDisplayTotal = 0
-          this.dpsDisplayFist  = 0
-          this.dpsLastUpdate   = 0
+          this.dpsDisplayTotal  = 0
+          this.dpsDisplayFist   = 0
+          this.dpsLastUpdate    = 0
           this.combatStartTs        = performance.now()
           this.swingTimerEverValid  = false
           // Reset buff duration tracking for leaderboard
@@ -872,8 +872,8 @@ export class Overlay {
 
     if (t - this.dpsLastUpdate >= 1000) {
       if (this.rhythm.roundCount >= 3) {
-        this.dpsDisplayTotal = Math.trunc(this.rhythm.liveTotalDps)
-        this.dpsDisplayFist  = Math.trunc(this.rhythm.liveDps)
+        this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
+        this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
       }
       this.dpsLastUpdate = t
     }
@@ -1901,7 +1901,7 @@ export class Overlay {
     const totalStr  = dpsReady ? `${this.dpsDisplayTotal} dps` : '— dps'
     const fistStr   = dpsReady ? `+${this.dpsDisplayFist} dps` : '+— dps'
     const scoreText = rhy.inCombat
-      ? `${totalStr}  ${rhy.roundsWithWeave} weaved  ${fistStr}`
+      ? `${totalStr}  ${this.rhythm.roundsWithWeave} weaved  ${fistStr}`
       : '—'
     const statusColor = rhy.inCombat ? cfg.C_COMBAT : cfg.C_IDLE
     ctx.font = `${cfg.FONT_SM}px Consolas, monospace`

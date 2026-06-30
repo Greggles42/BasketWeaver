@@ -103,9 +103,9 @@ export class HighContrastOverlay {
   private gradeScreen: GradeScreen | null = null
   private lastGradeResult: import('./rhythm-engine').GradeResult | null = null
   private fightHistory: GradeResult[] = []
-  private dpsDisplayTotal = 0
-  private dpsDisplayFist = 0
-  private dpsLastUpdate = 0
+  private dpsDisplayTotal   = 0
+  private dpsDisplayFist    = 0
+  private dpsLastUpdate     = 0
   private lastFrameTime = 0
   private lastCombatActivity = 0
   private combatStartTs = 0
@@ -630,8 +630,8 @@ export class HighContrastOverlay {
     if (this.gradeScreen?.expired) this.gradeScreen = null
 
     if (t - this.dpsLastUpdate >= 1000) {
-      this.dpsDisplayTotal = Math.trunc(this.rhythm.liveTotalDps)
-      this.dpsDisplayFist  = Math.trunc(this.rhythm.liveDps)
+      this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
+      this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
       this.dpsLastUpdate = t
     }
   }
@@ -1221,7 +1221,7 @@ export class HighContrastOverlay {
     ctx.fillText('WEAVES', 10, h - 18)
     ctx.font = '800 15px "Archivo", sans-serif'
     ctx.fillStyle = HC.text
-    ctx.fillText(`${this.rhythm.roundsWithWeave}`, 10, h - 5)
+    ctx.fillText(`${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, 10, h - 5)
 
     // NET DPS
     ctx.textAlign = 'center'
