@@ -57,6 +57,7 @@ export class RhythmEngine {
 
   roundOpen = false
   lastCrushTime = 0.0
+  private lastRealCrushTime = 0.0   // timestamp of last accepted (non-riposte) mainhand swing
   private lastRoundCloseTime = 0.0
   private roundSkipCalibration = false
 
@@ -166,6 +167,7 @@ export class RhythmEngine {
     this.measuredIntervals  = []
     this.calibrationEvent   = null
     this.lastRoundCloseTime = 0
+    this.lastRealCrushTime  = 0
     const interval   = this.predictedInterval   // derive fresh from weapon delay + haste
     const halfWindow = this.computeWindowWidth(interval) / 2
     this.cfg.PUNCH_INTERVAL  = interval
@@ -203,6 +205,21 @@ export class RhythmEngine {
     if (damage > 0) this.totalMeleeDamage += damage
     if (!this.inCombat) return
     if (damage > 0) this.damageLog.push([ts - this.combatStartTime, damage])
+
+    // Engine-level riposte guard: any MAINHAND_CRUSH that arrives within half the current
+    // calibrated interval is a riposte that slipped through text-pattern detection.
+    // Ripostes land within ~200 ms of the triggering swing; half the interval (always
+    // ≥ ~800 ms at any real haste level) is safely past that while still well short of
+    // the next legitimate swing, even with timing jitter.  Using the absolute minimum
+    // (BASE_WEAPON_DELAY / 2.25) was too tight — near-cap haste caused real swings to
+    // arrive just inside the threshold and be wrongly rejected, doubling the measured
+    // interval and corrupting calibration.
+    if (this.lastRealCrushTime > 0) {
+      const halfIntervalMs = this.cfg.PUNCH_INTERVAL * 500   // 50 % of current interval in ms
+      if (ts - this.lastRealCrushTime < halfIntervalMs) return
+    }
+    this.lastRealCrushTime = ts
+
     if (this.roundOpen) {
       if (damage > 0) this.roundMainhandDamage += damage
       this.lastCrushTime = ts
@@ -577,7 +594,7 @@ export class RhythmEngine {
     this.roundHadFistAttempt = false; this.roundHadKeystroke = false
     this.notes = []; this.nextId = 0
     this.roundOpen = false; this.notesAnchored = false
-    this.lastRoundCloseTime = 0.0; this.nextSwingTime = 0.0
+    this.lastRoundCloseTime = 0.0; this.lastRealCrushTime = 0.0; this.nextSwingTime = 0.0
     this.swingTimerValid = false
     this.lastRoundFistDamages = []; this.roundFistDamages = []
     this.roundMainhandDamage = 0; this.roundEndDamage = null

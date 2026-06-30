@@ -246,7 +246,13 @@ export class LogReader {
           return
         }
       }
-      if (this.crushMissRe.some(r => r.test(content))) {
+      // Catch both explicit miss patterns ("You try to slash") and zero-damage hit-verb
+      // lines ("You slash NAME but miss!" / "You slash NAME." with no damage).  Some EQ
+      // clients omit the "try to" prefix for the primary attack; the double-attack attempt
+      // uses it, which is why double misses produce audio but single misses previously didn't.
+      const isMainhandMiss = this.crushMissRe.some(r => r.test(content)) ||
+        (this.crushHitRe.some(r => r.test(content)) && parseDamage(content) === 0)
+      if (isMainhandMiss) {
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
         if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
           this.offhandCrushPending = false
@@ -260,7 +266,8 @@ export class LogReader {
             this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
           }
         }
-      } else if (this.fistMissRe.some(r => r.test(content))) {
+      } else if (this.fistMissRe.some(r => r.test(content)) ||
+                 (this.fistHitRe.some(r => r.test(content)) && parseDamage(content) === 0)) {
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
       } else if (this.avatarGainedRe.some(r => r.test(content))) {
