@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { db } from '@vercel/postgres'
+import { ALLOWED_MOBS } from './_allowed-mobs'
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -14,8 +15,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const server = String(req.query.server ?? '')
 
-  const params: string[] = []
-  const where = server ? (params.push(server), 'WHERE LOWER(server_name) = LOWER($1)') : ''
+  const params: (string | number)[] = []
+  const conditions: string[] = []
+
+  if (server) {
+    params.push(server)
+    conditions.push(`LOWER(server_name) = LOWER($${params.length})`)
+  }
+
+  const mobPlaceholders = ALLOWED_MOBS.map((_, i) => `$${params.length + i + 1}`).join(', ')
+  params.push(...ALLOWED_MOBS)
+  conditions.push(`LOWER(mob_name) IN (${mobPlaceholders})`)
+
+  const where = 'WHERE ' + conditions.join(' AND ')
 
   const client = await db.connect()
   try {
