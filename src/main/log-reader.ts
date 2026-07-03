@@ -24,10 +24,10 @@ const DAMAGE_RE = /for\s+(\d+)\s+point/i
 // the mainhand weapon delay and the character haste value are extracted.
 const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
 
-// Guard for weapon preset detection: only match within a /mystats weapon line,
-// which always contains a delay field.  Prevents chat messages that happen to
-// mention a weapon name from updating the equipped weapon.
-const MYSTATS_WEAPON_LINE_RE = /\bDl?[ay]y?\s*:\s*\d+/i
+// Guard for weapon preset detection: only match within a /mystats mainhand line,
+// which always starts with "Melee Primary:".  Prevents chat messages (including
+// linked items that also show a Delay field) from updating the equipped weapon.
+const MYSTATS_WEAPON_LINE_RE = /\bMelee Primary\s*:/i
 
 function stripPrefix(line: string): string {
   const m = PREFIX_RE.exec(line)
@@ -497,7 +497,7 @@ export class LogReader {
     if (OFFHAND_LINE_RE.test(content)) return
 
     // ── Weapon preset detection ─────────────────────────────
-    // Only fire inside a /mystats weapon line (must contain a Delay field).
+    // Only fire on /mystats mainhand lines ("Melee Primary: ...").
     // BW2H / BWOH are handled earlier in processLine and never reach this point.
     if (MYSTATS_WEAPON_LINE_RE.test(content)) {
       for (const { re, name, delay, attackType } of this.weaponRe) {

@@ -60,6 +60,10 @@ const ZEAL_MISS_RE = /^missed\s+(.+)/i
 // /mystats (LOG.Skills) lines that describe the offhand/secondary weapon slot.
 // Matched lines are skipped so only mainhand weapon + haste are extracted.
 const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
+// Guard for weapon preset detection: only match /mystats mainhand lines.
+// Prevents linked weapons in raid/group/party/whisper/say chat from
+// updating the equipped weapon.
+const MELEE_PRIMARY_LINE_RE = /\bMelee Primary\s*:/i
 
 function parseDamageShort(text: string): number {
   const m = /for\s+(\d+)/i.exec(text)
@@ -540,14 +544,19 @@ export class ZealReader {
       return
     }
 
-    // Weapon preset detection
-    for (const { re, name, delay, attackType } of this.weaponRe) {
-      if (re.test(text)) {
-        this.cfg.BASE_WEAPON_DELAY    = delay
-        this.cfg.BASE_WEAPON_NAME     = name
-        this.cfg.MAINHAND_ATTACK_TYPE = attackType as 'crush' | 'slash' | 'pierce' | 'punch'
-        this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
-        return
+    // ── Weapon preset detection ─────────────────────────────
+    // Only fire on /mystats mainhand lines ("Melee Primary: ...").
+    // Prevents weapon names linked in raid, group, party, whisper, or say
+    // chat from corrupting BASE_WEAPON_DELAY / MAINHAND_ATTACK_TYPE.
+    if (MELEE_PRIMARY_LINE_RE.test(text)) {
+      for (const { re, name, delay, attackType } of this.weaponRe) {
+        if (re.test(text)) {
+          this.cfg.BASE_WEAPON_DELAY    = delay
+          this.cfg.BASE_WEAPON_NAME     = name
+          this.cfg.MAINHAND_ATTACK_TYPE = attackType as 'crush' | 'slash' | 'pierce' | 'punch'
+          this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
+          return
+        }
       }
     }
 
