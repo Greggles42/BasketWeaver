@@ -98,13 +98,13 @@ export class RhythmEngine {
 
   get liveDps(): number {
     if (!this.inCombat || this.combatStartTime <= 0) return 0
-    const elapsed = (performance.now() - this.combatStartTime) / 1000
+    const elapsed = Math.max(0, (performance.now() - this.combatStartTime) - this.totalOutOfRangeMs) / 1000
     return elapsed > 0 ? this.totalFistDamage / elapsed : 0
   }
 
   get liveTotalDps(): number {
     if (!this.inCombat || this.combatStartTime <= 0) return 0
-    const elapsed = (performance.now() - this.combatStartTime) / 1000
+    const elapsed = Math.max(0, (performance.now() - this.combatStartTime) - this.totalOutOfRangeMs) / 1000
     return elapsed > 0 ? this.totalMeleeDamage / elapsed : 0
   }
 
@@ -440,17 +440,17 @@ export class RhythmEngine {
 
     const fightDuration = this.combatStartTime > 0
       ? performance.now() - this.combatStartTime : 0.0
-    const addedDps = fightDuration > 0
-      ? this.totalFistDamage / (fightDuration / 1000) : 0.0
-    const totalDps = fightDuration > 0
-      ? this.totalMeleeDamage / (fightDuration / 1000) : 0.0
+    const outOfRangeMs = this.totalOutOfRangeMs
+    const engagedMs    = Math.max(0, fightDuration - outOfRangeMs)
+
+    const addedDps = engagedMs > 0
+      ? this.totalFistDamage / (engagedMs / 1000) : 0.0
+    const totalDps = engagedMs > 0
+      ? this.totalMeleeDamage / (engagedMs / 1000) : 0.0
 
     const avgReactionMs = this.reactionTimeCount > 0
       ? this.reactionTimeSum / this.reactionTimeCount
       : null
-
-    const outOfRangeMs = this.totalOutOfRangeMs
-    const engagedMs    = Math.max(0, fightDuration - outOfRangeMs)
 
     return { grade, mobName: '', pctInGreen,
       roundsWeaved: this.roundsWithWeave,

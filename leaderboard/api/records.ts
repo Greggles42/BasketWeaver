@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           Math.round(rec.atkRating    ?? 0),
           rec.hastePct         ?? 0,
           JSON.stringify(rec.disciplinesUsed ?? []),
-          JSON.stringify(rec.buffsAtStart    ?? {}),
+          JSON.stringify(rec.buffsActive      ?? {}),
           rec.pctInGreen       ?? 0,
           Math.round(rec.totalRounds  ?? 0),
           Math.round(rec.weaveAttempts ?? 0),
@@ -90,12 +90,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ records: result.rows })
     }
 
-    // ── DELETE /api/records — purge records not on the raid boss allowlist ──────
-    // Requires X-API-Key. Returns count of deleted rows.
+    // ── DELETE /api/records — delete by id or purge non-allowlist records ───────
+    // Requires X-API-Key.
+    // ?id=<uuid>  → deletes that specific record, returns { deleted: 0|1 }
+    // (no id)     → purges all records not on the raid boss allowlist
     if (req.method === 'DELETE') {
       const key = String(req.headers['x-api-key'] ?? '')
       if (!process.env.API_KEY || key !== process.env.API_KEY) {
         return res.status(401).json({ error: 'Unauthorized' })
+      }
+
+      const id = req.query.id ? String(req.query.id) : null
+      if (id) {
+        const result = await client.query(`DELETE FROM records WHERE id = $1`, [id])
+        return res.status(200).json({ deleted: result.rowCount })
       }
 
       const placeholders = ALLOWED_MOBS.map((_, i) => `$${i + 1}`).join(', ')

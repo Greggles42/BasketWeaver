@@ -289,6 +289,8 @@ export class RefinedOverlay {
           this.postCombatGlideUntil = 0
           this.rhythm.resumeCombat(crushTs)
         }
+        // A mainhand hit means the player is back in range — close any open OOR period
+        this.rhythm.onReturnInRange(crushTs)
         this.rhythm.onMainhandCrush(crushTs, damage, hit, this.weaveBandolierActive)
         this.lastCombatActivity = crushTs
         this.consecutiveCrushesWithoutFist++

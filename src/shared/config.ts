@@ -308,7 +308,7 @@ export const Config = {
     '^You attempt to tiger claw\\b',
   ],
   PROC_HIT_PATTERNS:     ['^You hit\\b'],
-  OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target'],
+  OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target', "You can't hit them from here"],
   CURSOR_BLOCKED_PATTERNS:  ['You cannot swap items when holding something'],
   COMBAT_START_PATTERNS: [
     '^You begin casting\\b',

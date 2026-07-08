@@ -84,10 +84,10 @@ const ONLINE_ELIGIBLE_MOBS = new Set<string>([
   // Grieg's End
   'grieg veneficus',
   // Vex Thal
-  'kaas thox xi ans dyek',
+  'kaas thox xi ans dyek', 'thall va xakra', 'thall xundraux diabo',
   'diabo xi xin', 'diabo xi va', 'diabo xi xin thall', 'thall va kelun',
   'diabo xi va terminiel', 'thunderos xi diabo',
-  'va xi aten ha ra', 'aten ha ra',
+  'kaas thox xi aten ha ra', 'va xi aten ha ra', 'aten ha ra',
 ])
 
 export class LeaderboardManager {
