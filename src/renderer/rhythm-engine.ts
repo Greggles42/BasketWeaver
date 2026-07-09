@@ -98,13 +98,17 @@ export class RhythmEngine {
 
   get liveDps(): number {
     if (!this.inCombat || this.combatStartTime <= 0) return 0
-    const elapsed = Math.max(0, (performance.now() - this.combatStartTime) - this.totalOutOfRangeMs) / 1000
+    const now = performance.now()
+    const currentOorMs = this.outOfRangeStart !== null ? Math.max(0, now - this.outOfRangeStart) : 0
+    const elapsed = Math.max(0, (now - this.combatStartTime) - this.totalOutOfRangeMs - currentOorMs) / 1000
     return elapsed > 0 ? this.totalFistDamage / elapsed : 0
   }
 
   get liveTotalDps(): number {
     if (!this.inCombat || this.combatStartTime <= 0) return 0
-    const elapsed = Math.max(0, (performance.now() - this.combatStartTime) - this.totalOutOfRangeMs) / 1000
+    const now = performance.now()
+    const currentOorMs = this.outOfRangeStart !== null ? Math.max(0, now - this.outOfRangeStart) : 0
+    const elapsed = Math.max(0, (now - this.combatStartTime) - this.totalOutOfRangeMs - currentOorMs) / 1000
     return elapsed > 0 ? this.totalMeleeDamage / elapsed : 0
   }
 
@@ -121,7 +125,10 @@ export class RhythmEngine {
 
   // ── Rolling interval calibration ─────────────────────────────
   private measuredIntervals: number[] = []
-  private static readonly CALIB_BUFFER = 6   // how many recent intervals to keep
+  private static readonly CALIB_BUFFER = 4   // coarse phase: fast convergence after a change
+  private fineIntervals: number[] = []
+  private static readonly FINE_CALIB_BUFFER = 10   // fine phase: precision after 10 consistent rounds
+  private static readonly FINE_CONSISTENCY_PCT = 0.02  // measurement must be within 2% of coarse median
   /** Set in closeRound() when the calibrated interval shifts >50ms; cleared by caller. */
   public calibrationEvent: { interval: number } | null = null
 
@@ -479,15 +486,44 @@ export class RhythmEngine {
       // that slipped through — reject it before it can pollute the rolling median.
       const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 2.25
       if (!this.roundSkipCalibration && measured >= minPlausible && measured <= maxPlausible) {
+        // Change detection: if the new measurement diverges from the running median
+        // by more than 8%, a genuine haste or weapon-swap event has occurred.
+        // Discard stale samples so calibration converges in ~3 swings instead of
+        // slowly drifting over a full buffer rotation.
+        if (this.measuredIntervals.length >= 3) {
+          const currentMedian = RhythmEngine.median(this.measuredIntervals)
+          if (Math.abs(measured - currentMedian) / currentMedian > 0.08) {
+            this.measuredIntervals = []
+            this.fineIntervals = []
+          }
+        }
         this.measuredIntervals.push(measured)
         if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
           this.measuredIntervals.shift()
       }
-      // Use rolling median when we have ≥3 samples; otherwise keep current interval.
+      // Coarse median: use rolling median when we have ≥3 samples.
       // Median is robust — up to (n/2 - 1) outlier values can't corrupt the result.
-      const raw = this.measuredIntervals.length >= 3
+      const coarseRaw = this.measuredIntervals.length >= 3
         ? RhythmEngine.median(this.measuredIntervals)
         : this.cfg.PUNCH_INTERVAL
+
+      // Fine calibration: accumulate measurements that are within 2% of the coarse
+      // estimate. Once 10 consecutive consistent rounds accumulate, use their median
+      // for a precision correction. Any inconsistent round resets the streak.
+      if (!this.roundSkipCalibration && measured >= minPlausible && measured <= maxPlausible
+          && this.measuredIntervals.length >= 3) {
+        if (Math.abs(measured - coarseRaw) / coarseRaw <= RhythmEngine.FINE_CONSISTENCY_PCT) {
+          this.fineIntervals.push(measured)
+          if (this.fineIntervals.length > RhythmEngine.FINE_CALIB_BUFFER)
+            this.fineIntervals.shift()
+        } else {
+          this.fineIntervals = []
+        }
+      }
+
+      const raw = this.fineIntervals.length >= RhythmEngine.FINE_CALIB_BUFFER
+        ? RhythmEngine.median(this.fineIntervals)
+        : coarseRaw
       if (raw < minPlausible) {
         this.measuredIntervals = []
         interval = this.cfg.PUNCH_INTERVAL
@@ -535,6 +571,7 @@ export class RhythmEngine {
    *  stale measurements from the old haste level don't pollute calibration. */
   resetCalibration(): void {
     this.measuredIntervals = []
+    this.fineIntervals     = []
     this.calibrationEvent  = null
   }
 
@@ -583,7 +620,7 @@ export class RhythmEngine {
     this.lastRoundFistDamages = []; this.roundFistDamages = []
     this.roundMainhandDamage = 0; this.roundEndDamage = null
     this.lastKnownInterval = this.predictedInterval   // seconds, matching PUNCH_INTERVAL units
-    this.measuredIntervals = []; this.calibrationEvent = null
+    this.measuredIntervals = []; this.fineIntervals = []; this.calibrationEvent = null
     this.totalOutOfRangeMs = 0; this.outOfRangeStart = null
     this.disciplinesUsed = new Set()
     this.damageLog = []

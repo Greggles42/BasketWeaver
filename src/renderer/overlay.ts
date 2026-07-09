@@ -262,6 +262,7 @@ export class Overlay {
           // Re-seed disciplinesUsed for any disc already active when combat starts
           // (resetScore cleared the set; BUFF_CHANGED already fired before first swing)
           if (this.innerflameUntil > t0) this.rhythm.disciplinesUsed.add('innerflame')
+          if (this.whirlwindUntil  > t0) this.rhythm.disciplinesUsed.add('whirlwind')
         }
         this.lastCombatActivity = ts
         break
@@ -485,7 +486,10 @@ export class Overlay {
         }
         if (buff === 'whirlwind') {
           this.whirlwindUntil = active ? now() + 12000 : 0
-          if (active) this.showBanner('Whirlwind', '#c084fc', 3000)
+          if (active) {
+            this.showBanner('Whirlwind', '#c084fc', 3000)
+            if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('whirlwind')
+          }
         }
         break
       }

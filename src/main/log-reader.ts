@@ -192,7 +192,7 @@ export class LogReader {
       }
     }
 
-    const interval = setInterval(readChunk, 16)
+    const interval = setInterval(readChunk, 8)
 
     return () => {
       this.stopped = true

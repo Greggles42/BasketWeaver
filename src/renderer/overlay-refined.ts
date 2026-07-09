@@ -133,6 +133,13 @@ export class RefinedOverlay {
   private oorLastSoundTs = 0
   private consecutiveCrushesWithoutFist = 0
   private audioMutedRapidAttack = false
+  // ── Fist-only / swing-timer mode ─────────────────────────────
+  /** True when the player is punching without any detected mainhand weapon swings.
+   *  Audio is silenced and fist timing drives the swing timer instead. */
+  private fistOnlyMode = false
+  private combatFistCount  = 0   // fist attempts since combat start
+  private combatCrushCount = 0   // mainhand crush events since combat start
+  private static readonly FIST_ONLY_THRESHOLD = 5  // fist attempts before declaring fist-only
   private rapidAttackMuteUntil = 0
   private static readonly RAPID_CRUSH_THRESHOLD = 4
   private static readonly RAPID_MUTE_MS = 6000
@@ -238,6 +245,9 @@ export class RefinedOverlay {
       case EvType.COMBAT_START:
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
+          this.fistOnlyMode = false
+          this.combatFistCount = 0
+          this.combatCrushCount = 0
           this.rhythm.onCombatStart(now())
           this.audio.play('combat_start')
           this.gradeScreen = null
@@ -249,6 +259,10 @@ export class RefinedOverlay {
           this.avatarFightMs = 0;      this.avatarFightStart      = this.avatarActive          ? t0 : null
           this.savageryFightMs = 0;    this.savageryFightStart    = this.savageryActive         ? t0 : null
           this.innerflameFlightMs = 0; this.innerflameFlightStart = this.innerflameUntil > t0  ? t0 : null
+          // Re-seed disciplinesUsed for any disc already active when combat starts
+          // (resetScore cleared the set; BUFF_CHANGED fired before first swing)
+          if (this.innerflameUntil > t0) this.rhythm.disciplinesUsed.add('innerflame')
+          if (this.whirlwindUntil  > t0) this.rhythm.disciplinesUsed.add('whirlwind')
         }
         this.lastCombatActivity = ts
         break
@@ -284,6 +298,12 @@ export class RefinedOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit    as boolean) ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
+        this.combatCrushCount++
+        if (this.fistOnlyMode) {
+          // Weapon detected mid-fight — exit swing-timer mode
+          this.fistOnlyMode = false
+          this.banners.push(new Banner('Weapon detected — weave mode', PAL.weaveText, 3000))
+        }
         // Resume if combat ended spuriously mid-fight (preserves damage stats)
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
@@ -305,13 +325,32 @@ export class RefinedOverlay {
       }
       case EvType.FIST_ATTACK: {
         const fistNow = now()
-        const adjTs   = ts - this.cfg.LATENCY_COMPENSATION * 1000
         const damage  = (ev.data?.damage as number)  ?? 0
         const hit     = (ev.data?.hit    as boolean) ?? false
-        const isClip  = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
         this.lastCombatActivity = ts
-        this.consecutiveCrushesWithoutFist = 0
         this.lastFistAttackTs = fistNow
+
+        // ── Fist-only / swing-timer detection ──────────────────
+        if (this.combatCrushCount === 0) this.combatFistCount++
+        if (!this.fistOnlyMode && this.combatCrushCount === 0
+            && this.combatFistCount >= RefinedOverlay.FIST_ONLY_THRESHOLD) {
+          this.fistOnlyMode = true
+          this.banners.push(new Banner('Swing Timer Mode', PAL.weaveText, 4000))
+        }
+
+        if (this.fistOnlyMode) {
+          // No mainhand weapon detected — treat fist as the primary attack.
+          // Route through onMainhandCrush so the swing timer calibrates from fist timing.
+          // Audio and weave visuals are suppressed; the highway acts as a punch-round timer.
+          this.rhythm.onReturnInRange(fistNow)
+          this.rhythm.onMainhandCrush(fistNow, damage, hit, false)
+          break
+        }
+
+        // ── Normal weave mode ───────────────────────────────────
+        const adjTs  = fistNow - this.cfg.LATENCY_COMPENSATION * 1000
+        const isClip = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
+        this.consecutiveCrushesWithoutFist = 0
         if (this.audioMutedRapidAttack) this.clearRapidAttackMute()
         const [hzx, hzy] = this.hzCenter()
         if (isClip) {
@@ -331,12 +370,9 @@ export class RefinedOverlay {
           }
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
           // Bad timing → whiff regardless of mob hit/miss
+          // Log-confirmed: hit status is known, play immediately (no defer needed)
           this.missFlash = 1
-          if (this.cfg.FIST_SOUND_ON_MISS) {
-            setTimeout(() => {
-              if (now() - this.lastFistHitTs > 300) this.audio.play('whiff')
-            }, 150)
-          }
+          if (this.cfg.FIST_SOUND_ON_MISS) this.audio.play('whiff')
         } else if (hit && damage > 0) {
           this.lastFistHitTs = fistNow
           this.audio.play('punch')
@@ -344,11 +380,7 @@ export class RefinedOverlay {
           this.spawnParticles(hzx, hzy)
         } else {
           this.missFlash = 1
-          if (this.cfg.FIST_SOUND_ON_MISS) {
-            setTimeout(() => {
-              if (now() - this.lastFistHitTs > 300) this.audio.play('whiff')
-            }, 150)
-          }
+          if (this.cfg.FIST_SOUND_ON_MISS) this.audio.play('whiff')
         }
         break
       }
@@ -400,7 +432,7 @@ export class RefinedOverlay {
         const offhandDelay = (ev.data?.offhandDelay as number) ?? this.cfg.OFFHAND_WEAPON_DELAY
         this.applyDynamicWeaveWindow(offhandDelay)
         const fistNow = now()
-        const adjTs   = ts - this.cfg.LATENCY_COMPENSATION * 1000
+        const adjTs   = fistNow - this.cfg.LATENCY_COMPENSATION * 1000
         const isClip  = this.rhythm.onFistAttack(adjTs, 0, false, fistNow)
         this.lastCombatActivity = ts
         this.consecutiveCrushesWithoutFist = 0
@@ -442,13 +474,17 @@ export class RefinedOverlay {
           const t = now()
           this.innerflameUntil = active ? t + 12000 : 0
           if (this.rhythm.inCombat) {
-            if (active) { this.innerflameFlightStart = t }
+            if (active) { this.innerflameFlightStart = t; this.rhythm.disciplinesUsed.add('innerflame') }
             else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
           }
         }
         if (buff === 'whirlwind') {
-          this.whirlwindUntil = active ? now() + 12000 : 0
-          if (active) this.banners.push(new Banner('Whirlwind', '#c084fc', 3000))
+          const t = now()
+          this.whirlwindUntil = active ? t + 12000 : 0
+          if (active) {
+            this.banners.push(new Banner('Whirlwind', '#c084fc', 3000))
+            if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('whirlwind')
+          }
         }
         break
       }
@@ -697,7 +733,7 @@ export class RefinedOverlay {
     if (this.gradeScreen?.expired) this.gradeScreen = null
 
     // DPS
-    if (t - this.dpsLastUpdate >= 1000) {
+    if (t - this.dpsLastUpdate >= 250) {
       this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
       this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
       this.dpsLastUpdate = t
@@ -845,8 +881,12 @@ export class RefinedOverlay {
     const nameW = ctx.measureText(this.charName || '—').width
     const pillX = Math.max(58, Math.ceil(nameW) + 18)
 
-    const phase = this.rhythm.inCombat ? 'COMBAT' : this.gradeScreen ? 'RESULT' : 'IDLE'
-    const color = phase === 'COMBAT' ? PAL.combat : phase === 'RESULT' ? PAL.result : PAL.idle
+    const phase = this.rhythm.inCombat
+      ? (this.fistOnlyMode ? 'WAITING' : 'COMBAT')
+      : this.gradeScreen ? 'RESULT' : 'IDLE'
+    const color = phase === 'COMBAT' ? PAL.combat
+      : phase === 'WAITING'  ? '#38bdf8'
+      : phase === 'RESULT' ? PAL.result : PAL.idle
     ctx.font = '600 9px "JetBrains Mono", monospace'
     const pw = ctx.measureText(phase).width + 12
     ctx.fillStyle = this.rgba(color, 0.15)
