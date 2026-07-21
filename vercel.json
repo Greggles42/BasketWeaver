@@ -1,5 +1,15 @@
 {
   "framework": null,
   "buildCommand": "",
-  "outputDirectory": "leaderboard/public"
+  "outputDirectory": "leaderboard/public",
+  "functions": {
+    "leaderboard/api/leaderboard.ts": {},
+    "leaderboard/api/records.ts": {},
+    "leaderboard/api/mobs.ts": {}
+  },
+  "rewrites": [
+    { "source": "/api/leaderboard", "destination": "/leaderboard/api/leaderboard" },
+    { "source": "/api/records",     "destination": "/leaderboard/api/records" },
+    { "source": "/api/mobs",        "destination": "/leaderboard/api/mobs" }
+  ]
 }
