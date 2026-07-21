@@ -168,7 +168,9 @@ export class RhythmEngine {
   resumeCombat(ts: number): void {
     if (this.inCombat) return
     this.inCombat = true
-    // combatStartTime intentionally unchanged — full fight duration preserved
+    // combatStartTime intentionally unchanged — full fight duration preserved.
+    // Bootstrap to ts if it was never set (first fight, no prior onCombatStart).
+    if (this.combatStartTime <= 0) this.combatStartTime = ts
     // Do NOT call resetScore() — keep accumulated damage stats
     // Clear calibration state so stale measurements from the previous fight don't
     // corrupt the interval estimate for the new/resumed engagement.

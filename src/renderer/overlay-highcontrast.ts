@@ -321,13 +321,17 @@ export class HighContrastOverlay {
         this.rhythm.onMiscDamage((ev.data?.damage as number) ?? 0)
         this.lastCombatActivity = ts
         break
-      case EvType.LOG_DAMAGE:
-        this.rhythm.onReturnInRange(now())
+      case EvType.LOG_DAMAGE: {
+        const lgNow = now()
+        this.rhythm.onReturnInRange(lgNow)
+        if (!this.rhythm.inCombat) this.rhythm.onCombatStart(lgNow)
+        this.lastCombatActivity = lgNow
         this.rhythm.onLogDamage(
           (ev.data?.damage as number) ?? 0,
           (ev.data?.source as 'mainhand' | 'fist' | 'misc') ?? 'misc'
         )
         break
+      }
       case EvType.CURSOR_BLOCKED:
         this.audio.play('error')
         this.banners.push(new Banner('CURSOR — SWAP BLOCKED', HC.combat, 3000))

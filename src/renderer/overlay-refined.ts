@@ -391,13 +391,18 @@ export class RefinedOverlay {
         this.rhythm.onMiscDamage((ev.data?.damage as number) ?? 0)
         this.lastCombatActivity = ts
         break
-      case EvType.LOG_DAMAGE:
-        this.rhythm.onReturnInRange(now())
+      case EvType.LOG_DAMAGE: {
+        const lgNow = now()
+        this.rhythm.onReturnInRange(lgNow)
+        // Ensure combat is tracked even if ZealReader's COMBAT_START arrives late
+        if (!this.rhythm.inCombat) this.rhythm.onCombatStart(lgNow)
+        this.lastCombatActivity = lgNow
         this.rhythm.onLogDamage(
           (ev.data?.damage as number) ?? 0,
           (ev.data?.source as 'mainhand' | 'fist' | 'misc') ?? 'misc'
         )
         break
+      }
       case EvType.CURSOR_BLOCKED:
         this.audio.play('error')
         this.banners.push(new Banner('Item on cursor — weapon swap blocked', PAL.weaveText, 3000))
