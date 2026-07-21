@@ -1,15 +1,5 @@
 {
   "framework": null,
   "buildCommand": "",
-  "outputDirectory": "leaderboard/public",
-  "functions": {
-    "leaderboard/api/leaderboard.ts": { "maxDuration": 10 },
-    "leaderboard/api/records.ts":     { "maxDuration": 10 },
-    "leaderboard/api/mobs.ts":        { "maxDuration": 10 }
-  },
-  "rewrites": [
-    { "source": "/api/leaderboard", "destination": "/leaderboard/api/leaderboard" },
-    { "source": "/api/records",     "destination": "/leaderboard/api/records" },
-    { "source": "/api/mobs",        "destination": "/leaderboard/api/mobs" }
-  ]
+  "outputDirectory": "leaderboard/public"
 }
