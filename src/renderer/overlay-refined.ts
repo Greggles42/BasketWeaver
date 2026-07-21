@@ -376,7 +376,7 @@ export class RefinedOverlay {
           // Log-confirmed: hit status is known, play immediately (no defer needed)
           this.missFlash = 1
           if (this.cfg.FIST_SOUND_ON_MISS) this.audio.play('whiff')
-        } else if (hit && damage > 0) {
+        } else if (hit) {
           this.lastFistHitTs = fistNow
           this.audio.play('punch')
           this.hitFlash = 1

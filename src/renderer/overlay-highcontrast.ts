@@ -308,7 +308,7 @@ export class HighContrastOverlay {
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
           this.missFlash = 1
           if (this.cfg.FIST_SOUND_ON_MISS) setTimeout(() => this.audio.play('whiff'), 150)
-        } else if (hit && damage > 0) {
+        } else if (hit) {
           this.audio.play('punch')
           this.hitFlash = 1
         } else {

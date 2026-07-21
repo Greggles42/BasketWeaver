@@ -356,7 +356,7 @@ export class Overlay {
               }, 150)
             }
             this.spawnMissDrop(hzx, hzy)
-          } else if (hit && damage > 0) {
+          } else if (hit) {
             this.lastFistHitTs = now()
             this.audio.play('punch')
             this.spawnExplosion(hzx, hzy, this.cfg.C_PERFECT, true)

@@ -120,6 +120,10 @@ export class LeaderboardManager {
   }
 
   addRecord(record: EncounterRecord): void {
+    // Filter out implausible or trivial fights
+    if (record.fightDuration < 10_000) return          // shorter than 10 seconds
+    if (record.totalDps > 2_000) return                // unrealistically high DPS
+
     // Dedup by id
     if (this.records.some(r => r.id === record.id)) return
 

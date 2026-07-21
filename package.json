@@ -1,6 +1,6 @@
 {
   "name": "basketweaver",
-  "version": "2.2.8",
+  "version": "2.2.9",
   "description": "EverQuest fistweaving timing overlay",
   "author": "Basketweaver",
   "main": "out/main/index.js",
