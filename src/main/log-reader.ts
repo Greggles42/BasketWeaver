@@ -284,6 +284,13 @@ export class LogReader {
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
         return
       }
+      // Critical hit notification (fallback for ZealReader MeleeCrits misses)
+      if (this.critHitRe.some(r => r.test(content))) {
+        const m = /\((\d+)\)/.exec(content)
+        const damage = m ? parseInt(m[1], 10) : 0
+        if (damage > 0) this.emit({ type: EvType.CRIT_HIT, ts: now, data: { damage, target: this.currentTarget } })
+        return
+      }
       return
     }
 

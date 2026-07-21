@@ -290,13 +290,19 @@ export class RhythmEngine {
     const now = performance.now()
     if (source === 'mainhand') {
       this.totalMeleeDamage += damage
-      if (this.inCombat) this.damageLog.push([now - this.combatStartTime, damage])
+      if (this.inCombat) {
+        this.damageLog.push([now - this.combatStartTime, damage])
+        // Track per-round mainhand damage so huge-round detection works in hybrid mode
+        if (this.roundOpen) this.roundMainhandDamage += damage
+      }
     } else if (source === 'fist') {
       if (!this.inCombat) return
       this.totalFistDamage  += damage
       this.totalMeleeDamage += damage
       this.fistAttackCount++
       this.damageLog.push([now - this.combatStartTime, damage])
+      // Track per-round fist damage so huge-round detection includes weave hits
+      if (this.roundOpen) this.roundFistDamages.push(damage)
     } else {
       if (!this.inCombat) return
       this.totalMeleeDamage += damage
@@ -608,8 +614,9 @@ export class RhythmEngine {
     if (this.roundHadKeystroke && !this.roundHadFistAttempt) this.dwRollFailed = true
 
     this.lastRoundFistDamages = [...this.roundFistDamages]
+    const fistTotal = this.roundFistDamages.reduce((s, d) => s + d, 0)
     this.roundFistDamages = []
-    this.roundEndDamage = this.roundMainhandDamage
+    this.roundEndDamage = this.roundMainhandDamage + fistTotal
     this.roundMainhandDamage = 0
   }
 
