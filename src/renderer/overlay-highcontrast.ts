@@ -273,6 +273,8 @@ export class HighContrastOverlay {
           this.postCombatGlideUntil = 0
           this.rhythm.resumeCombat(ct)
         }
+        // A mainhand hit means the player is back in range — close any open OOR period
+        this.rhythm.onReturnInRange(ct)
         this.rhythm.onMainhandCrush(ct, damage, hit, this.weaveBandolierActive)
         this.lastCombatActivity = ct
         this.consecutiveCrushesWithoutFist++
@@ -290,6 +292,7 @@ export class HighContrastOverlay {
         const fistNow = now()
         const damage  = (ev.data?.damage as number)  ?? 0
         const hit     = (ev.data?.hit    as boolean) ?? false
+        this.rhythm.onReturnInRange(fistNow)
         const isClip  = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
         this.dwPendingTs = 0  // offhand swing confirmed — cancel any pending DW no-roll timer
         this.lastCombatActivity = ts
@@ -319,6 +322,7 @@ export class HighContrastOverlay {
         this.lastCombatActivity = ts
         break
       case EvType.LOG_DAMAGE:
+        this.rhythm.onReturnInRange(now())
         this.rhythm.onLogDamage(
           (ev.data?.damage as number) ?? 0,
           (ev.data?.source as 'mainhand' | 'fist' | 'misc') ?? 'misc'

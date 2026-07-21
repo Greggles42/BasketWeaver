@@ -392,6 +392,7 @@ export class RefinedOverlay {
         this.lastCombatActivity = ts
         break
       case EvType.LOG_DAMAGE:
+        this.rhythm.onReturnInRange(now())
         this.rhythm.onLogDamage(
           (ev.data?.damage as number) ?? 0,
           (ev.data?.source as 'mainhand' | 'fist' | 'misc') ?? 'misc'
