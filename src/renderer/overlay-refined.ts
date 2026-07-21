@@ -114,6 +114,8 @@ export class RefinedOverlay {
   private hitFlash = 0
   private missFlash = 0       // soft "—" chip when a weave passes unused
   private clipWarn = 0        // harsh red wash on actual clip
+  private dwRollFlash = 0     // DW roll failure: keystroke in window, no fist in log
+  private dwPendingTs = 0    // timestamp when weave key landed in window; cleared by fist or timer
   private particles: Particle[] = []
   private banners: Banner[] = []
   private gradeScreen: GradeScreen | null = null
@@ -350,6 +352,7 @@ export class RefinedOverlay {
         // ── Normal weave mode ───────────────────────────────────
         const adjTs  = fistNow - this.cfg.LATENCY_COMPENSATION * 1000
         const isClip = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
+        this.dwPendingTs = 0  // offhand swing confirmed — cancel any pending DW no-roll timer
         this.consecutiveCrushesWithoutFist = 0
         if (this.audioMutedRapidAttack) this.clearRapidAttackMute()
         const [hzx, hzy] = this.hzCenter()
@@ -387,6 +390,12 @@ export class RefinedOverlay {
       case EvType.MISC_DAMAGE:
         this.rhythm.onMiscDamage((ev.data?.damage as number) ?? 0)
         this.lastCombatActivity = ts
+        break
+      case EvType.LOG_DAMAGE:
+        this.rhythm.onLogDamage(
+          (ev.data?.damage as number) ?? 0,
+          (ev.data?.source as 'mainhand' | 'fist' | 'misc') ?? 'misc'
+        )
         break
       case EvType.CURSOR_BLOCKED:
         this.audio.play('error')
@@ -488,9 +497,18 @@ export class RefinedOverlay {
         }
         break
       }
-      case EvType.BANDOLIER_CHANGED:
-        this.weaveBandolierActive = (ev.data?.isWeaveSet as boolean) ?? false
+      case EvType.BANDOLIER_CHANGED: {
+        const isWeaveSet = (ev.data?.isWeaveSet as boolean) ?? false
+        this.weaveBandolierActive = isWeaveSet
+        // Inferred DW mode: arm the no-roll timer when the weave bandolier loads and
+        // the swap falls inside the current weave window.
+        if (isWeaveSet && this.cfg.INFERRED_DW_CHECKS
+            && this.rhythm.inCombat && this.rhythm.isInWeaveWindow(ts)) {
+          this.dwPendingTs = ts
+          this.rhythm.noteInferredWeaveAttempt()
+        }
         break
+      }
       case EvType.STATS_UPDATE: {
         const atk   = ev.data?.atkRating as number | undefined
         const haste = ev.data?.hastePct  as number | undefined
@@ -527,6 +545,26 @@ export class RefinedOverlay {
     }
   }
 
+  /** Called when the player's configured weave key is pressed (global hook via main process).
+   *  Plays an audio confirmation and scores the attempt in the rhythm engine, so a
+   *  dual-wield roll failure (nothing in the log) still counts toward keystroke grading. */
+  handleWeaveKeyPressed(ts: number): void {
+    if (!this.rhythm.inCombat) return
+    if (this.cfg.KEYSTROKE_GRADING) {
+      const [hit] = this.rhythm.registerClick(ts)
+      // Arm DW timer from key press only when not using inferred bandolier detection
+      if (hit && !this.cfg.INFERRED_DW_CHECKS) this.dwPendingTs = ts
+    } else {
+      // Log-grading mode: record keystroke; if it lands in window, arm the DW timer
+      if (this.rhythm.noteKeystrokeInWindow(ts) && !this.cfg.INFERRED_DW_CHECKS) this.dwPendingTs = ts
+    }
+  }
+
+  testDwRollFail(): void {
+    this.dwRollFlash = 1
+    this.audio.play('dw_ok')
+  }
+
   private resetTrack(): void {
     if (this.rhythm.inCombat) this.rhythm.onCombatEnd(now())
     this.postCombatGlideUntil = 0
@@ -534,6 +572,7 @@ export class RefinedOverlay {
     this.lastGradeResult = null
     this.combatStartTs = 0
     this.swingTimerEverValid = false
+    this.dwPendingTs = 0
   }
 
   private recordHit(list: HitRecord[], damage: number, target: string): void {
@@ -580,6 +619,7 @@ export class RefinedOverlay {
       fightDuration:            result.fightDuration,
       addedDps:                 result.addedDps,
       totalDps:                 result.totalDps,
+      totalDamage:              result.totalDamage,
       avgReactionMs:            result.avgReactionMs,
       id:                       crypto.randomUUID(),
       timestamp:                Date.now(),
@@ -716,11 +756,25 @@ export class RefinedOverlay {
       }
       this.rhythm.roundEndDamage = null
     }
+    // Consume the round-close flag (no longer used for display — timer below handles it)
+    if (this.rhythm.dwRollFailed) this.rhythm.dwRollFailed = false
+
+    // Timer-based DW no-roll: show indicator only after the offhand weapon had enough
+    // time to swing but nothing appeared in the log.
+    if (this.dwPendingTs > 0) {
+      const offhandMs = this.rhythm.effectiveOffhandDelay * 1000 + this.cfg.DW_ROLL_FAIL_DELAY_MS
+      if (t - this.dwPendingTs > offhandMs) {
+        this.dwRollFlash = 1
+        this.audio.play('dw_ok')
+        this.dwPendingTs = 0
+      }
+    }
 
     // Decay
-    this.hitFlash  = Math.max(0, this.hitFlash  - dt * 3.5)
-    this.missFlash = Math.max(0, this.missFlash - dt * 2)
-    this.clipWarn  = Math.max(0, this.clipWarn  - dt * 2)
+    this.hitFlash    = Math.max(0, this.hitFlash    - dt * 3.5)
+    this.missFlash   = Math.max(0, this.missFlash   - dt * 2)
+    this.clipWarn    = Math.max(0, this.clipWarn    - dt * 2)
+    this.dwRollFlash = Math.max(0, this.dwRollFlash - dt * 1.2)
 
     // Particles
     for (const p of this.particles) {
@@ -756,6 +810,7 @@ export class RefinedOverlay {
     this.drawParticles()
     this.drawMissFlash()
     this.drawClipWarn()
+    this.drawDwRollFail()
     this.drawOffhandSwingTimer()
     this.drawNoLogNotice()
     this.drawBanners()
@@ -1336,6 +1391,24 @@ export class RefinedOverlay {
     ctx.fillStyle = `${PAL.clipText}${this.clipWarn})`
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
     ctx.fillText('CLIPPED', hzx + 36, hy + 14)
+    ctx.textAlign = 'left'
+  }
+
+  private drawDwRollFail(): void {
+    if (this.dwRollFlash <= 0) return
+    const ctx = this.ctx
+    const [hzx, hzy] = this.hzCenter()
+    const hy = this.highwayY
+    // Amber/orange expanding ring at the hit zone — distinct from red clip
+    ctx.strokeStyle = `rgba(255,160,0,${this.dwRollFlash * 0.9})`
+    ctx.lineWidth = 2
+    const rr = 6 + (1 - this.dwRollFlash) * 20
+    ctx.beginPath(); ctx.arc(hzx, hzy, rr, 0, Math.PI * 2); ctx.stroke()
+    // Label — offset slightly above the miss text position
+    ctx.font = '600 9px "JetBrains Mono", monospace'
+    ctx.fillStyle = `rgba(255,160,0,${this.dwRollFlash})`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('DW no roll', hzx + 32, hy - 2)
     ctx.textAlign = 'left'
   }
 

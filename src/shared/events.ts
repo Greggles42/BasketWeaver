@@ -22,6 +22,7 @@ export const enum EvType {
   STATS_UPDATE    = 'STATS_UPDATE',    // data: { atkRating?: number, hastePct?: number }
   WEAPON_TRACK       = 'WEAPON_TRACK',       // data: { mainhand: string, offhand: string }
   BANDOLIER_CHANGED  = 'BANDOLIER_CHANGED',  // data: { setName: string, isWeaveSet: boolean }
+  LOG_DAMAGE         = 'LOG_DAMAGE',         // data: { damage, source: 'mainhand'|'fist'|'misc' }
 }
 
 export interface GameEvent {
@@ -70,7 +71,10 @@ export const IPC = {
   TOP_RECORDS_UPDATE:     'top-records-update',
   SET_SHOW_ALL_CRITS:           'set-show-all-crits',
   SET_POSITIVE_AUDIO_IN_WINDOW: 'set-positive-audio-in-window',
+  SET_KEYSTROKE_GRADING:        'set-keystroke-grading',
   SET_WEAVE_WINDOW_MS:          'set-weave-window-ms',
+  SET_DW_ROLL_FAIL_DELAY_MS:   'set-dw-roll-fail-delay-ms',
+  SET_INFERRED_DW_CHECKS:      'set-inferred-dw-checks',
   SET_PUNCH_INTERVAL:           'set-punch-interval',
   SET_BASE_WEAPON_DELAY:        'set-base-weapon-delay',
   LEADERBOARD_RECORD:  'leaderboard-record',   // renderer → main: EncounterRecord

@@ -10,6 +10,7 @@
 
 import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import * as path from 'path'
+import { performance } from 'perf_hooks'
 import { Config } from '../shared/config'
 import { IPC, EvType, type GameEvent, type HitRecord } from '../shared/events'
 
@@ -168,6 +169,10 @@ function loadSettings(): void {
       if (typeof saved.POSITIVE_AUDIO_IN_WINDOW   === 'boolean') Config.POSITIVE_AUDIO_IN_WINDOW   = saved.POSITIVE_AUDIO_IN_WINDOW
       if (typeof saved.LEADERBOARD_CHARACTER_NAME  === 'string')  Config.LEADERBOARD_CHARACTER_NAME  = saved.LEADERBOARD_CHARACTER_NAME
       if (typeof saved.AUTO_DETECT_LOG             === 'boolean') Config.AUTO_DETECT_LOG             = saved.AUTO_DETECT_LOG
+      if (typeof saved.WEAVE_KEY_CODE     === 'number') Config.WEAVE_KEY_CODE     = saved.WEAVE_KEY_CODE
+      if (typeof saved.WEAVE_KEY_DISPLAY  === 'string') Config.WEAVE_KEY_DISPLAY  = saved.WEAVE_KEY_DISPLAY
+      if (typeof saved.WEAVE_KEY2_CODE    === 'number') Config.WEAVE_KEY2_CODE    = saved.WEAVE_KEY2_CODE
+      if (typeof saved.WEAVE_KEY2_DISPLAY === 'string') Config.WEAVE_KEY2_DISPLAY = saved.WEAVE_KEY2_DISPLAY
       if (typeof saved.BASE_WEAPON_DELAY === 'number') Config.BASE_WEAPON_DELAY = saved.BASE_WEAPON_DELAY
       if (saved.MAINHAND_ATTACK_TYPE === 'crush' || saved.MAINHAND_ATTACK_TYPE === 'slash' ||
           saved.MAINHAND_ATTACK_TYPE === 'pierce' || saved.MAINHAND_ATTACK_TYPE === 'punch') {
@@ -201,6 +206,10 @@ export function saveSettings(): void {
       LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
       MAINHAND_ATTACK_TYPE:       Config.MAINHAND_ATTACK_TYPE,
       AUTO_DETECT_LOG:            Config.AUTO_DETECT_LOG,
+      WEAVE_KEY_CODE:             Config.WEAVE_KEY_CODE,
+      WEAVE_KEY_DISPLAY:          Config.WEAVE_KEY_DISPLAY,
+      WEAVE_KEY2_CODE:            Config.WEAVE_KEY2_CODE,
+      WEAVE_KEY2_DISPLAY:         Config.WEAVE_KEY2_DISPLAY,
     }
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
@@ -280,7 +289,11 @@ export function createSettingsWindow(): void {
     settingsWin.loadFile(path.join(__dirname, '../renderer/settings.html'))
   }
 
-  settingsWin.on('closed', () => { settingsWin = null })
+  settingsWin.on('closed', () => {
+    settingsWin = null
+    learnKeyHandler  = null
+    learnKeyHandler2 = null
+  })
 }
 
 // ── Auto log detection ────────────────────────────────────────
@@ -333,8 +346,9 @@ function stopAutoDetect(): void {
 let win:          BrowserWindow | null = null
 let settingsWin:  BrowserWindow | null = null
 let leaderboardWin: BrowserWindow | null = null
-let stopLog:   (() => void) | null  = null
-let stopZeal:  (() => void) | null  = null
+let stopLog:       (() => void) | null  = null
+let stopDamageLog: (() => void) | null  = null
+let stopZeal:      (() => void) | null  = null
 let activeLogReader: import('./log-reader').LogReader | null = null
 let lastLogPath = ''
 
@@ -399,8 +413,9 @@ function createWindow(): void {
 // ── Reader management ─────────────────────────────────────────
 
 function stopAllReaders(): void {
-  if (stopLog)  { stopLog();  stopLog  = null }
-  if (stopZeal) { stopZeal(); stopZeal = null }
+  if (stopLog)       { stopLog();       stopLog       = null }
+  if (stopDamageLog) { stopDamageLog(); stopDamageLog = null }
+  if (stopZeal)      { stopZeal();      stopZeal      = null }
   activeLogReader = null
 }
 
@@ -431,7 +446,18 @@ function startHybridReader(): void {
   Config.TRACKING_SOURCE = 'hybrid'
   saveSettings()
 
-  const zealReader = new ZealReader(Config, forwardEvent)
+  // Zeal handles timing/state; strip damage from its hit events so that
+  // the damageOnly log reader below is the sole source for DPS values.
+  function forwardZealEvent(ev: GameEvent): void {
+    if (ev.type === EvType.MAINHAND_CRUSH || ev.type === EvType.FIST_ATTACK) {
+      ev = { ...ev, data: { ...ev.data, damage: 0 } }
+    } else if (ev.type === EvType.MISC_DAMAGE) {
+      return  // suppressed; log reader emits LOG_DAMAGE for these
+    }
+    forwardEvent(ev)
+  }
+
+  const zealReader = new ZealReader(Config, forwardZealEvent)
   stopZeal = zealReader.start()
 
   if (lastLogPath) {
@@ -440,8 +466,13 @@ function startHybridReader(): void {
       { missOnly: true, noBandolier: true })
     activeLogReader = missReader
     stopLog = missReader.start()
+
+    // damageOnly: log is the authoritative source for all damage values
+    const damageReader = new LogReader(lastLogPath, Config, forwardEvent,
+      { damageOnly: true })
+    stopDamageLog = damageReader.start()
   }
-  console.log('[Basketweaver] Hybrid tracking active (Zeal hits + Log misses)')
+  console.log('[Basketweaver] Hybrid tracking active (Zeal hits + Log misses + Log damage)')
 }
 
 export function setTrackingSource(source: 'log' | 'hybrid'): void {
@@ -574,7 +605,13 @@ function setupIPC(): void {
     WEAVE_BANDOLIER_OFF_DELAY_MS: Config.WEAVE_BANDOLIER_OFF_DELAY_MS,
     AUDIO_DEBOUNCE_MS:            Config.AUDIO_DEBOUNCE_MS,
     WEAVE_WINDOW_MS:              Config.WEAVE_WINDOW_MS,
+    DW_ROLL_FAIL_DELAY_MS:        Config.DW_ROLL_FAIL_DELAY_MS,
+    INFERRED_DW_CHECKS:           Config.INFERRED_DW_CHECKS,
     MAINHAND_ATTACK_TYPE:         Config.MAINHAND_ATTACK_TYPE,
+    WEAVE_KEY_CODE:               Config.WEAVE_KEY_CODE,
+    WEAVE_KEY_DISPLAY:            Config.WEAVE_KEY_DISPLAY,
+    WEAVE_KEY2_CODE:              Config.WEAVE_KEY2_CODE,
+    WEAVE_KEY2_DISPLAY:           Config.WEAVE_KEY2_DISPLAY,
   }))
 
   ipcMain.on(IPC.SETTINGS_SET, (_e, { key, value }: { key: string; value: unknown }) => {
@@ -675,6 +712,11 @@ function setupIPC(): void {
         win?.webContents.send(IPC.SET_SHOW_ALL_CRITS, value)
         break
 
+      case 'KEYSTROKE_GRADING':
+        Config.KEYSTROKE_GRADING = value as boolean
+        win?.webContents.send(IPC.SET_KEYSTROKE_GRADING, value)
+        break
+
       case 'POSITIVE_AUDIO_IN_WINDOW':
         Config.POSITIVE_AUDIO_IN_WINDOW = value as boolean
         win?.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, value)
@@ -688,6 +730,16 @@ function setupIPC(): void {
       case 'WEAVE_WINDOW_MS':
         Config.WEAVE_WINDOW_MS = value as number
         win?.webContents.send(IPC.SET_WEAVE_WINDOW_MS, value)
+        break
+
+      case 'DW_ROLL_FAIL_DELAY_MS':
+        Config.DW_ROLL_FAIL_DELAY_MS = value as number
+        win?.webContents.send(IPC.SET_DW_ROLL_FAIL_DELAY_MS, value)
+        break
+
+      case 'INFERRED_DW_CHECKS':
+        Config.INFERRED_DW_CHECKS = value as boolean
+        win?.webContents.send(IPC.SET_INFERRED_DW_CHECKS, value)
         break
 
       case 'BASE_WEAPON_DELAY':
@@ -735,6 +787,22 @@ function setupIPC(): void {
         }
         break
 
+      case 'WEAVE_KEY_CODE':
+        Config.WEAVE_KEY_CODE = value as number
+        break
+
+      case 'WEAVE_KEY_DISPLAY':
+        Config.WEAVE_KEY_DISPLAY = value as string
+        break
+
+      case 'WEAVE_KEY2_CODE':
+        Config.WEAVE_KEY2_CODE = value as number
+        break
+
+      case 'WEAVE_KEY2_DISPLAY':
+        Config.WEAVE_KEY2_DISPLAY = value as string
+        break
+
       default:
         // Simple Config update (BASE_WEAPON_DELAY, PUNCH_INTERVAL, TARGET_OFFSET,
         // LATENCY_COMPENSATION, CLIP_AUTO, CLIP_DETECTION_WINDOW, KEYSTROKE_GRADING, etc.)
@@ -744,7 +812,8 @@ function setupIPC(): void {
   })
 
   ipcMain.on(IPC.OPEN_SETTINGS, () => createSettingsWindow())
-  ipcMain.on('close-settings', () => settingsWin?.close())
+  ipcMain.on('close-settings', () => { learnKeyHandler = null; learnKeyHandler2 = null; settingsWin?.close() })
+  setupWeaveKeyLearnIPC()
 
   // ── Leaderboard IPC ───────────────────────────────────────────
 
@@ -870,6 +939,123 @@ function setupAutoUpdater(): void {
   })
 }
 
+// ── Weave key global monitor ──────────────────────────────────
+
+// Passive (non-consuming) global keyboard hook via uiohook-napi.
+// When the configured WEAVE_KEY_CODE is pressed, a 'weave-key-pressed'
+// IPC message is sent to the renderer so it can play audio and record
+// the attempt even if the dual-wield roll fails (no log entry).
+// Loaded dynamically so a missing native binary never crashes startup.
+//
+// IMPORTANT: uiohook-napi keycodes are native scan-code-based and are
+// completely different from DOM KeyboardEvent.keyCode values.  The learn
+// flow must capture the uiohook keycode directly in the main process.
+
+type UiohookType = {
+  on(evt: string, cb: (e: { keycode: number }) => void): void
+  removeListener(evt: string, cb: (e: { keycode: number }) => void): void
+  start(): void
+  stop(): void
+}
+type UiohookKeyType = Record<string, number>
+
+let uIOhookInstance: UiohookType | null = null
+let uIOhookKeyMap: UiohookKeyType = {}
+
+// Digit keys (1–0) are absent from UiohookKey — map their scan codes manually.
+const UIOHOOK_DIGIT_NAMES: Record<number, string> = {
+  2: '1', 3: '2', 4: '3', 5: '4', 6: '5',
+  7: '6', 8: '7', 9: '8', 10: '9', 11: '0',
+}
+
+// Reverse lookup: uiohook keycode → human-readable name
+function uiohookKeyName(code: number): string {
+  if (UIOHOOK_DIGIT_NAMES[code]) return UIOHOOK_DIGIT_NAMES[code]
+  const entry = Object.entries(uIOhookKeyMap).find(([k, v]) => isNaN(Number(k)) && v === code)
+  if (!entry) return `Key${code}`
+  const name = entry[0]
+  if (name.length === 1) return name           // single letter already fine
+  return name
+}
+
+// One-shot learn handlers — set while settings window is in learn mode (one per key slot)
+let learnKeyHandler:  ((e: { keycode: number }) => void) | null = null
+let learnKeyHandler2: ((e: { keycode: number }) => void) | null = null
+
+function startWeaveKeyMonitor(): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('uiohook-napi') as { uIOhook: UiohookType; UiohookKey: UiohookKeyType }
+    uIOhookKeyMap = mod.UiohookKey
+    const hook = mod.uIOhook
+    hook.on('keydown', (event) => {
+      // Learn mode: capture one keycode and send it back to the settings window
+      if (learnKeyHandler) {
+        learnKeyHandler(event)
+        return
+      }
+      if (learnKeyHandler2) {
+        learnKeyHandler2(event)
+        return
+      }
+      // Normal monitoring
+      if ((Config.WEAVE_KEY_CODE !== 0 && event.keycode === Config.WEAVE_KEY_CODE) ||
+          (Config.WEAVE_KEY2_CODE !== 0 && event.keycode === Config.WEAVE_KEY2_CODE)) {
+        if (win && !win.isDestroyed()) {
+          win.webContents.send('weave-key-pressed', performance.now())
+        }
+      }
+    })
+    hook.start()
+    uIOhookInstance = hook
+    console.log('[Basketweaver] Weave key monitor active')
+  } catch (err) {
+    console.warn('[Basketweaver] Weave key monitoring unavailable:', (err as Error).message)
+  }
+}
+
+function setupWeaveKeyLearnIPC(): void {
+  ipcMain.on('weave-key-learn-start', () => {
+    learnKeyHandler2 = null   // cancel any in-progress key-2 learn
+    if (!uIOhookInstance) {
+      settingsWin?.webContents.send('weave-key-learned', null)
+      return
+    }
+    learnKeyHandler = (event) => {
+      learnKeyHandler = null
+      const display = uiohookKeyName(event.keycode)
+      Config.WEAVE_KEY_CODE    = event.keycode
+      Config.WEAVE_KEY_DISPLAY = display
+      saveSettings()
+      settingsWin?.webContents.send('weave-key-learned', { keycode: event.keycode, display })
+    }
+  })
+
+  ipcMain.on('weave-key-learn-cancel', () => {
+    learnKeyHandler = null
+  })
+
+  ipcMain.on('weave-key-learn-start-2', () => {
+    learnKeyHandler = null    // cancel any in-progress key-1 learn
+    if (!uIOhookInstance) {
+      settingsWin?.webContents.send('weave-key-learned-2', null)
+      return
+    }
+    learnKeyHandler2 = (event) => {
+      learnKeyHandler2 = null
+      const display = uiohookKeyName(event.keycode)
+      Config.WEAVE_KEY2_CODE    = event.keycode
+      Config.WEAVE_KEY2_DISPLAY = display
+      saveSettings()
+      settingsWin?.webContents.send('weave-key-learned-2', { keycode: event.keycode, display })
+    }
+  })
+
+  ipcMain.on('weave-key-learn-cancel-2', () => {
+    learnKeyHandler2 = null
+  })
+}
+
 // ── App entry ─────────────────────────────────────────────────
 
 function recomputeGoodWindow(): void {
@@ -897,6 +1083,7 @@ app.whenReady().then(async () => {
   leaderboardManager = new LeaderboardManager(configDir())
   setupIPC()
   createWindow()
+  startWeaveKeyMonitor()
 
   // Add Settings to the Windows taskbar right-click Jump List (packaged only —
   // in dev mode process.execPath is the bare Electron binary, not the app)
@@ -951,6 +1138,8 @@ app.whenReady().then(async () => {
     // Sync show-all-crits and positive-audio-in-window states
     if (Config.SHOW_ALL_CRITS)           win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
     if (Config.POSITIVE_AUDIO_IN_WINDOW) win!.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, true)
+    if (Config.KEYSTROKE_GRADING)        win!.webContents.send(IPC.SET_KEYSTROKE_GRADING, true)
+    if (Config.INFERRED_DW_CHECKS)       win!.webContents.send(IPC.SET_INFERRED_DW_CHECKS, true)
 
     if (Config.TRACKING_SOURCE === 'hybrid') {
       const logPath = loadLastLog()
@@ -983,6 +1172,7 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   stopAllReaders()
   stopAutoDetect()
+  uIOhookInstance?.stop()
   if (process.platform !== 'darwin') app.quit()
 })
 

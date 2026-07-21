@@ -75,6 +75,10 @@ export class LogReader {
   private riposteRe:     RegExp[]
   private fistHitRe:     RegExp[]
   private fistMissRe:    RegExp[]
+  // Catch-all for non-mainhand non-punch attack types while weave bandolier is active
+  // (e.g. slash/pierce offhand weave weapon when mainhand is crush).
+  private weaveHitRe:    RegExp
+  private weaveMissRe:   RegExp
   private flyingKickRe:  RegExp[]
   private procHitRe:     RegExp[]
   private oorRe:           RegExp[]
@@ -94,6 +98,7 @@ export class LogReader {
   private missOnly:        boolean
   private weaponTrackOnly: boolean
   private noBandolier:     boolean
+  private damageOnly:      boolean
 
   private static readonly verbPatterns: Record<string, { hit: string[]; miss: string[] }> = {
     crush:  { hit: ['^You crush\\b',  '^You hit\\b'],  miss: ['^You try to crush\\b',  '^You attempt to crush\\b',  '^You try to hit\\b', '^You attempt to hit\\b']  },
@@ -105,13 +110,14 @@ export class LogReader {
                      '^You try to hit\\b',    '^You attempt to hit\\b'] },
   }
 
-  constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean; weaponTrackOnly?: boolean; noBandolier?: boolean } = {}) {
+  constructor(path: string, cfg: ConfigType, onEvent: EventCallback, opts: { missOnly?: boolean; weaponTrackOnly?: boolean; noBandolier?: boolean; damageOnly?: boolean } = {}) {
     this.path            = path
     this.cfg             = cfg
     this.onEvent         = onEvent
     this.missOnly        = opts.missOnly        ?? false
     this.weaponTrackOnly = opts.weaponTrackOnly ?? false
     this.noBandolier     = opts.noBandolier     ?? false
+    this.damageOnly      = opts.damageOnly      ?? false
 
     const compile = (patterns: string[]) =>
       patterns.map(p => new RegExp(p, 'i'))
@@ -122,6 +128,8 @@ export class LogReader {
     this.crushMissRe  = compile(vp.miss)
     this.fistHitRe    = compile(cfg.FIST_HIT_PATTERNS)
     this.fistMissRe   = compile(cfg.FIST_MISS_PATTERNS)
+    this.weaveHitRe   = /^You (?:crush|slash|pierce|punch|strike|bash|hit)\b/i
+    this.weaveMissRe  = /^You (?:try to|attempt to) (?:crush|slash|pierce|punch|strike|bash|hit)\b/i
     this.flyingKickRe = compile(cfg.FLYING_KICK_PATTERNS)
     this.procHitRe    = compile(cfg.PROC_HIT_PATTERNS)
     this.oorRe            = compile(cfg.OUT_OF_RANGE_PATTERNS)
@@ -226,6 +234,59 @@ export class LogReader {
     }
     if (this.weaponTrackOnly) return
 
+    // ── damageOnly mode: emit LOG_DAMAGE for hit events; skip all state-machine logic ──
+    if (this.damageOnly) {
+      // Ripostes → misc damage (player-sourced only)
+      if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
+        if (content.startsWith('You ')) {
+          const damage = parseDamage(content)
+          if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
+        }
+        return
+      }
+      // Mainhand crush hit (may be DW offhand)
+      if (this.crushHitRe.some(r => r.test(content))) {
+        const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
+        const damage = parseDamage(content)
+        if (bandolierWeave || (this.offhandCrushPending && now < this.offhandCrushExpiry)) {
+          this.offhandCrushPending = false
+          if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
+        } else {
+          if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'mainhand' } })
+          if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
+            this.offhandCrushPending = true
+            this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+          }
+        }
+        return
+      }
+      // Fist hit
+      if (this.fistHitRe.some(r => r.test(content))) {
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
+        return
+      }
+      // Non-punch bandolier weave hit
+      if (this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveHitRe.test(content)) {
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
+        return
+      }
+      // Flying kick
+      if (this.flyingKickRe.some(r => r.test(content))) {
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
+        return
+      }
+      // Item proc
+      if (this.procHitRe.some(r => r.test(content))) {
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
+        return
+      }
+      return
+    }
+
     // ── missOnly mode: emit crush/fist misses and buff changes, ignore everything else ──
     if (this.missOnly) {
       // Ripostes must never affect the swing timer — drop them before the miss checks
@@ -268,6 +329,10 @@ export class LogReader {
         }
       } else if (this.fistMissRe.some(r => r.test(content)) ||
                  (this.fistHitRe.some(r => r.test(content)) && parseDamage(content) === 0)) {
+        this.emit({ type: EvType.FIST_ATTACK, ts: now,
+          data: { damage: 0, hit: false, line: content } })
+      } else if (this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveMissRe.test(content)) {
+        // Non-punch offhand weave miss (different verb from mainhand and fist)
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
       } else if (this.avatarGainedRe.some(r => r.test(content))) {
@@ -376,6 +441,26 @@ export class LogReader {
       this.emit({ type: EvType.FIST_ATTACK, ts: now,
         data: { damage: 0, hit: false, line: content } })
       return
+    }
+
+    // ── Non-punch offhand weave (slash/pierce/crush when WEAVE_BANDOLIER_ACTIVE) ──
+    // Catches offhand DW attacks that use a different verb than both the mainhand
+    // and fist patterns — e.g. a slash weave weapon when mainhand is crush.
+    if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
+      if (this.weaveHitRe.test(content)) {
+        this.ensureCombat(now)
+        const tm = LogReader.TARGET_RE.exec(content)
+        if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+        this.emit({ type: EvType.FIST_ATTACK, ts: now,
+          data: { damage: parseDamage(content), hit: true, line: content } })
+        return
+      }
+      if (this.weaveMissRe.test(content)) {
+        this.ensureCombat(now)
+        this.emit({ type: EvType.FIST_ATTACK, ts: now,
+          data: { damage: 0, hit: false, line: content } })
+        return
+      }
     }
 
     // ── Flying kick ──────────────────────────────────────────

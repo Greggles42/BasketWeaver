@@ -21,6 +21,7 @@ export interface EncounterRecord {
   fightDuration: number        // ms, wall-clock total (including out-of-range time)
   addedDps: number             // fist-only DPS
   totalDps: number             // mainhand + fist + misc DPS
+  totalDamage: number          // raw total damage dealt during the fight
   avgReactionMs: number | null
 
   // ── Leaderboard fields ───────────────────────────────────────

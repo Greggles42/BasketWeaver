@@ -30,13 +30,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await client.query(
         `INSERT INTO records (
           id, character_name, server_name, mob_name, grade,
-          total_dps, fist_dps, fight_duration, engaged_ms, out_of_range_ms,
+          total_dps, fist_dps, total_damage, fight_duration, engaged_ms, out_of_range_ms,
           mainhand, offhand, atk_rating, haste_pct,
           disciplines_used, buffs_at_start,
           pct_in_green, total_rounds, weave_attempts, weave_landed,
           avg_reaction_ms, timestamp
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
         ) ON CONFLICT (id) DO NOTHING`,
         [
           rec.id,
@@ -46,6 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rec.grade            ?? 'F',
           rec.totalDps         ?? 0,
           rec.addedDps         ?? 0,
+          Math.round(rec.totalDamage      ?? 0),
           Math.round(rec.fightDuration    ?? 0),
           Math.round(rec.engagedMs        ?? 0),
           Math.round(rec.outOfRangeMs     ?? 0),

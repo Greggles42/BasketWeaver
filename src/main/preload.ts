@@ -58,17 +58,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetShowAllCrits: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.SET_SHOW_ALL_CRITS, (_e, enabled: boolean) => cb(enabled)),
 
+  onSetKeystrokeGrading: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.SET_KEYSTROKE_GRADING, (_e, enabled: boolean) => cb(enabled)),
+
   onSetPositiveAudioInWindow: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, (_e, enabled: boolean) => cb(enabled)),
 
   onSetWeaveWindowMs: (cb: (ms: number) => void) =>
     ipcRenderer.on(IPC.SET_WEAVE_WINDOW_MS, (_e, ms: number) => cb(ms)),
 
+  onSetDwRollFailDelayMs: (cb: (ms: number) => void) =>
+    ipcRenderer.on(IPC.SET_DW_ROLL_FAIL_DELAY_MS, (_e, ms: number) => cb(ms)),
+
+  onSetInferredDwChecks: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.SET_INFERRED_DW_CHECKS, (_e, enabled: boolean) => cb(enabled)),
+
   onSetPunchInterval: (cb: (interval: number) => void) =>
     ipcRenderer.on(IPC.SET_PUNCH_INTERVAL, (_e, interval: number) => cb(interval)),
 
   onSetBaseWeaponDelay: (cb: (delay: number) => void) =>
     ipcRenderer.on(IPC.SET_BASE_WEAPON_DELAY, (_e, delay: number) => cb(delay)),
+
+  onWeaveKeyPressed: (cb: (ts: number) => void) =>
+    ipcRenderer.on('weave-key-pressed', (_e, ts: number) => cb(ts)),
 
   sendFightHistory: (fights: { label: string, full: string }[]) =>
     ipcRenderer.send(IPC.FIGHT_HISTORY_UPDATE, fights),

@@ -308,6 +308,56 @@
     .btn-close:hover {
       background: #2a2f50;
     }
+
+    /* ── Learn key button ───────────────────────────────── */
+    .btn-learn-key {
+      background: var(--border);
+      color: var(--text);
+      border: 1px solid var(--dim);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-learn-key:hover { background: #2a2f50; }
+    .btn-learn-key.learning {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .weave-key-tag {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      color: var(--gold);
+      min-width: 60px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .weave-key-tag.unset {
+      color: var(--dim);
+      font-style: italic;
+    }
+
+    /* ── Tooltip ───────────────────────────────────────── */
+    #settings-tip {
+      position: fixed;
+      display: none;
+      max-width: 280px;
+      background: #1a1f38;
+      border: 1px solid var(--accent);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 6px 10px;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
   </style>
 </head>
 <body>
@@ -323,25 +373,25 @@
     <div class="section">
       <div class="section-title">Audio Volumes</div>
 
-      <div class="row">
+      <div class="row" data-tip="Overall volume level for all app sounds.">
         <label for="volumeMaster">Master Volume</label>
         <input type="range" id="volumeMaster" min="0" max="100" step="1" />
         <span class="val" id="volumeMasterVal">100</span>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Volume for proc and buff activation sounds.">
         <label for="volumeProc">Buff / Proc Sounds</label>
         <input type="range" id="volumeProc" min="0" max="100" step="1" />
         <span class="val" id="volumeProcVal">100</span>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Volume for the crit damage and huge-round sound effects.">
         <label for="volumeEpic">Epic / Huge Round</label>
         <input type="range" id="volumeEpic" min="0" max="100" step="1" />
         <span class="val" id="volumeEpicVal">100</span>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Minimum milliseconds between the same sound playing again. Set to 0 to disable debouncing.">
         <label for="audioDebounceMs">Sound Debounce <span class="hint">(ms, 0=off)</span></label>
         <input type="number" id="audioDebounceMs" min="0" max="500" step="10" style="width:80px" />
       </div>
@@ -351,12 +401,12 @@
     <div class="section">
       <div class="section-title">Sound Triggers</div>
 
-      <div class="row">
+      <div class="row" data-tip="Single-hit damage threshold that triggers the epic crit sound. Hits at or above this value play the sound.">
         <label for="critThreshold">Crit Damage <span class="hint">(epic.wav)</span></label>
         <input type="number" id="critThreshold" min="0" max="9999" step="1" />
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Total damage in a single round that triggers the huge round sound.">
         <label for="hugeRoundThreshold">Huge Round <span class="hint">(oh snap)</span></label>
         <input type="number" id="hugeRoundThreshold" min="0" max="9999" step="1" />
       </div>
@@ -366,7 +416,7 @@
     <div class="section">
       <div class="section-title">Tracking Source</div>
 
-      <div class="row">
+      <div class="row" data-tip="Log File: reads hit timing and damage from the EQ log. Hybrid: Zeal provides swing timing while the log provides damage values (requires the Zeal pipe).">
         <label>Source</label>
         <div class="radio-group" id="trackingSource">
           <label><input type="radio" name="tracking" value="log" /> Log File</label>
@@ -379,7 +429,7 @@
     <div class="section">
       <div class="section-title">Overlay Style</div>
 
-      <div class="row">
+      <div class="row" data-tip="Visual style of the combat overlay window. Refined is cleaner; High Contrast uses bolder colors for visibility.">
         <label>Style</label>
         <div class="radio-group" id="overlayStyle">
           <label><input type="radio" name="style" value="refined" /> Refined</label>
@@ -392,7 +442,7 @@
     <div class="section">
       <div class="section-title">Weapon &amp; Timing</div>
 
-      <div class="row">
+      <div class="row" data-tip="The attack verb your mainhand weapon uses (e.g. crush, slash). Must match what appears in your EQ combat log so your hits are recognized.">
         <label for="mainhandAttackType">Mainhand Attack Type</label>
         <select id="mainhandAttackType">
           <option value="crush">Crush (blunt)</option>
@@ -402,7 +452,7 @@
         </select>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Your mainhand weapon — selecting one sets the base swing delay and attack type automatically.">
         <label>Mainhand Weapon</label>
         <div class="weapon-search-wrap">
           <input type="text" id="mainhandSearch" placeholder="Search weapon…" autocomplete="off" />
@@ -410,13 +460,13 @@
         </div>
         <span class="weapon-current" id="mainhandCurrent"></span>
       </div>
-      <div class="row row-sub" id="mainhandCustomRow" style="display:none">
+      <div class="row row-sub" id="mainhandCustomRow" style="display:none" data-tip="Enter a custom mainhand weapon delay in EverQuest tenths-of-a-second (e.g. 28 = 2.8s swing speed).">
         <label for="mainhandCustom">Custom (EQ tenths)</label>
         <input type="number" id="mainhandCustom" min="1" max="99" step="1" placeholder="e.g. 28" />
         <span class="sec-hint" id="mainhandCustomSec"></span>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Your offhand/secondary weapon — sets the offhand swing interval used for weave timing.">
         <label>Offhand Weapon</label>
         <div class="weapon-search-wrap">
           <input type="text" id="offhandSearch" placeholder="Search weapon…" autocomplete="off" />
@@ -424,35 +474,40 @@
         </div>
         <span class="weapon-current" id="offhandCurrent"></span>
       </div>
-      <div class="row row-sub" id="offhandCustomRow" style="display:none">
+      <div class="row row-sub" id="offhandCustomRow" style="display:none" data-tip="Enter a custom offhand weapon delay in EverQuest tenths-of-a-second (e.g. 14 = 1.4s swing speed).">
         <label for="offhandCustom">Custom (EQ tenths)</label>
         <input type="number" id="offhandCustom" min="1" max="99" step="1" placeholder="e.g. 14" />
         <span class="sec-hint" id="offhandCustomSec"></span>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="How often your mainhand swings. Auto derives the interval from the selected weapon's delay. Override manually if needed.">
         <label for="punchInterval">Mainhand Swing Interval</label>
         <select id="punchInterval"></select>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Shifts the swing window target later to account for server-side processing delay. Increase if your hits land slightly after the predicted window.">
         <label for="targetOffset">Target Offset</label>
         <select id="targetOffset"></select>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Shifts the swing window earlier to account for your network latency. Match this to your average ping for more accurate weave timing.">
         <label for="latencyComp">Latency Comp.</label>
         <select id="latencyComp"></select>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Duration after a mainhand swing during which an offhand hit is considered to have clipped (overlapped) the weave window. Auto uses the offhand weapon delay.">
         <label for="clipWindow">Clip Window</label>
         <select id="clipWindow"></select>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="How many milliseconds before the next swing you must press your weave key to get credit. 0 = auto-calculated from your offhand weapon delay.">
         <label for="weaveWindowMs">Weave Window <span class="hint">(ms, 0=auto)</span></label>
         <input type="number" id="weaveWindowMs" min="0" max="2000" step="50" style="width:80px" />
+      </div>
+
+      <div class="row" data-tip="Extra delay (ms) added when the dual-wield roll fails, preventing false missed-weave detections when the offhand doesn't swing.">
+        <label for="dwRollFailDelayMs">DW No-Roll Delay <span class="hint">(ms)</span></label>
+        <input type="number" id="dwRollFailDelayMs" min="0" max="2000" step="50" style="width:80px" />
       </div>
     </div>
 
@@ -460,12 +515,12 @@
     <div class="section">
       <div class="section-title">Display</div>
 
-      <div class="row">
+      <div class="row" data-tip="Vertical position of the target indicator on the overlay, expressed as a percentage of overlay height.">
         <label for="targetPosition">Target Position</label>
         <select id="targetPosition"></select>
       </div>
 
-      <div class="row">
+      <div class="row" data-tip="Transparency level of the overlay window. Lower values make the overlay more see-through.">
         <label for="opacity">Opacity</label>
         <input type="range" id="opacity" min="50" max="100" step="1" />
         <span class="val" id="opacityVal">88</span>
@@ -477,21 +532,36 @@
       <div class="section-title">Options</div>
 
       <div class="checkbox-grid">
-        <label><input type="checkbox" id="audioEnabled" /> Audio Enabled</label>
-        <label><input type="checkbox" id="buffSoundEnabled" /> Buff Sound Enabled</label>
-        <label><input type="checkbox" id="fistMissSound" /> Fist Sound on Miss</label>
-        <label><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
-        <label><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
-        <label><input type="checkbox" id="keystrokeGrading" /> Keystroke Grading</label>
-        <label><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
-        <label><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
-        <label><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
-        <label><input type="checkbox" id="positiveAudioInWindow" /> Positive Feedback Audio in Weave Windows</label>
-        <label><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
+        <label data-tip="Enable or disable all overlay sounds."><input type="checkbox" id="audioEnabled" /> Audio Enabled</label>
+        <label data-tip="Play a sound when a proc or buff activates."><input type="checkbox" id="buffSoundEnabled" /> Buff Sound Enabled</label>
+        <label data-tip="Play the fist/miss sound when a hand-to-hand attack misses."><input type="checkbox" id="fistMissSound" /> Fist Sound on Miss</label>
+        <label data-tip="Automatically adjusts the weave window timing based on your observed hit patterns."><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
+        <label data-tip="Display a countdown swing timer for the offhand weapon on the overlay."><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
+        <label data-tip="Track and grade how precisely you press your weave key relative to the swing window. Requires Weave Key to be set."><input type="checkbox" id="keystrokeGrading" /> Keystroke Grading</label>
+        <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
+        <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
+        <label data-tip="Lock the overlay window in place so it cannot be moved by dragging."><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
+        <label data-tip="Show every critical hit on the DPS track. When off, only the highest crit per round is shown."><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
+        <label data-tip="Play a positive sound when you press your weave key within the timing window."><input type="checkbox" id="positiveAudioInWindow" /> Positive Feedback Audio in Weave Windows</label>
+        <label data-tip="Automatically switch to the most recently updated EQ log file in your log directory when multiple characters are active."><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
       </div>
-      <div class="row" style="margin-top:6px">
+      <div class="row" style="margin-top:6px" data-tip="Milliseconds to wait after a bandolier swap before resuming weave key detection. Prevents false triggers during the swap animation.">
         <label for="weaveBandolierOffDelay">Weave Off Delay (ms)</label>
         <input type="number" id="weaveBandolierOffDelay" min="0" max="2000" step="50" style="width:80px" />
+      </div>
+      <div class="row" id="weaveKeyRow" style="margin-top:6px" data-tip="Primary global hotkey for your weapon-swap / weave action. Click Learn, then press the key you use to swap weapons.">
+        <label>Weave Key 1 <span class="hint">(global)</span></label>
+        <span id="weaveKeyTag" class="weave-key-tag unset">not set</span>
+        <button id="weaveKeyLearn" class="btn-learn-key">Learn</button>
+        <button id="weaveKeyClear" class="btn-learn-key">Clear</button>
+        <span class="hint">Press your weapon-swap key to register it</span>
+      </div>
+      <div class="row" id="weaveKey2Row" style="margin-top:4px" data-tip="Optional second global hotkey for an alternate weapon-swap key (e.g. if you use two different keys for the same swap action).">
+        <label>Weave Key 2 <span class="hint">(global)</span></label>
+        <span id="weaveKey2Tag" class="weave-key-tag unset">not set</span>
+        <button id="weaveKey2Learn" class="btn-learn-key">Learn</button>
+        <button id="weaveKey2Clear" class="btn-learn-key">Clear</button>
+        <span class="hint">Optional second weapon-swap key</span>
       </div>
     </div>
 
@@ -499,7 +569,7 @@
     <div class="section">
       <div class="section-title">Leaderboard</div>
 
-      <div class="row">
+      <div class="row" data-tip="Name used when submitting fight records to the leaderboard. Leave blank to auto-detect from the log or Zeal.">
         <label>Character Name</label>
         <input type="text" id="lbCharName" placeholder="auto-detected from log / Zeal" style="flex:1" />
       </div>
@@ -512,6 +582,7 @@
     <button class="btn-save" id="btnSave">Save &amp; Close</button>
   </div>
 
+  <div id="settings-tip" role="tooltip"></div>
   <script type="module" src="./settings.ts"></script>
 </body>
 </html>

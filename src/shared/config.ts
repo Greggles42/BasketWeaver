@@ -40,6 +40,17 @@ export const Config = {
   // Dynamic weaving can still shrink the window below this value.
   WEAVE_WINDOW_MS: 500,
 
+  // ── DW roll-fail feedback delay ──────────────────────────────
+  // Extra ms added on top of effectiveOffhandDelay before showing the "DW no roll"
+  // indicator. Gives the log time to arrive. 0 = fire immediately after offhand delay.
+  DW_ROLL_FAIL_DELAY_MS: 300,
+
+  // ── Inferred DW checks ───────────────────────────────────────
+  // When true, arms the DW no-roll timer from bandolier swap events (isWeaveSet=true)
+  // instead of from the configured weave key. Works without a weave key and confirms
+  // the swap actually happened rather than relying on a key press.
+  INFERRED_DW_CHECKS: false,
+
   // ── Clip detection ───────────────────────────────────────────
   CLIP_DETECTION_WINDOW: 0.80,
   CLIP_AUTO: true,
@@ -148,6 +159,16 @@ export const Config = {
   // weave window rather than EQ log fist-attack events. This avoids dual-wield
   // proc failures counting as missed weaves.
   KEYSTROKE_GRADING: false,
+
+  // ── Weave key monitor ────────────────────────────────────────
+  // Windows Virtual Key code of the key the player uses to initiate a weave
+  // (0 = disabled). Matched against uiohook keydown events so the press is
+  // detected even when EQ has focus. WEAVE_KEY_DISPLAY is the human-readable
+  // label shown in settings (e.g. 'F5', 'Space', 'q').
+  WEAVE_KEY_CODE:     0,
+  WEAVE_KEY_DISPLAY:  '',
+  WEAVE_KEY2_CODE:    0,
+  WEAVE_KEY2_DISPLAY: '',
   SHOW_ALL_CRITS: true,
 
   // ── Weapon / haste ────────────────────────────────────────────
@@ -279,6 +300,7 @@ export const Config = {
     "Katana of Flowing Water":                 33,
     "Green Jade Axe":                          34,
     "Scimitar of the Emerald Dawn":            34,
+    "Yttrium Spiked Gloves":                   20,
   } as Record<string, number>,
 
   // ── EQ log regex patterns ─────────────────────────────────────
@@ -307,7 +329,7 @@ export const Config = {
     '^You try to tiger claw\\b',
     '^You attempt to tiger claw\\b',
   ],
-  PROC_HIT_PATTERNS:     ['^You hit\\b'],
+  PROC_HIT_PATTERNS:     ['^You hit\\b', ' was hit by non-melee for '],
   OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target', "You can't hit them from here"],
   CURSOR_BLOCKED_PATTERNS:  ['You cannot swap items when holding something'],
   COMBAT_START_PATTERNS: [

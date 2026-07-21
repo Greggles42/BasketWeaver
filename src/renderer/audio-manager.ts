@@ -122,6 +122,25 @@ export class AudioManager {
     return this.makeBuffer(out)
   }
 
+  private makeDwOk(): AudioBuffer {
+    // Two-note ascending chirp (E5 → G5): bright and positive, distinct from 'good' (single A4)
+    const sr  = this.cfg.SAMPLE_RATE
+    const vol = this.cfg.FX_VOLUME
+    const noteLen = Math.floor(0.07 * sr)
+    const gap     = Math.floor(0.04 * sr)  // offset between notes
+    const total   = noteLen + gap
+    const out = new Float32Array(total)
+    const e5 = 2 * Math.PI * 659.25 / sr
+    const g5 = 2 * Math.PI * 783.99 / sr
+    for (let i = 0; i < noteLen; i++) {
+      const env = Math.exp(-i / sr * 30)
+      out[i]       += Math.sin(e5 * i) * vol * 0.7 * env
+      out[i + gap] += Math.sin(g5 * i) * vol * 0.7 * env
+    }
+    this.applyEnvelope(out, 0.003, 0.04)
+    return this.makeBuffer(out)
+  }
+
   private makeCombatStart(): AudioBuffer {
     const sr  = this.cfg.SAMPLE_RATE
     const dur = 0.28
@@ -288,6 +307,7 @@ export class AudioManager {
         case 'out_of_range': this.buffers.set(name, this.makeOutOfRange()); break
         case 'whiff':        this.buffers.set(name, this.makeWhiff());      break
         case 'error':        this.buffers.set(name, this.makeError());      break
+        case 'dw_ok':        this.buffers.set(name, this.makeDwOk());      break
         default: throw new Error(`Unknown sound: ${name}`)
       }
     }
@@ -299,7 +319,7 @@ export class AudioManager {
   /** Pre-generate all sound buffers so the first call has no latency. */
   preload(): void {
     for (const name of ['tick', 'perfect', 'good', 'miss',
-                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error']) {
+                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error', 'dw_ok']) {
       try { this.getBuffer(name) } catch {}
     }
   }

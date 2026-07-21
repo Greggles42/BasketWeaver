@@ -31,6 +31,7 @@ export interface GradeResult {
   fightDuration: number // ms (total wall-clock duration)
   addedDps: number      // damage per second from fist attacks
   totalDps: number      // total melee DPS (mainhand + fist + misc) for the fight
+  totalDamage: number   // raw total damage dealt during the fight
   avgReactionMs: number | null  // ms from mainhand crush to first fist attempt, per round
   outOfRangeMs: number  // ms accumulated out-of-range during the fight
   engagedMs: number     // ms actually in melee range (fightDuration - outOfRangeMs)
@@ -125,12 +126,13 @@ export class RhythmEngine {
 
   // ── Rolling interval calibration ─────────────────────────────
   private measuredIntervals: number[] = []
-  private static readonly CALIB_BUFFER = 4   // coarse phase: fast convergence after a change
-  private fineIntervals: number[] = []
-  private static readonly FINE_CALIB_BUFFER = 10   // fine phase: precision after 10 consistent rounds
-  private static readonly FINE_CONSISTENCY_PCT = 0.02  // measurement must be within 2% of coarse median
+  private static readonly CALIB_BUFFER = 4   // fast convergence: 3 samples needed, 4th evicts oldest
   /** Set in closeRound() when the calibrated interval shifts >50ms; cleared by caller. */
   public calibrationEvent: { interval: number } | null = null
+
+  /** Set in closeRound() when keystroke grading detected a weave-key press in the window
+   *  but no fist attack arrived in the log (dual-wield roll failed). Cleared by caller. */
+  public dwRollFailed = false
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
@@ -170,9 +172,12 @@ export class RhythmEngine {
     // Do NOT call resetScore() — keep accumulated damage stats
     // Clear calibration state so stale measurements from the previous fight don't
     // corrupt the interval estimate for the new/resumed engagement.
-    this.measuredIntervals  = []
-    this.calibrationEvent   = null
-    this.lastRoundCloseTime = 0
+    this.measuredIntervals   = []
+    this.calibrationEvent    = null
+    this.lastRoundCloseTime  = 0
+    this.roundHadKeystroke   = false
+    this.roundHadFistAttempt = false
+    this.dwRollFailed        = false
     const interval   = this.predictedInterval   // derive fresh from weapon delay + haste
     const halfWindow = this.computeWindowWidth(interval) / 2
     this.cfg.PUNCH_INTERVAL  = interval
@@ -277,6 +282,26 @@ export class RhythmEngine {
     this.damageLog.push([performance.now() - this.combatStartTime, damage])
   }
 
+  /** Accumulate damage sourced from the log file (used in hybrid mode). */
+  onLogDamage(damage: number, source: 'mainhand' | 'fist' | 'misc'): void {
+    if (damage <= 0) return
+    const now = performance.now()
+    if (source === 'mainhand') {
+      this.totalMeleeDamage += damage
+      if (this.inCombat) this.damageLog.push([now - this.combatStartTime, damage])
+    } else if (source === 'fist') {
+      if (!this.inCombat) return
+      this.totalFistDamage  += damage
+      this.totalMeleeDamage += damage
+      this.fistAttackCount++
+      this.damageLog.push([now - this.combatStartTime, damage])
+    } else {
+      if (!this.inCombat) return
+      this.totalMeleeDamage += damage
+      this.damageLog.push([now - this.combatStartTime, damage])
+    }
+  }
+
   onOutOfRange(ts: number): void {
     this.swingTimerValid = false
     this.notesAnchored = false
@@ -290,6 +315,12 @@ export class RhythmEngine {
     if (this.outOfRangeStart !== null) {
       this.totalOutOfRangeMs += Math.max(0, ts - this.outOfRangeStart)
       this.outOfRangeStart = null
+      // Reset the round-close anchor so the next closeRound() produces no measurement.
+      // Without this, the interval measured after returning includes the OOR gap:
+      //   measured = lastCrushTime_before_OOR + OOR_duration + swing_tick_after_return
+      // At high haste (e.g. 80%, 1.11s interval) a brief OOR of ~0.67s inflates the
+      // measured interval to ~1.79s, which the coarse calibration reads as ~12% haste.
+      this.lastRoundCloseTime = 0
     }
   }
 
@@ -385,6 +416,31 @@ export class RhythmEngine {
   }
 
   /**
+   * Record a weave key press for log-grading mode without touching note state or scoring.
+   * Sets roundHadKeystroke so dwRollFailed fires at round close if no fist attack follows.
+   * Returns true if the keystroke landed in the window (and was newly recorded).
+   */
+  noteKeystrokeInWindow(ts: number): boolean {
+    if (!this.inCombat || this.roundHadKeystroke) return false
+    if (this.isInWeaveWindow(ts)) {
+      this.roundHadKeystroke = true
+      return true
+    }
+    return false
+  }
+
+  /**
+   * Record a bandolier-swap weave attempt for inferred DW mode.
+   * Caller has already confirmed the swap is inside the weave window.
+   * Sets roundHadKeystroke so the attempt is counted at round close, without
+   * touching note state or scoring counters.
+   */
+  noteInferredWeaveAttempt(): void {
+    if (!this.inCombat || this.roundHadKeystroke) return
+    this.roundHadKeystroke = true
+  }
+
+  /**
    * Call every frame. Closes open rounds, pre-generates notes, auto-misses expired notes.
    * Returns newly generated notes (caller may schedule audio ticks).
    */
@@ -464,7 +520,8 @@ export class RhythmEngine {
       keystrokeRoundsWeaved: this.keystrokeRoundsWithWeave,
       totalRounds: this.roundCount,
       weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
-      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, totalDps, avgReactionMs,
+      totalFistDamage: this.totalFistDamage, fightDuration, addedDps, totalDps,
+      totalDamage: this.totalMeleeDamage, avgReactionMs,
       keystrokeGrading: useKeystroke, outOfRangeMs, engagedMs }
   }
 
@@ -494,36 +551,17 @@ export class RhythmEngine {
           const currentMedian = RhythmEngine.median(this.measuredIntervals)
           if (Math.abs(measured - currentMedian) / currentMedian > 0.08) {
             this.measuredIntervals = []
-            this.fineIntervals = []
           }
         }
         this.measuredIntervals.push(measured)
         if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
           this.measuredIntervals.shift()
       }
-      // Coarse median: use rolling median when we have ≥3 samples.
-      // Median is robust — up to (n/2 - 1) outlier values can't corrupt the result.
-      const coarseRaw = this.measuredIntervals.length >= 3
+      // Rolling median: robust to outliers — up to (n/2 - 1) bad values can't corrupt the result.
+      // Use 3+ samples for stability; fall back to current PUNCH_INTERVAL while building up.
+      const raw = this.measuredIntervals.length >= 3
         ? RhythmEngine.median(this.measuredIntervals)
         : this.cfg.PUNCH_INTERVAL
-
-      // Fine calibration: accumulate measurements that are within 2% of the coarse
-      // estimate. Once 10 consecutive consistent rounds accumulate, use their median
-      // for a precision correction. Any inconsistent round resets the streak.
-      if (!this.roundSkipCalibration && measured >= minPlausible && measured <= maxPlausible
-          && this.measuredIntervals.length >= 3) {
-        if (Math.abs(measured - coarseRaw) / coarseRaw <= RhythmEngine.FINE_CONSISTENCY_PCT) {
-          this.fineIntervals.push(measured)
-          if (this.fineIntervals.length > RhythmEngine.FINE_CALIB_BUFFER)
-            this.fineIntervals.shift()
-        } else {
-          this.fineIntervals = []
-        }
-      }
-
-      const raw = this.fineIntervals.length >= RhythmEngine.FINE_CALIB_BUFFER
-        ? RhythmEngine.median(this.fineIntervals)
-        : coarseRaw
       if (raw < minPlausible) {
         this.measuredIntervals = []
         interval = this.cfg.PUNCH_INTERVAL
@@ -557,9 +595,15 @@ export class RhythmEngine {
     this.nextSwingTime   = roundEnd + s(interval)
     this.swingTimerValid = true
 
+    // A confirmed fist attack in the log proves the player pressed the weave key —
+    // credit keystroke grading too so log-confirmed weaves are never lost even if
+    // the uiohook key detection missed the press.
+    if (this.roundHadFistAttempt) this.roundHadKeystroke = true
+
     this.roundCount++
     if (this.roundHadFistAttempt) this.roundsWithWeave++
     if (this.roundHadKeystroke)   this.keystrokeRoundsWithWeave++
+    if (this.roundHadKeystroke && !this.roundHadFistAttempt) this.dwRollFailed = true
 
     this.lastRoundFistDamages = [...this.roundFistDamages]
     this.roundFistDamages = []
@@ -571,7 +615,6 @@ export class RhythmEngine {
    *  stale measurements from the old haste level don't pollute calibration. */
   resetCalibration(): void {
     this.measuredIntervals = []
-    this.fineIntervals     = []
     this.calibrationEvent  = null
   }
 
@@ -612,7 +655,7 @@ export class RhythmEngine {
     this.fistAttemptCount = 0; this.fistAttackCount = 0; this.totalFistDamage = 0; this.totalMeleeDamage = 0; this.mainhandClips = 0
     this.reactionTimeSum = 0; this.reactionTimeCount = 0; this.lastMainhandTs = 0; this.roundReactionCounted = false
     this.roundCount = 0; this.roundsWithWeave = 0; this.keystrokeRoundsWithWeave = 0
-    this.roundHadFistAttempt = false; this.roundHadKeystroke = false
+    this.roundHadFistAttempt = false; this.roundHadKeystroke = false; this.dwRollFailed = false
     this.notes = []; this.nextId = 0
     this.roundOpen = false; this.notesAnchored = false
     this.lastRoundCloseTime = 0.0; this.nextSwingTime = 0.0
@@ -620,7 +663,7 @@ export class RhythmEngine {
     this.lastRoundFistDamages = []; this.roundFistDamages = []
     this.roundMainhandDamage = 0; this.roundEndDamage = null
     this.lastKnownInterval = this.predictedInterval   // seconds, matching PUNCH_INTERVAL units
-    this.measuredIntervals = []; this.fineIntervals = []; this.calibrationEvent = null
+    this.measuredIntervals = []; this.calibrationEvent = null
     this.totalOutOfRangeMs = 0; this.outOfRangeStart = null
     this.disciplinesUsed = new Set()
     this.damageLog = []

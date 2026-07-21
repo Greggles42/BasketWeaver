@@ -167,7 +167,6 @@
     <select id="sortSelect">
       <option value="total_dps">Total DPS</option>
       <option value="fist_dps">Weave DPS</option>
-      <option value="grade">Grade</option>
       <option value="timestamp">Date</option>
     </select>
   </div>
@@ -234,7 +233,6 @@
       records.sort((a, b) => {
         if (sort === 'total_dps') return b.total_dps - a.total_dps
         if (sort === 'fist_dps')  return b.fist_dps  - a.fist_dps
-        if (sort === 'grade')     return a.grade.localeCompare(b.grade)
         return b.timestamp - a.timestamp
       })
 
@@ -266,6 +264,7 @@
           <td class="${escHtml('grade-' + r.grade)}">${escHtml(r.grade)}</td>
           <td>${(r.total_dps ?? 0).toFixed(1)}</td>
           <td>${(r.fist_dps ?? 0).toFixed(1)}</td>
+          <td>${r.total_damage != null ? Number(r.total_damage).toLocaleString() : '—'}</td>
           <td>${escHtml(r.mainhand || '—')}</td>
           <td>${escHtml(r.offhand  || '—')}</td>
           <td>${r.atk_rating || '—'}</td>
@@ -281,7 +280,7 @@
 
       return `<table>
         <thead><tr>
-          <th>#</th><th>Mob</th><th>Grade</th><th>Total DPS</th><th>Weave DPS</th>
+          <th>#</th><th>Mob</th><th>Grade</th><th>Total DPS</th><th>Weave DPS</th><th>Total Dmg</th>
           <th>Mainhand</th><th>Offhand</th><th>ATK</th><th>Haste%</th>
           <th>Disc</th><th>Buffs</th>
           <th>Engaged</th><th>Duration</th>

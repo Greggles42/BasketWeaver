@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS records (
   grade            TEXT     NOT NULL DEFAULT 'F',
   total_dps        REAL     NOT NULL DEFAULT 0,
   fist_dps         REAL     NOT NULL DEFAULT 0,
+  total_damage     BIGINT   NOT NULL DEFAULT 0,
   fight_duration   INTEGER  NOT NULL DEFAULT 0,  -- ms
   engaged_ms       INTEGER  NOT NULL DEFAULT 0,
   out_of_range_ms  INTEGER  NOT NULL DEFAULT 0,
@@ -32,3 +33,6 @@ CREATE INDEX IF NOT EXISTS idx_mob_dps ON records(mob_name, total_dps DESC);
 CREATE INDEX IF NOT EXISTS idx_char    ON records(character_name);
 CREATE INDEX IF NOT EXISTS idx_server  ON records(server_name);
 CREATE INDEX IF NOT EXISTS idx_ts      ON records(timestamp DESC);
+
+-- Migration: run once on existing databases to add total_damage column
+-- ALTER TABLE records ADD COLUMN IF NOT EXISTS total_damage BIGINT NOT NULL DEFAULT 0;

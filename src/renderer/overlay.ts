@@ -657,6 +657,7 @@ export class Overlay {
       fightDuration:            result.fightDuration,
       addedDps:                 result.addedDps,
       totalDps:                 result.totalDps,
+      totalDamage:              result.totalDamage,
       avgReactionMs:            result.avgReactionMs,
       // Leaderboard-specific
       id:                       crypto.randomUUID(),

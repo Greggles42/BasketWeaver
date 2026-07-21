@@ -1,10 +1,5 @@
 {
   "framework": null,
   "buildCommand": "",
-  "outputDirectory": "leaderboard/public",
-  "functions": {
-    "leaderboard/api/*.ts": {
-      "runtime": "@vercel/node@3"
-    }
-  }
+  "outputDirectory": "leaderboard/public"
 }

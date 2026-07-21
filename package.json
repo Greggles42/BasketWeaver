@@ -1,6 +1,6 @@
 {
   "name": "basketweaver",
-  "version": "2.2.6",
+  "version": "2.2.7",
   "description": "EverQuest fistweaving timing overlay",
   "author": "Basketweaver",
   "main": "out/main/index.js",
@@ -22,7 +22,8 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "electron-updater": "^6.0.0"
+    "electron-updater": "^6.0.0",
+    "uiohook-napi": "^1.5.4"
   },
   "build": {
     "appId": "com.basketweaver.app",

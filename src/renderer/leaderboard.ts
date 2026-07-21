@@ -22,7 +22,7 @@ declare global {
 // ── State ─────────────────────────────────────────────────────
 
 let allRecords: R[] = []
-let sortCol   = 'timestamp'
+let sortCol   = 'totalDps'
 let sortAsc   = false
 let workerUrl = ''
 const uploadedIds = new Set<string>()
@@ -96,7 +96,7 @@ function render(): void {
   statusText.textContent = `${rows.length} record${rows.length !== 1 ? 's' : ''} (${allRecords.length} total)`
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="18" class="empty">No records match the current filters.</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="19" class="empty">No records match the current filters.</td></tr>'
     return
   }
 
@@ -123,6 +123,7 @@ function render(): void {
       <td class="grade-${escHtml(r.grade)}">${escHtml(r.grade)}</td>
       <td>${r.totalDps.toFixed(1)}</td>
       <td>${r.addedDps.toFixed(1)}</td>
+      <td>${r.totalDamage?.toLocaleString() ?? '—'}</td>
       <td>${escHtml(r.weapons.mainhand)}</td>
       <td>${escHtml(r.weapons.offhand)}</td>
       <td>${r.atkRating || '—'}</td>
@@ -313,6 +314,11 @@ btnCloseChart.addEventListener('click', () => { chartPanel.style.display = 'none
 ;[filterMob, filterChar].forEach(el => el.addEventListener('input', render))
 
 // ── Column sort ───────────────────────────────────────────────
+
+// Mark the initial sort column
+document.querySelectorAll('thead th[data-col]').forEach(th => {
+  if ((th as HTMLElement).dataset.col === sortCol) th.classList.add('sorted')
+})
 
 document.querySelectorAll('thead th[data-col]').forEach(th => {
   th.addEventListener('click', () => {

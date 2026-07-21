@@ -18,4 +18,24 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   onCharacterWeaponsLoaded: (cb: (ws: Record<string, unknown>) => void): void => {
     ipcRenderer.on('character-weapons-loaded', (_e, ws) => cb(ws))
   },
+
+  startWeaveKeyLearn: (): void =>
+    ipcRenderer.send('weave-key-learn-start'),
+
+  cancelWeaveKeyLearn: (): void =>
+    ipcRenderer.send('weave-key-learn-cancel'),
+
+  onWeaveKeyLearned: (cb: (result: { keycode: number; display: string } | null) => void): void => {
+    ipcRenderer.on('weave-key-learned', (_e, result) => cb(result))
+  },
+
+  startWeaveKeyLearn2: (): void =>
+    ipcRenderer.send('weave-key-learn-start-2'),
+
+  cancelWeaveKeyLearn2: (): void =>
+    ipcRenderer.send('weave-key-learn-cancel-2'),
+
+  onWeaveKeyLearned2: (cb: (result: { keycode: number; display: string } | null) => void): void => {
+    ipcRenderer.on('weave-key-learned-2', (_e, result) => cb(result))
+  },
 })

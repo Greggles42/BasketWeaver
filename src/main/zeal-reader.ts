@@ -323,6 +323,12 @@ export class ZealReader {
             data: { damage, hit: true, line: text } })
         } else if (verb === 'flying kick' || verb === 'kick') {
           this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+        } else if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
+          // Non-mainhand non-punch attack while weave bandolier is active →
+          // offhand DW swing with a non-punch weapon type (e.g. slash/pierce offhand)
+          this.lastFistHitTs = now
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage, hit: true, line: text } })
         } else {
           // hit (proc), slash, pierce, bash, or non-mainhand verb → misc damage
           if (damage > 0)

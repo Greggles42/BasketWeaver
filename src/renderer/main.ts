@@ -30,8 +30,12 @@ declare global {
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
       onSetShowAllCrits:             (cb: (enabled: boolean) => void) => void
       onSetPositiveAudioInWindow:    (cb: (enabled: boolean) => void) => void
+      onSetKeystrokeGrading:         (cb: (enabled: boolean) => void) => void
       onSetWeaveWindowMs:            (cb: (ms: number) => void) => void
+      onSetDwRollFailDelayMs:        (cb: (ms: number) => void) => void
+      onSetInferredDwChecks:         (cb: (enabled: boolean) => void) => void
       onSetPunchInterval:            (cb: (interval: number) => void) => void
+      onWeaveKeyPressed:             (cb: (ts: number) => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -155,6 +159,10 @@ window.electronAPI.onSetShowAllCrits((enabled) => {
   Config.SHOW_ALL_CRITS = enabled
 })
 
+window.electronAPI.onSetKeystrokeGrading((enabled) => {
+  Config.KEYSTROKE_GRADING = enabled
+})
+
 window.electronAPI.onSetPositiveAudioInWindow((enabled) => {
   Config.POSITIVE_AUDIO_IN_WINDOW = enabled
 })
@@ -163,12 +171,24 @@ window.electronAPI.onSetWeaveWindowMs((ms) => {
   Config.WEAVE_WINDOW_MS = ms
 })
 
+window.electronAPI.onSetDwRollFailDelayMs((ms) => {
+  Config.DW_ROLL_FAIL_DELAY_MS = ms
+})
+
+window.electronAPI.onSetInferredDwChecks((enabled) => {
+  Config.INFERRED_DW_CHECKS = enabled
+})
+
 window.electronAPI.onSetPunchInterval((interval) => {
   Config.PUNCH_INTERVAL = interval
 })
 
 window.electronAPI.onSetBaseWeaponDelay((delay) => {
   Config.BASE_WEAPON_DELAY = delay
+})
+
+window.electronAPI.onWeaveKeyPressed((ts: number) => {
+  ;(overlay as any).handleWeaveKeyPressed?.(ts)
 })
 
 // ── Status requests from tray ─────────────────────────────────
@@ -182,6 +202,11 @@ window.addEventListener('request-status', () => {
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   // Prevent browser defaults for game keys
   if (['ArrowUp', 'ArrowDown', ' ', 'Tab'].includes(e.key)) e.preventDefault()
+  // Shift+T: hidden test — simulate a DW roll failure visual+audio without combat
+  if (e.shiftKey && (e.key === 't' || e.key === 'T')) {
+    ;(overlay as any).testDwRollFail?.()
+    return
+  }
   overlay.handleKey(e.key)
 })
 
