@@ -541,7 +541,6 @@
         <label data-tip="Play the fist/miss sound when a hand-to-hand attack misses."><input type="checkbox" id="fistMissSound" /> Fist Sound on Miss</label>
         <label data-tip="Automatically adjusts the weave window timing based on your observed hit patterns."><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
         <label data-tip="Display a countdown swing timer for the offhand weapon on the overlay."><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
-        <label data-tip="Track and grade how precisely you press your weave key relative to the swing window. Requires Weave Key to be set."><input type="checkbox" id="keystrokeGrading" /> Keystroke Grading</label>
         <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
         <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
         <label data-tip="Lock the overlay window in place so it cannot be moved by dragging."><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
@@ -553,20 +552,6 @@
         <label for="weaveBandolierOffDelay">Weave Off Delay (ms)</label>
         <input type="number" id="weaveBandolierOffDelay" min="0" max="2000" step="50" style="width:80px" />
       </div>
-      <div class="row" id="weaveKeyRow" style="margin-top:6px" data-tip="Primary global hotkey for your weapon-swap / weave action. Click Learn, then press the key you use to swap weapons.">
-        <label>Weave Key 1 <span class="hint">(global)</span></label>
-        <span id="weaveKeyTag" class="weave-key-tag unset">not set</span>
-        <button id="weaveKeyLearn" class="btn-learn-key">Learn</button>
-        <button id="weaveKeyClear" class="btn-learn-key">Clear</button>
-        <span class="hint">Press your weapon-swap key to register it</span>
-      </div>
-      <div class="row" id="weaveKey2Row" style="margin-top:4px" data-tip="Optional second global hotkey for an alternate weapon-swap key (e.g. if you use two different keys for the same swap action).">
-        <label>Weave Key 2 <span class="hint">(global)</span></label>
-        <span id="weaveKey2Tag" class="weave-key-tag unset">not set</span>
-        <button id="weaveKey2Learn" class="btn-learn-key">Learn</button>
-        <button id="weaveKey2Clear" class="btn-learn-key">Clear</button>
-        <span class="hint">Optional second weapon-swap key</span>
-      </div>
     </div>
 
     <!-- ── Leaderboard ──────────────────────────────────── -->
@@ -576,6 +561,9 @@
       <div class="row" data-tip="Name used when submitting fight records to the leaderboard. Leave blank to auto-detect from the log or Zeal.">
         <label>Character Name</label>
         <input type="text" id="lbCharName" placeholder="auto-detected from log / Zeal" style="flex:1" />
+      </div>
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="When enabled, your fight results are kept locally but never uploaded to the community leaderboard."><input type="checkbox" id="leaderboardOptOut" /> Opt Out of Leaderboard</label>
       </div>
     </div>
 

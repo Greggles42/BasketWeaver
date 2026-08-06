@@ -87,7 +87,7 @@ export class HighContrastOverlay {
   private ctx: CanvasRenderingContext2D
   private cfg: ConfigType
   private rhythm: RhythmEngine
-  private audio: AudioManager
+  readonly audio: AudioManager
 
   private hzX = 80
   private hzY = 0
@@ -122,8 +122,13 @@ export class HighContrastOverlay {
   private rapidAttackMuteUntil = 0
   private static readonly RAPID_CRUSH_THRESHOLD = 4
   private static readonly RAPID_MUTE_MS = 6000
-  private avatarActive = false
-  private savageryActive = false
+  // ── Fist-only / swing-timer mode ─────────────────────────────
+  private fistOnlyMode = false
+  private combatFistCount  = 0
+  private combatCrushCount = 0
+  private static readonly FIST_ONLY_THRESHOLD = 5
+  avatarActive = false
+  savageryActive = false
   private lastKnownMainhand = ''
   private lastKnownAtkRating = 0
   private lastKnownHastePct = 0
@@ -155,6 +160,8 @@ export class HighContrastOverlay {
     this.audio.preload()
     this.computeLayout()
   }
+
+  get inCombat(): boolean { return this.rhythm.inCombat }
 
   start(): void {
     const TARGET = 1000 / 60
@@ -222,6 +229,9 @@ export class HighContrastOverlay {
       case EvType.COMBAT_START:
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
+          this.fistOnlyMode = false
+          this.combatFistCount = 0
+          this.combatCrushCount = 0
           this.rhythm.onCombatStart(now())
           this.audio.play('combat_start')
           this.gradeScreen = null
@@ -268,6 +278,11 @@ export class HighContrastOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit    as boolean) ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
+        this.combatCrushCount++
+        if (this.fistOnlyMode) {
+          this.fistOnlyMode = false
+          this.banners.push(new Banner('WEAPON — WEAVE MODE', HC.combat, 3000))
+        }
         // Resume if combat ended spuriously mid-fight (preserves damage stats)
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
@@ -292,12 +307,28 @@ export class HighContrastOverlay {
         const fistNow = now()
         const damage  = (ev.data?.damage as number)  ?? 0
         const hit     = (ev.data?.hit    as boolean) ?? false
+        this.lastCombatActivity = ts
+        this.lastFistAttackTs = fistNow
+
+        // ── Fist-only / swing-timer detection ──────────────────
+        if (this.combatCrushCount === 0) this.combatFistCount++
+        if (!this.fistOnlyMode && this.combatCrushCount === 0
+            && this.combatFistCount >= HighContrastOverlay.FIST_ONLY_THRESHOLD) {
+          this.fistOnlyMode = true
+          this.banners.push(new Banner('SWING TIMER MODE', HC.accent, 4000))
+        }
+
+        if (this.fistOnlyMode) {
+          this.rhythm.onReturnInRange(fistNow)
+          this.rhythm.onMainhandCrush(fistNow, damage, hit, false)
+          break
+        }
+
+        // ── Normal weave mode ───────────────────────────────────
         this.rhythm.onReturnInRange(fistNow)
         const isClip  = this.rhythm.onFistAttack(adjTs, damage, hit, fistNow)
         this.dwPendingTs = 0  // offhand swing confirmed — cancel any pending DW no-roll timer
-        this.lastCombatActivity = ts
         this.consecutiveCrushesWithoutFist = 0
-        this.lastFistAttackTs = fistNow
         if (this.audioMutedRapidAttack) this.clearRapidAttackMute()
         if (isClip) {
           this.clipWarn = 1
@@ -414,13 +445,17 @@ export class HighContrastOverlay {
           const t = now()
           this.innerflameUntil = active ? t + 12000 : 0
           if (this.rhythm.inCombat) {
-            if (active) { this.innerflameFlightStart = t }
+            if (active) { this.innerflameFlightStart = t; this.rhythm.disciplinesUsed.add('innerflame') }
             else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
           }
         }
         if (buff === 'whirlwind') {
-          this.whirlwindUntil = active ? now() + 12000 : 0
-          if (active) this.banners.push(new Banner('WHIRLWIND', '#c084fc', 3000))
+          const t = now()
+          this.whirlwindUntil = active ? t + 12000 : 0
+          if (active) {
+            this.banners.push(new Banner('WHIRLWIND', '#c084fc', 3000))
+            if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('whirlwind')
+          }
         }
         break
       }
@@ -492,7 +527,7 @@ export class HighContrastOverlay {
     this.audio.play('dw_ok')
   }
 
-  private resetTrack(): void {
+  resetTrack(): void {
     if (this.rhythm.inCombat) this.rhythm.onCombatEnd(now())
     this.postCombatGlideUntil = 0
     this.gradeScreen = null
@@ -691,7 +726,7 @@ export class HighContrastOverlay {
     this.banners = this.banners.filter(b => !b.expired)
     if (this.gradeScreen?.expired) this.gradeScreen = null
 
-    if (t - this.dpsLastUpdate >= 1000) {
+    if (t - this.dpsLastUpdate >= 250) {
       this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
       this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
       this.dpsLastUpdate = t

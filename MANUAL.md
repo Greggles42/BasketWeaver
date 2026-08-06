@@ -1,5 +1,5 @@
 # Basketweaver — User Manual
-## Version 2.2.0
+## Version 2.3.0
 
 Basketweaver is a real-time timing overlay for EverQuest weapon-weaving.
 It draws a scrolling highway showing when to swap to your offhand weapon set
@@ -681,7 +681,6 @@ the custom field that appears when no preset matches your search.
 | **Fist Sound on Miss** | Play a whiff sound when a fist weave misses |
 | **Dynamic Weaving** | Show color-coded weave window zones (blue/green/red) based on offhand cooldown |
 | **Offhand Swing Timer** | Show a thin bar at the bottom of the highway indicating offhand weapon readiness |
-| **Keystroke Grading** | Grade weaves by keystrokes rather than log-detected fist attacks |
 | **Offhand Same Attack Type (timing)** | Treat a second crush in a round as the offhand event (for blunt offhand weapons like Ribcracker) |
 | **Freeze Window Position** | Lock the overlay in place so it cannot be dragged |
 | **Show All Crits on Track** | Display all critical hit banners on the highway, not just those above the epic threshold |
@@ -694,6 +693,7 @@ the custom field that appears when no preset matches your search.
 | Setting | Description |
 |---|---|
 | **Character Name** | Your character name for leaderboard records. Auto-detected from the log filename — only set this manually if you want to override it. |
+| **Opt Out of Leaderboard** | Keep fight records local only — never upload them to the community leaderboard |
 
 ---
 
@@ -778,6 +778,11 @@ required. Uploads happen when:
 All kills are saved to your **local** leaderboard regardless of whether they qualify
 for the community board. Only specific Classic, Kunark, Velious, and Luclin raid
 bosses are eligible for community upload.
+
+If you'd rather not contribute to the community board at all, enable **Opt Out of
+Leaderboard** in Settings → Leaderboard. Your fights are still recorded locally
+(Recent Fights, Top Crits, Top Huge Rounds, and the Leaderboard window), they just
+won't be uploaded.
 
 **Eligible mobs by expansion:**
 

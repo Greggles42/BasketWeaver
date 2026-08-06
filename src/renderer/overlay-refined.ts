@@ -101,7 +101,7 @@ export class RefinedOverlay {
   private ctx: CanvasRenderingContext2D
   private cfg: ConfigType
   private rhythm: RhythmEngine
-  private audio: AudioManager
+  readonly audio: AudioManager
 
   private hzX = HZ_X
   private hzY = 0
@@ -145,8 +145,8 @@ export class RefinedOverlay {
   private rapidAttackMuteUntil = 0
   private static readonly RAPID_CRUSH_THRESHOLD = 4
   private static readonly RAPID_MUTE_MS = 6000
-  private avatarActive = false
-  private savageryActive = false
+  avatarActive = false
+  savageryActive = false
   private weaveBandolierActive = false
   private lastKnownMainhand = ''
   private lastKnownAtkRating = 0
@@ -179,6 +179,8 @@ export class RefinedOverlay {
     this.audio.preload()
     this.computeLayout()
   }
+
+  get inCombat(): boolean { return this.rhythm.inCombat }
 
   // ── Public lifecycle ────────────────────────────────────────
   start(): void {
@@ -571,7 +573,7 @@ export class RefinedOverlay {
     this.audio.play('dw_ok')
   }
 
-  private resetTrack(): void {
+  resetTrack(): void {
     if (this.rhythm.inCombat) this.rhythm.onCombatEnd(now())
     this.postCombatGlideUntil = 0
     this.gradeScreen = null

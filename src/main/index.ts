@@ -168,6 +168,7 @@ function loadSettings(): void {
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
       if (typeof saved.POSITIVE_AUDIO_IN_WINDOW   === 'boolean') Config.POSITIVE_AUDIO_IN_WINDOW   = saved.POSITIVE_AUDIO_IN_WINDOW
       if (typeof saved.LEADERBOARD_CHARACTER_NAME  === 'string')  Config.LEADERBOARD_CHARACTER_NAME  = saved.LEADERBOARD_CHARACTER_NAME
+      if (typeof saved.LEADERBOARD_OPT_OUT         === 'boolean') Config.LEADERBOARD_OPT_OUT         = saved.LEADERBOARD_OPT_OUT
       if (typeof saved.AUTO_DETECT_LOG             === 'boolean') Config.AUTO_DETECT_LOG             = saved.AUTO_DETECT_LOG
       if (typeof saved.WEAVE_KEY_CODE     === 'number') Config.WEAVE_KEY_CODE     = saved.WEAVE_KEY_CODE
       if (typeof saved.WEAVE_KEY_DISPLAY  === 'string') Config.WEAVE_KEY_DISPLAY  = saved.WEAVE_KEY_DISPLAY
@@ -204,6 +205,7 @@ export function saveSettings(): void {
       WINDOW_PINNED:             Config.WINDOW_PINNED,
       POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
       LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
+      LEADERBOARD_OPT_OUT:        Config.LEADERBOARD_OPT_OUT,
       MAINHAND_ATTACK_TYPE:       Config.MAINHAND_ATTACK_TYPE,
       AUTO_DETECT_LOG:            Config.AUTO_DETECT_LOG,
       WEAVE_KEY_CODE:             Config.WEAVE_KEY_CODE,
@@ -602,6 +604,7 @@ function setupIPC(): void {
     WINDOW_PINNED:            Config.WINDOW_PINNED,
     AUTO_DETECT_LOG:          Config.AUTO_DETECT_LOG,
     LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
+    LEADERBOARD_OPT_OUT:        Config.LEADERBOARD_OPT_OUT,
     OFFHAND_CRUSH_ENABLED:        Config.OFFHAND_CRUSH_ENABLED,
     WEAVE_BANDOLIER_OFF_DELAY_MS: Config.WEAVE_BANDOLIER_OFF_DELAY_MS,
     AUDIO_DEBOUNCE_MS:            Config.AUDIO_DEBOUNCE_MS,
@@ -650,11 +653,13 @@ function setupIPC(): void {
       case 'OFFHAND_WEAPON_DELAY':
         Config.OFFHAND_WEAPON_DELAY = value as number
         win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: value, name: Config.OFFHAND_WEAPON_NAME })
+        saveCharacterWeapons()
         break
 
       case 'OFFHAND_WEAPON_NAME':
         Config.OFFHAND_WEAPON_NAME = value as string
         win?.webContents.send(IPC.SET_OFFHAND_DELAY, { delay: Config.OFFHAND_WEAPON_DELAY, name: value })
+        saveCharacterWeapons()
         break
 
       case 'TARGET_POSITION_PCT':
@@ -754,16 +759,6 @@ function setupIPC(): void {
         saveCharacterWeapons()
         break
 
-      case 'OFFHAND_WEAPON_DELAY':
-        Config.OFFHAND_WEAPON_DELAY = value as number
-        saveCharacterWeapons()
-        break
-
-      case 'OFFHAND_WEAPON_NAME':
-        Config.OFFHAND_WEAPON_NAME = value as string
-        saveCharacterWeapons()
-        break
-
       case 'MAINHAND_ATTACK_TYPE':
         Config.MAINHAND_ATTACK_TYPE = value as 'crush' | 'slash' | 'pierce' | 'punch'
         // Restart reader to recompile verb patterns
@@ -777,6 +772,10 @@ function setupIPC(): void {
 
       case 'LEADERBOARD_CHARACTER_NAME':
         (Config as any)[key] = value
+        break
+
+      case 'LEADERBOARD_OPT_OUT':
+        Config.LEADERBOARD_OPT_OUT = value as boolean
         break
 
       case 'AUTO_DETECT_LOG':
@@ -826,7 +825,9 @@ function setupIPC(): void {
     }
     // Upload automatically when a character is identified and mob is on the allowlist.
     // Worker URL and API key are embedded at build time — no user configuration required.
-    if (Config.LEADERBOARD_CHARACTER_NAME && __LEADERBOARD_WORKER_URL__ && __LEADERBOARD_API_KEY__) {
+    if (Config.LEADERBOARD_OPT_OUT) {
+      console.log(`[Leaderboard] Skipping upload for ${record.mobName} (user opted out)`)
+    } else if (Config.LEADERBOARD_CHARACTER_NAME && __LEADERBOARD_WORKER_URL__ && __LEADERBOARD_API_KEY__) {
       if (LeaderboardManager.isOnlineEligible(record.mobName)) {
         const ok = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
         console.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for ${record.mobName}`)

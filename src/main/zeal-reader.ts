@@ -112,6 +112,7 @@ export class ZealReader {
   // ── Diagnostic ───────────────────────────────────────────────
   private seenLogTypes = new Set<number>()
   private characterName = ''
+  private critRe: RegExp | null = null   // compiled once from characterName
 
   // ── Combat state ──────────────────────────────────────────────
   private inCombat = false
@@ -233,6 +234,9 @@ export class ZealReader {
     socket.on('error', (err) => {
       console.log(`[ZealReader] Pipe error for PID ${pid}: ${err.message}`)
       this.connectedPids.delete(pid)
+      const idx = this.sockets.indexOf(socket)
+      if (idx !== -1) this.sockets.splice(idx, 1)
+      socket.destroy()
     })
 
     socket.on('close', () => {
@@ -253,6 +257,8 @@ export class ZealReader {
 
     if (!this.characterName && outer.character) {
       this.characterName = outer.character
+      const nameEsc = this.characterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      this.critRe = new RegExp(`^${nameEsc}\\b.*?\\((\\d+)\\)`, 'i')
       console.log(`[ZealReader] Character: "${this.characterName}"`)
       // Populate leaderboard character name if not already set by user
       if (!this.cfg.LEADERBOARD_CHARACTER_NAME) {
@@ -424,9 +430,8 @@ export class ZealReader {
       // Format: "Gabbiz Scores a critical hit!(336)"
       // Only emit for the logged-in character (pipe is per-process, but verify name).
       case LOG.MeleeCrits: {
-        if (this.characterName) {
-          const nameEsc = this.characterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-          const m = new RegExp(`^${nameEsc}\\b.*?\\((\\d+)\\)`, 'i').exec(text)
+        if (this.critRe) {
+          const m = this.critRe.exec(text)
           if (m) {
             const damage = parseInt(m[1], 10)
             if (damage > 0)
@@ -656,6 +661,7 @@ export class ZealReader {
     this.sockets = []
     this.connectedPids.clear()
     this.characterName   = ''
+    this.critRe          = null
     this.seenLogTypes.clear()
     this.inCombat            = false
     this.currentTarget       = ''

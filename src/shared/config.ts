@@ -379,6 +379,7 @@ export const Config = {
 
   // ── Leaderboard ───────────────────────────────────────────────
   LEADERBOARD_CHARACTER_NAME: '',   // auto-populated from log filename or Zeal pipe
+  LEADERBOARD_OPT_OUT: false,       // when true, fight records are never uploaded to the community leaderboard
 
   // Critical hit notification lines — separate from the damage line
   CRIT_HIT_PATTERNS: [

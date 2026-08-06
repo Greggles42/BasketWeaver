@@ -146,12 +146,17 @@ export class RhythmEngine {
     this.combatStartTime = ts
     this.resetScore()
 
-    // Pre-populate the note track immediately using the last known weapon speed.
-    // The first real swing will recalibrate via closeRound() as normal.
-    const interval    = this.predictedInterval          // seconds
+    // Preserve the current PUNCH_INTERVAL (from last calibration or HASTE_DETECTED)
+    // rather than resetting to predictedInterval.  predictedInterval derives from
+    // HASTE_PCT which may be stale (e.g. 0 at startup), causing the display to show
+    // wrong haste for ~6 seconds until auto-calibration rebuilds 3 samples.
+    // The calibration buffer (measuredIntervals) is also preserved across fights:
+    // if haste hasn't changed the old measurements are still valid, giving instant
+    // calibration continuity.  If haste HAS changed, the 8% change-detection in
+    // closeRound() will flush stale entries on the first divergent measurement.
+    const interval    = this.cfg.PUNCH_INTERVAL         // keep calibrated value
     const halfWindow  = this.computeWindowWidth(interval) / 2
     this.cfg.GOOD_WINDOW    = halfWindow
-    this.cfg.PUNCH_INTERVAL = interval
     this.lastKnownInterval  = interval   // seconds, matching PUNCH_INTERVAL units
 
     // lastRoundCloseTime stays 0 (set by resetScore) so the first closeRound()
@@ -172,17 +177,20 @@ export class RhythmEngine {
     // Bootstrap to ts if it was never set (first fight, no prior onCombatStart).
     if (this.combatStartTime <= 0) this.combatStartTime = ts
     // Do NOT call resetScore() — keep accumulated damage stats
-    // Clear calibration state so stale measurements from the previous fight don't
-    // corrupt the interval estimate for the new/resumed engagement.
-    this.measuredIntervals   = []
+    // Preserve measuredIntervals and PUNCH_INTERVAL from the last calibration.
+    // If the haste hasn't changed (most common case: false MOB_DIED mid-fight),
+    // old measurements are still valid and calibration stays converged instantly.
+    // If haste genuinely changed, closeRound()'s 8% change-detection will flush
+    // the buffer on the first divergent measurement.
+    // Only reset the round-close anchor so the first closeRound() after resume
+    // doesn't measure an interval that spans the combat gap.
     this.calibrationEvent    = null
     this.lastRoundCloseTime  = 0
     this.roundHadKeystroke   = false
     this.roundHadFistAttempt = false
     this.dwRollFailed        = false
-    const interval   = this.predictedInterval   // derive fresh from weapon delay + haste
+    const interval   = this.cfg.PUNCH_INTERVAL   // keep calibrated value
     const halfWindow = this.computeWindowWidth(interval) / 2
-    this.cfg.PUNCH_INTERVAL  = interval
     this.cfg.GOOD_WINDOW     = halfWindow
     this.nextSwingTime   = ts + s(interval)
     this.nextNoteTime    = ts + s(interval) + s(halfWindow)
@@ -655,6 +663,7 @@ export class RhythmEngine {
   reset(): void {
     this.inCombat = false
     this.combatStartTime = 0.0
+    this.measuredIntervals = []   // hard reset clears calibration buffer too
     this.resetScore()
   }
 
@@ -671,8 +680,11 @@ export class RhythmEngine {
     this.swingTimerValid = false
     this.lastRoundFistDamages = []; this.roundFistDamages = []
     this.roundMainhandDamage = 0; this.roundEndDamage = null
-    this.lastKnownInterval = this.predictedInterval   // seconds, matching PUNCH_INTERVAL units
-    this.measuredIntervals = []; this.calibrationEvent = null
+    this.lastKnownInterval = this.cfg.PUNCH_INTERVAL   // keep calibrated value
+    // measuredIntervals intentionally preserved — if haste hasn't changed between
+    // fights the old buffer gives instant calibration continuity.  closeRound()'s
+    // 8% change-detection will flush if a genuine haste change occurred.
+    this.calibrationEvent = null
     this.totalOutOfRangeMs = 0; this.outOfRangeStart = null
     this.disciplinesUsed = new Set()
     this.damageLog = []

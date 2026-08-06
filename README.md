@@ -151,8 +151,6 @@ The grade screen shows:
 - Added DPS from fist weaves alone
 - Average reaction time (mainhand land → first fist attempt, per round)
 
-**Keystroke Grading** mode grades on keystrokes that land in a weave window rather than log-detected fist events — useful when proc failures or dual-wield misses would otherwise penalise you.
-
 ### Fight History & Top Records
 
 - **Recent Fights** — last 5 completed fights shown in the tray submenu; click any entry to copy a full stat line to the clipboard for sharing in Discord or guild chat
@@ -242,7 +240,6 @@ All kills are saved locally regardless of eligibility.
 | Fist Sound on Miss | On | Play whiff sound when weave window passes without a fist attack |
 | Dynamic Weaving | On | Color-coded weave window zones (blue/green/red) |
 | Offhand Swing Timer | On | Thin bar beneath highway showing offhand cooldown progress |
-| Keystroke Grading | Off | Grade by keystrokes in window rather than log-detected fist events |
 | Offhand Same Attack Type | Off | Treat second crush in a round as the offhand event (for Ribcracker-style blunt offhand weapons) |
 | Freeze Window Position | On | Lock overlay so it cannot be dragged |
 | Show All Crits on Track | On | Show all crit banners, not just those above the epic threshold |
@@ -254,6 +251,7 @@ All kills are saved locally regardless of eligibility.
 | Setting | Description |
 |---|---|
 | Character Name | Auto-detected from log filename; override manually if needed |
+| Opt Out of Leaderboard | Keep fight records local only; never upload to the community leaderboard |
 
 ---
 

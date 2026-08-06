@@ -546,7 +546,6 @@ async function init(): Promise<void> {
   setupToggle('fistMissSound',      'FIST_SOUND_ON_MISS',  s.FIST_SOUND_ON_MISS as boolean)
   setupToggle('dynamicWeaving',     'DYNAMIC_WEAVING',     s.DYNAMIC_WEAVING    as boolean)
   setupToggle('offhandTimer',       'SHOW_OFFHAND_TIMER',  s.SHOW_OFFHAND_TIMER as boolean)
-  setupToggle('keystrokeGrading',   'KEYSTROKE_GRADING',   s.KEYSTROKE_GRADING  as boolean)
   setupToggle('inferredDwChecks',   'INFERRED_DW_CHECKS',  s.INFERRED_DW_CHECKS as boolean)
   setupToggle('offhandCrush',       'OFFHAND_CRUSH_ENABLED', s.OFFHAND_CRUSH_ENABLED as boolean)
 
@@ -572,117 +571,6 @@ async function init(): Promise<void> {
   setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
   setupToggle('autoDetectLog',         'AUTO_DETECT_LOG',            s.AUTO_DETECT_LOG            as boolean)
 
-  // ── Weave key learn ──────────────────────────────────────────
-  const weaveKeyRow   = document.getElementById('weaveKeyRow')   as HTMLElement | null
-  const weaveKeyTag   = document.getElementById('weaveKeyTag')   as HTMLSpanElement | null
-  const weaveKeyLearn = document.getElementById('weaveKeyLearn') as HTMLButtonElement | null
-  const weaveKeyClear = document.getElementById('weaveKeyClear') as HTMLButtonElement | null
-  const weaveKey2Row  = document.getElementById('weaveKey2Row')  as HTMLElement | null
-
-  function setWeaveKeyDisplay(display: string): void {
-    if (!weaveKeyTag) return
-    if (display) {
-      weaveKeyTag.textContent = display
-      weaveKeyTag.classList.remove('unset')
-    } else {
-      weaveKeyTag.textContent = 'not set'
-      weaveKeyTag.classList.add('unset')
-    }
-  }
-
-  function setWeaveKeyRowEnabled(enabled: boolean): void {
-    for (const row of [weaveKeyRow, weaveKey2Row]) {
-      if (!row) continue
-      row.style.opacity = enabled ? '' : '0.35'
-      row.style.pointerEvents = enabled ? '' : 'none'
-    }
-  }
-
-  setWeaveKeyDisplay((s.WEAVE_KEY_DISPLAY as string) ?? '')
-  setWeaveKeyRowEnabled((s.KEYSTROKE_GRADING as boolean) ?? false)
-
-  // Keep the weave key rows in sync whenever keystroke grading is toggled.
-  const keystrokeGradingCb = document.getElementById('keystrokeGrading') as HTMLInputElement | null
-  keystrokeGradingCb?.addEventListener('change', () => {
-    setWeaveKeyRowEnabled(keystrokeGradingCb.checked)
-  })
-
-  // Register the one-time IPC response listener immediately (only fires once per learned key)
-  window.settingsAPI.onWeaveKeyLearned((result) => {
-    if (!weaveKeyLearn) return
-    weaveKeyLearn.classList.remove('learning')
-    weaveKeyLearn.textContent = 'Learn'
-    weaveKeyLearn.disabled = false
-    if (result) setWeaveKeyDisplay(result.display)
-  })
-
-  weaveKeyLearn?.addEventListener('click', () => {
-    if (weaveKeyLearn.classList.contains('learning')) {
-      // Second click cancels
-      window.settingsAPI.cancelWeaveKeyLearn()
-      weaveKeyLearn.classList.remove('learning')
-      weaveKeyLearn.textContent = 'Learn'
-      weaveKeyLearn.disabled = false
-      return
-    }
-    weaveKeyLearn.classList.add('learning')
-    weaveKeyLearn.textContent = 'Press key…'
-    weaveKeyLearn.disabled = false  // keep enabled so user can click again to cancel
-    window.settingsAPI.startWeaveKeyLearn()
-  })
-
-  weaveKeyClear?.addEventListener('click', () => {
-    setWeaveKeyDisplay('')
-    window.settingsAPI.setSetting('WEAVE_KEY_CODE', 0)
-    window.settingsAPI.setSetting('WEAVE_KEY_DISPLAY', '')
-  })
-
-  // ── Weave Key 2 ─────────────────────────────────────────────
-  const weaveKey2Tag   = document.getElementById('weaveKey2Tag')   as HTMLSpanElement | null
-  const weaveKey2Learn = document.getElementById('weaveKey2Learn') as HTMLButtonElement | null
-  const weaveKey2Clear = document.getElementById('weaveKey2Clear') as HTMLButtonElement | null
-
-  function setWeaveKey2Display(display: string): void {
-    if (!weaveKey2Tag) return
-    if (display) {
-      weaveKey2Tag.textContent = display
-      weaveKey2Tag.classList.remove('unset')
-    } else {
-      weaveKey2Tag.textContent = 'not set'
-      weaveKey2Tag.classList.add('unset')
-    }
-  }
-
-  setWeaveKey2Display((s.WEAVE_KEY2_DISPLAY as string) ?? '')
-
-  window.settingsAPI.onWeaveKeyLearned2((result) => {
-    if (!weaveKey2Learn) return
-    weaveKey2Learn.classList.remove('learning')
-    weaveKey2Learn.textContent = 'Learn'
-    weaveKey2Learn.disabled = false
-    if (result) setWeaveKey2Display(result.display)
-  })
-
-  weaveKey2Learn?.addEventListener('click', () => {
-    if (weaveKey2Learn.classList.contains('learning')) {
-      window.settingsAPI.cancelWeaveKeyLearn2()
-      weaveKey2Learn.classList.remove('learning')
-      weaveKey2Learn.textContent = 'Learn'
-      weaveKey2Learn.disabled = false
-      return
-    }
-    weaveKey2Learn.classList.add('learning')
-    weaveKey2Learn.textContent = 'Press key…'
-    weaveKey2Learn.disabled = false
-    window.settingsAPI.startWeaveKeyLearn2()
-  })
-
-  weaveKey2Clear?.addEventListener('click', () => {
-    setWeaveKey2Display('')
-    window.settingsAPI.setSetting('WEAVE_KEY2_CODE', 0)
-    window.settingsAPI.setSetting('WEAVE_KEY2_DISPLAY', '')
-  })
-
   // ── Leaderboard settings ─────────────────────────────────────
   const lbCharName = document.getElementById('lbCharName') as HTMLInputElement | null
 
@@ -691,6 +579,8 @@ async function init(): Promise<void> {
   lbCharName?.addEventListener('change', () => {
     window.settingsAPI.setSetting('LEADERBOARD_CHARACTER_NAME', lbCharName.value)
   })
+
+  setupToggle('leaderboardOptOut', 'LEADERBOARD_OPT_OUT', s.LEADERBOARD_OPT_OUT as boolean)
 
   // ── Close / Save & Close buttons ─────────────────────────────
   document.getElementById('btnClose')?.addEventListener('click', () => {

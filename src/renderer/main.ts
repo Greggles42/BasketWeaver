@@ -72,6 +72,13 @@ const overlay: {
   toggleFistMissSound(): void
   toggleDynamicWeaving(): void
   toggleOffhandTimer(): void
+  resetTrack(): void
+  handleWeaveKeyPressed(ts: number): void
+  applyDynamicWeaveWindow(delayTenths: number, name?: string): void
+  readonly audio: import('./audio-manager').AudioManager
+  readonly inCombat: boolean
+  avatarActive: boolean
+  savageryActive: boolean
   pinned: boolean
   logSelected: boolean
 } = overlayStyle === 'highcontrast'
@@ -103,7 +110,7 @@ window.electronAPI.onSetTargetPosition((pct: number) => {
 })
 
 window.electronAPI.onResetTrack(() => {
-  ;(overlay as any).resetTrack ? (overlay as any).resetTrack() : overlay.handleKey('r')
+  overlay.resetTrack()
 })
 
 window.electronAPI.onToggleFistMissSound(() => overlay.toggleFistMissSound())
@@ -111,22 +118,20 @@ window.electronAPI.onToggleDynamicWeaving(() => overlay.toggleDynamicWeaving())
 window.electronAPI.onToggleOffhandTimer(() => overlay.toggleOffhandTimer())
 window.electronAPI.onToggleLaneLines(() => overlay.toggleLaneLines())
 // ── Buff sounds — preload wav files ──────────────────────────
-const audio: import('./audio-manager').AudioManager | undefined = (overlay as any).audio
-if (audio) {
-  audio.loadFile('avatar',   './sounds/avatar.wav',   0.6)
-  audio.loadFile('savagery', './sounds/savagery.wav')
-  audio.loadFile('oh_snap',  './sounds/oh snap.wav')
-  audio.loadFile('epic',     './sounds/epic.wav')
-  audio.loadFile('hit_tick', './sounds/Hit tick.wav')
-}
+const audio = overlay.audio
+audio.loadFile('avatar',   './sounds/avatar.wav',   0.6)
+audio.loadFile('savagery', './sounds/savagery.wav')
+audio.loadFile('oh_snap',  './sounds/oh snap.wav')
+audio.loadFile('epic',     './sounds/epic.wav')
+audio.loadFile('hit_tick', './sounds/Hit tick.wav')
 
 window.electronAPI.onClearBuffs(() => {
-  ;(overlay as any).avatarActive   = false
-  ;(overlay as any).savageryActive = false
+  overlay.avatarActive   = false
+  overlay.savageryActive = false
 })
 
 window.electronAPI.onToggleBuffSound(() => {
-  if (audio) audio.buffSoundEnabled = !audio.buffSoundEnabled
+  audio.buffSoundEnabled = !audio.buffSoundEnabled
 })
 
 window.electronAPI.onTogglePin(() => {
@@ -138,15 +143,13 @@ window.electronAPI.onTogglePin(() => {
   }
 })
 window.electronAPI.onSetOffhandDelay((delay, name) => {
-  ;(overlay as any).applyDynamicWeaveWindow?.(delay, name)
+  overlay.applyDynamicWeaveWindow(delay, name)
 })
 
 window.electronAPI.onSetVolumes((master, proc, epic, debounceMs) => {
-  if (audio) {
-    audio.masterVolume = master
-    audio.procVolume   = proc
-    audio.epicVolume   = epic
-  }
+  audio.masterVolume = master
+  audio.procVolume   = proc
+  audio.epicVolume   = epic
   Config.AUDIO_DEBOUNCE_MS = debounceMs
 })
 
@@ -188,13 +191,13 @@ window.electronAPI.onSetBaseWeaponDelay((delay) => {
 })
 
 window.electronAPI.onWeaveKeyPressed((ts: number) => {
-  ;(overlay as any).handleWeaveKeyPressed?.(ts)
+  overlay.handleWeaveKeyPressed(ts)
 })
 
 // ── Status requests from tray ─────────────────────────────────
 
 window.addEventListener('request-status', () => {
-  window.electronAPI.replyStatus((overlay as any).rhythm?.inCombat ?? false)
+  window.electronAPI.replyStatus(overlay.inCombat)
 })
 
 // ── Keyboard input ─────────────────────────────────────────────
@@ -262,7 +265,7 @@ canvas.addEventListener('mousedown', (e: MouseEvent) => {
 
 window.addEventListener('mousemove', (e: MouseEvent) => {
   if (!dragPending && !dragging) return
-  if (!(e.buttons & 1)) { dragPending = false; dragging = false; window.electronAPI.releaseMouse(); return }
+  if (!(e.buttons & 1)) { dragPending = false; dragging = false; if (overlay.pinned) window.electronAPI.releaseMouse(); return }
 
   if (!dragging) {
     const dx = e.screenX - dragStartX
@@ -287,12 +290,12 @@ window.addEventListener('blur', () => {
 })
 
 window.addEventListener('mouseup', (e: MouseEvent) => {
-  if (e.button !== 0) { dragPending = false; dragging = false; window.electronAPI.releaseMouse(); return }
+  if (e.button !== 0) { dragPending = false; dragging = false; if (overlay.pinned) window.electronAPI.releaseMouse(); return }
   if (dragPending && !dragging) {
     // Released without moving — weapon-swap click at the original mousedown time.
     ;(overlay as any).handleMouseClick?.(clickDownTs, clickDownClientX, clickDownClientY)
   }
   dragPending = false
   dragging    = false
-  window.electronAPI.releaseMouse()
+  if (overlay.pinned) window.electronAPI.releaseMouse()
 })
