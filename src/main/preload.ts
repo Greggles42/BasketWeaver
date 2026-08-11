@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLogSelected: (cb: (path: string) => void) =>
     ipcRenderer.on(IPC.LOG_SELECTED, (_e, path: string) => cb(path)),
 
+  onCharacterDetected: (cb: (name: string) => void) =>
+    ipcRenderer.on(IPC.CHARACTER_DETECTED, (_e, name: string) => cb(name)),
+
   onToggleAudio: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_AUDIO, () => cb()),
 

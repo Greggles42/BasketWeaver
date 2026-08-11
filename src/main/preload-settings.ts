@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld('settingsAPI', {
     ipcRenderer.on('character-weapons-loaded', (_e, ws) => cb(ws))
   },
 
+  onCharacterDetected: (cb: (name: string) => void): void => {
+    ipcRenderer.on('character-detected', (_e, name) => cb(name))
+  },
+
   startWeaveKeyLearn: (): void =>
     ipcRenderer.send('weave-key-learn-start'),
 

@@ -13,6 +13,7 @@ declare global {
     electronAPI: {
       onGameEvent:        (cb: (ev: GameEvent) => void) => void
       onLogSelected:      (cb: (path: string) => void) => void
+      onCharacterDetected: (cb: (name: string) => void) => void
       onToggleAudio:        (cb: () => void) => void
       onSetTargetPosition:    (cb: (pct: number) => void) => void
       onResetTrack:           (cb: () => void) => void
@@ -100,6 +101,12 @@ window.electronAPI.onLogSelected(p => {
   overlay.logSelected = true
   ;(overlay as any).lastLogActivityTs = performance.now()  // reset stale-log timer
   ;(overlay as any).showBanner?.(`Log: ${filename}`, Config.C_GOOD, 3000)
+})
+
+window.electronAPI.onCharacterDetected(name => {
+  if (!name) return
+  Config.LEADERBOARD_CHARACTER_NAME = name
+  ;(overlay as any).charName = name
 })
 
 window.electronAPI.onToggleAudio(() => {

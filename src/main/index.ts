@@ -410,6 +410,7 @@ function createWindow(): void {
       preload:        path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration:  false,
+      autoplayPolicy:   'no-user-gesture-required',
     },
   })
 
@@ -482,6 +483,16 @@ function startHybridReader(): void {
   const zealReader = new ZealReader(Config, forwardZealEvent, (name) => {
     identifiedCharacterName = name
     updateOverlayAlwaysOnTop()
+    // ZealReader already populated Config.LEADERBOARD_CHARACTER_NAME (if the
+    // user hadn't already set one). Propagate it to the overlay/settings
+    // renderers — each runs its own Config instance — and persist it, so
+    // leaderboard uploads have a character name even when no log file was
+    // ever manually selected.
+    win?.webContents.send(IPC.CHARACTER_DETECTED, Config.LEADERBOARD_CHARACTER_NAME)
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      settingsWin.webContents.send(IPC.CHARACTER_DETECTED, Config.LEADERBOARD_CHARACTER_NAME)
+    }
+    saveSettings()
   })
   activeZealReader = zealReader
   stopZeal = zealReader.start()

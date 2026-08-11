@@ -9,6 +9,7 @@ declare global {
       setSetting(key: string, value: unknown): void
       close(): void
       onCharacterWeaponsLoaded?(cb: (ws: Record<string, unknown>) => void): void
+      onCharacterDetected?(cb: (name: string) => void): void
       startWeaveKeyLearn(): void
       cancelWeaveKeyLearn(): void
       onWeaveKeyLearned(cb: (result: { keycode: number; display: string } | null) => void): void
@@ -732,6 +733,12 @@ async function init(): Promise<void> {
 
   lbCharName?.addEventListener('change', () => {
     window.settingsAPI.setSetting('LEADERBOARD_CHARACTER_NAME', lbCharName.value)
+  })
+
+  // Live-update if Zeal auto-detects a character while this window is open,
+  // but don't clobber text the user is actively typing.
+  window.settingsAPI.onCharacterDetected?.((name) => {
+    if (lbCharName && document.activeElement !== lbCharName) lbCharName.value = name
   })
 
   setupToggle('leaderboardOptOut', 'LEADERBOARD_OPT_OUT', s.LEADERBOARD_OPT_OUT as boolean)

@@ -9,7 +9,8 @@
     "@vercel/postgres": "^0.10.0"
   },
   "devDependencies": {
-    "@vercel/node": "^3.0.0",
+    "@types/node": "^22.10.0",
+    "@vercel/node": "^5.9.8",
     "typescript": "^5.0.0"
   }
 }
