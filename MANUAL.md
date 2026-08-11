@@ -1,5 +1,5 @@
 # Basketweaver — User Manual
-## Version 2.3.0
+## Version 2.3.1
 
 Basketweaver is a real-time timing overlay for EverQuest weapon-weaving.
 It draws a scrolling highway showing when to swap to your offhand weapon set

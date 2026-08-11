@@ -108,6 +108,16 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         },
       },
       {
+        label:   'Rogue Mode (Backstab Tracking) [Alpha]',
+        type:    'checkbox',
+        checked: Config.ROGUE_MODE_ENABLED,
+        click:   () => {
+          Config.ROGUE_MODE_ENABLED = !Config.ROGUE_MODE_ENABLED
+          win.webContents.send(IPC.TOGGLE_ROGUE_MODE)
+          onSave()
+        },
+      },
+      {
         label: 'Recent Fights',
         submenu: recentFights.length === 0
           ? [{ label: 'No fights recorded yet', enabled: false }]

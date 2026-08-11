@@ -170,6 +170,11 @@ function loadSettings(): void {
       if (typeof saved.LEADERBOARD_CHARACTER_NAME  === 'string')  Config.LEADERBOARD_CHARACTER_NAME  = saved.LEADERBOARD_CHARACTER_NAME
       if (typeof saved.LEADERBOARD_OPT_OUT         === 'boolean') Config.LEADERBOARD_OPT_OUT         = saved.LEADERBOARD_OPT_OUT
       if (typeof saved.AUTO_DETECT_LOG             === 'boolean') Config.AUTO_DETECT_LOG             = saved.AUTO_DETECT_LOG
+      if (Array.isArray(saved.IGNORED_CHARACTERS)) {
+        Config.IGNORED_CHARACTERS = saved.IGNORED_CHARACTERS.filter((v: unknown) => typeof v === 'string')
+      }
+      if (typeof saved.ROGUE_MODE_ENABLED      === 'boolean') Config.ROGUE_MODE_ENABLED      = saved.ROGUE_MODE_ENABLED
+      if (typeof saved.ROGUE_BACKSTAB_SET_NAME === 'string')  Config.ROGUE_BACKSTAB_SET_NAME = saved.ROGUE_BACKSTAB_SET_NAME
       if (typeof saved.WEAVE_KEY_CODE     === 'number') Config.WEAVE_KEY_CODE     = saved.WEAVE_KEY_CODE
       if (typeof saved.WEAVE_KEY_DISPLAY  === 'string') Config.WEAVE_KEY_DISPLAY  = saved.WEAVE_KEY_DISPLAY
       if (typeof saved.WEAVE_KEY2_CODE    === 'number') Config.WEAVE_KEY2_CODE    = saved.WEAVE_KEY2_CODE
@@ -206,6 +211,9 @@ export function saveSettings(): void {
       POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
       LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
       LEADERBOARD_OPT_OUT:        Config.LEADERBOARD_OPT_OUT,
+      IGNORED_CHARACTERS:         Config.IGNORED_CHARACTERS,
+      ROGUE_MODE_ENABLED:         Config.ROGUE_MODE_ENABLED,
+      ROGUE_BACKSTAB_SET_NAME:    Config.ROGUE_BACKSTAB_SET_NAME,
       MAINHAND_ATTACK_TYPE:       Config.MAINHAND_ATTACK_TYPE,
       AUTO_DETECT_LOG:            Config.AUTO_DETECT_LOG,
       WEAVE_KEY_CODE:             Config.WEAVE_KEY_CODE,
@@ -280,6 +288,11 @@ export function createSettingsWindow(): void {
     },
   })
 
+  // Keep above the DPS overlay, which is also always-on-top and can otherwise
+  // reclaim the topmost z-order (e.g. when a setting change re-asserts it via
+  // updateOverlayAlwaysOnTop), blocking clicks on whatever it visually covers.
+  settingsWin.setAlwaysOnTop(true, 'floating')
+
   settingsWin.setMenu(null)
 
   const devUrl = process.env['ELECTRON_RENDERER_URL']
@@ -351,8 +364,13 @@ let leaderboardWin: BrowserWindow | null = null
 let stopLog:       (() => void) | null  = null
 let stopDamageLog: (() => void) | null  = null
 let stopZeal:      (() => void) | null  = null
+let activeZealReader: ZealReader | null = null
 let activeLogReader: import('./log-reader').LogReader | null = null
 let lastLogPath = ''
+// The character identified from the log filename / Zeal pipe — distinct from
+// Config.LEADERBOARD_CHARACTER_NAME, which the user can freely edit in Settings
+// for leaderboard-submission purposes. Only this drives the ignore-list check.
+let identifiedCharacterName = ''
 
 let leaderboardManager: LeaderboardManager
 
@@ -397,6 +415,7 @@ function createWindow(): void {
 
   // Set initial opacity
   win.setOpacity(Config.WINDOW_OPACITY)
+  updateOverlayAlwaysOnTop()
 
   // Load the renderer — electron-vite sets ELECTRON_RENDERER_URL in dev mode
   const devUrl = process.env['ELECTRON_RENDERER_URL']
@@ -419,6 +438,7 @@ function stopAllReaders(): void {
   if (stopDamageLog) { stopDamageLog(); stopDamageLog = null }
   if (stopZeal)      { stopZeal();      stopZeal      = null }
   activeLogReader = null
+  activeZealReader = null
 }
 
 function forwardEvent(ev: GameEvent): void {
@@ -451,7 +471,7 @@ function startHybridReader(): void {
   // Zeal handles timing/state; strip damage from its hit events so that
   // the damageOnly log reader below is the sole source for DPS values.
   function forwardZealEvent(ev: GameEvent): void {
-    if (ev.type === EvType.MAINHAND_CRUSH || ev.type === EvType.FIST_ATTACK) {
+    if (ev.type === EvType.MAINHAND_CRUSH || ev.type === EvType.FIST_ATTACK || ev.type === EvType.BACKSTAB_ATTACK) {
       ev = { ...ev, data: { ...ev.data, damage: 0 } }
     } else if (ev.type === EvType.MISC_DAMAGE) {
       return  // suppressed; log reader emits LOG_DAMAGE for these
@@ -459,7 +479,11 @@ function startHybridReader(): void {
     forwardEvent(ev)
   }
 
-  const zealReader = new ZealReader(Config, forwardZealEvent)
+  const zealReader = new ZealReader(Config, forwardZealEvent, (name) => {
+    identifiedCharacterName = name
+    updateOverlayAlwaysOnTop()
+  })
+  activeZealReader = zealReader
   stopZeal = zealReader.start()
 
   if (lastLogPath) {
@@ -507,6 +531,20 @@ async function pickLogFile(): Promise<string | null> {
   return result.canceled ? null : (result.filePaths[0] ?? null)
 }
 
+// ── Ignored characters / overlay always-on-top ──────────────────
+
+function isCharacterIgnored(name: string): boolean {
+  if (!name) return false
+  const n = name.trim().toLowerCase()
+  return Config.IGNORED_CHARACTERS.some(c => c.trim().toLowerCase() === n)
+}
+
+/** Keep the overlay's always-on-top state in sync with the active character. */
+function updateOverlayAlwaysOnTop(): void {
+  if (!win) return
+  win.setAlwaysOnTop(!isCharacterIgnored(identifiedCharacterName))
+}
+
 /** Handle a newly selected log file, respecting the current tracking mode. */
 function handleLogSelected(p: string): void {
   lastLogPath = p
@@ -515,9 +553,11 @@ function handleLogSelected(p: string): void {
   const filename = path.basename(p)
   const m = filename.match(/^eqlog_([^_]+)_/i)
   if (m) {
+    identifiedCharacterName = m[1]
     Config.LEADERBOARD_CHARACTER_NAME = m[1]
     applyCharacterWeapons(m[1], true)
   }
+  updateOverlayAlwaysOnTop()
   if (Config.TRACKING_SOURCE === 'hybrid') {
     startHybridReader()
   } else {
@@ -574,6 +614,29 @@ function setupIPC(): void {
     // Forwarded — tray listener handles this
   })
 
+  ipcMain.handle(IPC.GET_LOG_CHARACTERS, () => {
+    const dir = lastLogPath ? path.dirname(lastLogPath) : null
+    if (!dir) return []
+    try {
+      const files = fs.readdirSync(dir).filter(f => /^eqlog_.+\.txt$/i.test(f))
+      const names = new Set<string>()
+      for (const file of files) {
+        const m = file.match(/^eqlog_([^_]+)_/i)
+        if (m) names.add(m[1])
+      }
+      return [...names].sort((a, b) => a.localeCompare(b))
+    } catch {
+      return []
+    }
+  })
+
+  ipcMain.handle(IPC.ZEAL_STATUS_GET, () => {
+    if (Config.TRACKING_SOURCE !== 'hybrid' || !activeZealReader) {
+      return { pipeConnected: false, characterName: '', msSinceLastSwingData: null }
+    }
+    return activeZealReader.getStatus()
+  })
+
   ipcMain.handle(IPC.SETTINGS_GET, () => ({
     APP_VERSION:              app.getVersion(),
     VOLUME_MASTER:            Config.VOLUME_MASTER,
@@ -605,6 +668,9 @@ function setupIPC(): void {
     AUTO_DETECT_LOG:          Config.AUTO_DETECT_LOG,
     LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
     LEADERBOARD_OPT_OUT:        Config.LEADERBOARD_OPT_OUT,
+    IGNORED_CHARACTERS:         Config.IGNORED_CHARACTERS,
+    ROGUE_MODE_ENABLED:         Config.ROGUE_MODE_ENABLED,
+    ROGUE_BACKSTAB_SET_NAME:    Config.ROGUE_BACKSTAB_SET_NAME,
     OFFHAND_CRUSH_ENABLED:        Config.OFFHAND_CRUSH_ENABLED,
     WEAVE_BANDOLIER_OFF_DELAY_MS: Config.WEAVE_BANDOLIER_OFF_DELAY_MS,
     AUDIO_DEBOUNCE_MS:            Config.AUDIO_DEBOUNCE_MS,
@@ -778,6 +844,24 @@ function setupIPC(): void {
         Config.LEADERBOARD_OPT_OUT = value as boolean
         break
 
+      case 'IGNORED_CHARACTERS':
+        Config.IGNORED_CHARACTERS = Array.isArray(value)
+          ? (value as unknown[]).filter((v): v is string => typeof v === 'string')
+          : []
+        updateOverlayAlwaysOnTop()
+        break
+
+      case 'ROGUE_MODE_ENABLED':
+        if (Config.ROGUE_MODE_ENABLED !== value) {
+          Config.ROGUE_MODE_ENABLED = value as boolean
+          win?.webContents.send(IPC.TOGGLE_ROGUE_MODE)
+        }
+        break
+
+      case 'ROGUE_BACKSTAB_SET_NAME':
+        Config.ROGUE_BACKSTAB_SET_NAME = value as string
+        break
+
       case 'AUTO_DETECT_LOG':
         Config.AUTO_DETECT_LOG = value as boolean
         if (Config.AUTO_DETECT_LOG) {
@@ -818,6 +902,8 @@ function setupIPC(): void {
   // ── Leaderboard IPC ───────────────────────────────────────────
 
   ipcMain.on(IPC.LEADERBOARD_RECORD, async (_e, record: EncounterRecord) => {
+    // Stamp authoritatively — never trust a version string from the renderer.
+    record.appVersion = app.getVersion()
     leaderboardManager.addRecord(record)
     // Forward to leaderboard window if open
     if (leaderboardWin && !leaderboardWin.isDestroyed()) {
@@ -826,14 +912,16 @@ function setupIPC(): void {
     // Upload automatically when a character is identified and mob is on the allowlist.
     // Worker URL and API key are embedded at build time — no user configuration required.
     if (Config.LEADERBOARD_OPT_OUT) {
-      console.log(`[Leaderboard] Skipping upload for ${record.mobName} (user opted out)`)
-    } else if (Config.LEADERBOARD_CHARACTER_NAME && __LEADERBOARD_WORKER_URL__ && __LEADERBOARD_API_KEY__) {
-      if (LeaderboardManager.isOnlineEligible(record.mobName)) {
-        const ok = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
-        console.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for ${record.mobName}`)
-      } else {
-        console.log(`[Leaderboard] Skipping upload for ${record.mobName} (not on allowlist)`)
-      }
+      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (user opted out)`)
+    } else if (!Config.LEADERBOARD_CHARACTER_NAME) {
+      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (no character name identified)`)
+    } else if (!__LEADERBOARD_WORKER_URL__ || !__LEADERBOARD_API_KEY__) {
+      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (build is missing worker URL/API key)`)
+    } else if (!LeaderboardManager.isOnlineEligible(record.mobName)) {
+      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (not on allowlist)`)
+    } else {
+      const ok = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
+      leaderboardManager.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for "${record.mobName}" (v${record.appVersion}, char "${record.characterName}")`)
     }
   })
 
@@ -867,6 +955,9 @@ export function createLeaderboardWindow(): void {
       nodeIntegration:  false,
     },
   })
+
+  // Keep above the DPS overlay for the same reason as the settings window.
+  leaderboardWin.setAlwaysOnTop(true, 'floating')
 
   leaderboardWin.setMenu(null)
 

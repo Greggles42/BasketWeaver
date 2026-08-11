@@ -1,15 +1,17 @@
 {
   "name": "basketweaver",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "EverQuest fistweaving timing overlay",
   "author": "Basketweaver",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "build:debug": "electron-vite build --mode development",
     "preview": "electron-vite preview",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
+    "dist:debug": "npm run build:debug && electron-builder --dir",
     "manual": "md-to-pdf MANUAL.md"
   },
   "devDependencies": {

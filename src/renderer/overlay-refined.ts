@@ -18,6 +18,7 @@ import { EvType, type GameEvent, type HitRecord } from '../shared/events'
 import { RhythmEngine, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
 import type { EncounterRecord } from '../shared/leaderboard-types'
+import { BackstabTimer } from './backstab-timer'
 
 // ── Tuning constants ──────────────────────────────────────────
 const COMBAT_IDLE_TIMEOUT_MS = 10_000
@@ -93,6 +94,34 @@ class GradeScreen {
   }
 }
 
+interface RogueSummaryResult {
+  mobName: string
+  fightDuration: number  // ms
+  netDps: number
+  backstabDps: number
+  hits: number
+  misses: number
+}
+
+class RogueSummaryScreen {
+  static FADE_IN = 400; static HOLD = 5000; static FADE_OUT = 500
+  result: RogueSummaryResult; born = now()
+  constructor(result: RogueSummaryResult) { this.result = result }
+  get alpha() {
+    const age = now() - this.born
+    const total = RogueSummaryScreen.FADE_IN + RogueSummaryScreen.HOLD + RogueSummaryScreen.FADE_OUT
+    if (age < RogueSummaryScreen.FADE_IN) return age / RogueSummaryScreen.FADE_IN
+    if (age > total) return 0
+    const rem = total - age
+    if (rem < RogueSummaryScreen.FADE_OUT) return rem / RogueSummaryScreen.FADE_OUT
+    return 1
+  }
+  get expired() {
+    const age = now() - this.born
+    return age > RogueSummaryScreen.FADE_IN + RogueSummaryScreen.HOLD + RogueSummaryScreen.FADE_OUT
+  }
+}
+
 interface Particle { x:number; y:number; vx:number; vy:number; life:number; ttl:number; size:number }
 
 // ── Main class ────────────────────────────────────────────────
@@ -121,6 +150,15 @@ export class RefinedOverlay {
   private gradeScreen: GradeScreen | null = null
   private lastGradeResult: import('./rhythm-engine').GradeResult | null = null
   private fightHistory: GradeResult[] = []
+  // ── Rogue Mode ────────────────────────────────────────────────
+  private backstab: BackstabTimer
+  private rogueInCombat = false
+  private rogueFightStartTs = 0
+  private rogueDamageTotal = 0
+  private rogueBackstabDamageTotal = 0
+  private rogueBackstabHits = 0
+  private rogueBackstabMisses = 0
+  private rogueSummaryScreen: RogueSummaryScreen | null = null
   private dpsDisplayTotal   = 0
   private dpsDisplayFist    = 0
   private dpsLastUpdate     = 0
@@ -150,12 +188,18 @@ export class RefinedOverlay {
   private weaveBandolierActive = false
   private lastKnownMainhand = ''
   private lastKnownAtkRating = 0
-  private lastKnownHastePct = 0
   private avatarFightMs = 0;     private avatarFightStart:      number | null = null
   private savageryFightMs = 0;   private savageryFightStart:    number | null = null
   private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
   private innerflameUntil  = 0   // performance.now() expiry; 0 = inactive
   private whirlwindUntil   = 0   // performance.now() expiry; 0 = inactive
+  // ── Time-weighted average haste% across the fight ─────────────
+  // Haste can change mid-fight (clicky, disc, or auto-calibration correcting a
+  // wrong initial read) — track how long each value held so the displayed and
+  // leaderboard-reported haste% reflect the whole fight, not just the latest value.
+  private hasteFightWeightedMs = 0
+  private hasteSegStart: number | null = null
+  private hasteSegValue = 0
 
   pinned = true
   charName = ''
@@ -177,10 +221,11 @@ export class RefinedOverlay {
     this.rhythm = new RhythmEngine(Config)
     this.audio = new AudioManager(Config)
     this.audio.preload()
+    this.backstab = new BackstabTimer(this.cfg.ROGUE_SWAP_WARN_MS)
     this.computeLayout()
   }
 
-  get inCombat(): boolean { return this.rhythm.inCombat }
+  get inCombat(): boolean { return this.cfg.ROGUE_MODE_ENABLED ? this.rogueInCombat : this.rhythm.inCombat }
 
   // ── Public lifecycle ────────────────────────────────────────
   start(): void {
@@ -247,6 +292,22 @@ export class RefinedOverlay {
     const ts = ev.ts
     switch (ev.type) {
       case EvType.COMBAT_START:
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          if (!this.rogueInCombat) {
+            this.rogueInCombat = true
+            this.rogueFightStartTs = now()
+            this.rogueDamageTotal = 0
+            this.rogueBackstabDamageTotal = 0
+            this.rogueBackstabHits = 0
+            this.rogueBackstabMisses = 0
+            this.backstab.onCombatStart()
+            this.audio.play('combat_start')
+            this.rogueSummaryScreen = null
+            this.combatStartTs = now()
+          }
+          this.lastCombatActivity = ts
+          break
+        }
         if (!this.rhythm.inCombat) {
           this.postCombatGlideUntil = 0
           this.fistOnlyMode = false
@@ -263,6 +324,7 @@ export class RefinedOverlay {
           this.avatarFightMs = 0;      this.avatarFightStart      = this.avatarActive          ? t0 : null
           this.savageryFightMs = 0;    this.savageryFightStart    = this.savageryActive         ? t0 : null
           this.innerflameFlightMs = 0; this.innerflameFlightStart = this.innerflameUntil > t0  ? t0 : null
+          this.hasteFightWeightedMs = 0; this.hasteSegStart = t0; this.hasteSegValue = this.cfg.HASTE_PCT
           // Re-seed disciplinesUsed for any disc already active when combat starts
           // (resetScore cleared the set; BUFF_CHANGED fired before first swing)
           if (this.innerflameUntil > t0) this.rhythm.disciplinesUsed.add('innerflame')
@@ -271,6 +333,12 @@ export class RefinedOverlay {
         this.lastCombatActivity = ts
         break
       case EvType.MOB_DIED: {
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          if (this.rogueInCombat) {
+            this.finishRogueFight((ev.data?.mobName as string) ?? '')
+          }
+          break
+        }
         if (this.rhythm.inCombat) {
           this.postCombatGlideUntil = now() + 3000
           this.postCombatNextSwing  = this.rhythm.nextSwingTime
@@ -288,6 +356,13 @@ export class RefinedOverlay {
         break
       }
       case EvType.COMBAT_END:
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          if (this.rogueInCombat) {
+            this.rogueInCombat = false
+            this.backstab.onCombatEnd()
+          }
+          break
+        }
         if (this.rhythm.inCombat) {
           this.postCombatGlideUntil = now() + 3000
           this.postCombatNextSwing  = this.rhythm.nextSwingTime
@@ -389,20 +464,74 @@ export class RefinedOverlay {
         }
         break
       }
-      case EvType.MISC_DAMAGE:
-        this.rhythm.onMiscDamage((ev.data?.damage as number) ?? 0)
+      case EvType.MISC_DAMAGE: {
+        const damage = (ev.data?.damage as number) ?? 0
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          this.rogueDamageTotal += damage
+        } else {
+          this.rhythm.onMiscDamage(damage)
+        }
         this.lastCombatActivity = ts
         break
+      }
       case EvType.LOG_DAMAGE: {
-        const lgNow = now()
+        const lgNow  = now()
+        const damage = (ev.data?.damage as number) ?? 0
+        const source = (ev.data?.source as 'mainhand' | 'fist' | 'misc' | 'backstab') ?? 'misc'
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          if (!this.rogueInCombat) {
+            this.rogueInCombat = true
+            this.rogueFightStartTs = lgNow
+            this.rogueDamageTotal = 0
+            this.rogueBackstabDamageTotal = 0
+            this.rogueBackstabHits = 0
+            this.rogueBackstabMisses = 0
+            this.backstab.onCombatStart()
+          }
+          this.lastCombatActivity = lgNow
+          this.rogueDamageTotal += damage
+          if (source === 'backstab') this.rogueBackstabDamageTotal += damage
+          break
+        }
         this.rhythm.onReturnInRange(lgNow)
         // Ensure combat is tracked even if ZealReader's COMBAT_START arrives late
         if (!this.rhythm.inCombat) this.rhythm.onCombatStart(lgNow)
         this.lastCombatActivity = lgNow
-        this.rhythm.onLogDamage(
-          (ev.data?.damage as number) ?? 0,
-          (ev.data?.source as 'mainhand' | 'fist' | 'misc') ?? 'misc'
-        )
+        this.rhythm.onLogDamage(damage, source === 'backstab' ? 'misc' : source)
+        break
+      }
+      case EvType.BACKSTAB_ATTACK: {
+        if (!this.cfg.ROGUE_MODE_ENABLED) break
+        const damage = (ev.data?.damage as number) ?? 0
+        const hit    = (ev.data?.hit as boolean) ?? false
+        if (ev.data?.target) this.currentTarget = ev.data.target as string
+        const bsNow = now()
+        if (!this.rogueInCombat) {
+          this.rogueInCombat = true
+          this.rogueFightStartTs = bsNow
+          this.rogueDamageTotal = 0
+          this.rogueBackstabDamageTotal = 0
+          this.rogueBackstabHits = 0
+          this.rogueBackstabMisses = 0
+          this.backstab.onCombatStart()
+        }
+        this.backstab.onBackstabAttack(bsNow)
+        this.lastCombatActivity = bsNow
+        if (hit) {
+          this.rogueBackstabHits++
+          if (damage > 0) {
+            this.rogueDamageTotal += damage
+            this.rogueBackstabDamageTotal += damage
+          }
+          this.hitFlash = 1
+          const [hzx, hzy] = this.hzCenter()
+          this.spawnParticles(hzx, hzy)
+          this.audio.play('punch')
+        } else {
+          this.rogueBackstabMisses++
+          this.missFlash = 1
+          if (this.cfg.FIST_SOUND_ON_MISS) this.audio.play('whiff')
+        }
         break
       }
       case EvType.CURSOR_BLOCKED:
@@ -434,8 +563,13 @@ export class RefinedOverlay {
       }
       case EvType.HASTE_DETECTED: {
         const hastePct = (ev.data?.haste_pct as number) ?? 0
+        this.trackHasteChange(hastePct)
+        this.cfg.HASTE_PCT = hastePct
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          this.backstab.onHasteChanged(hastePct)
+          break
+        }
         const interval = (ev.data?.interval  as number) ?? this.rhythm.predictedInterval
-        this.cfg.HASTE_PCT      = hastePct
         this.cfg.PUNCH_INTERVAL = interval
         const fistDelay   = this.rhythm.effectiveOffhandDelay
         this.cfg.GOOD_WINDOW = Math.max(0.2, interval - fistDelay) / 2
@@ -474,7 +608,10 @@ export class RefinedOverlay {
         if (buff === 'avatar') {
           this.avatarActive = active
           if (this.rhythm.inCombat) {
-            if (active) { this.avatarFightStart = now() }
+            // Only (re)start the timer if it wasn't already running — a duplicate
+            // "active" event (buff refreshed/recast before it faded) must not reset
+            // the start time, or all time accumulated since the original cast is lost.
+            if (active) { if (this.avatarFightStart === null) this.avatarFightStart = now() }
             else if (this.avatarFightStart !== null) { this.avatarFightMs += now() - this.avatarFightStart; this.avatarFightStart = null }
           }
           if (active) { this.banners.push(new Banner('Avatar ON', '#a855f7', 4000)); this.audio.playFileSound('avatar') }
@@ -482,7 +619,7 @@ export class RefinedOverlay {
         if (buff === 'savagery') {
           this.savageryActive = active
           if (this.rhythm.inCombat) {
-            if (active) { this.savageryFightStart = now() }
+            if (active) { if (this.savageryFightStart === null) this.savageryFightStart = now() }
             else if (this.savageryFightStart !== null) { this.savageryFightMs += now() - this.savageryFightStart; this.savageryFightStart = null }
           }
           if (active) { this.banners.push(new Banner('Savagery ON', '#f97316', 4000)); this.audio.playFileSound('savagery') }
@@ -491,7 +628,10 @@ export class RefinedOverlay {
           const t = now()
           this.innerflameUntil = active ? t + 12000 : 0
           if (this.rhythm.inCombat) {
-            if (active) { this.innerflameFlightStart = t; this.rhythm.disciplinesUsed.add('innerflame') }
+            if (active) {
+              if (this.innerflameFlightStart === null) this.innerflameFlightStart = t
+              this.rhythm.disciplinesUsed.add('innerflame')
+            }
             else if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
           }
         }
@@ -506,8 +646,13 @@ export class RefinedOverlay {
         break
       }
       case EvType.BANDOLIER_CHANGED: {
-        const isWeaveSet = (ev.data?.isWeaveSet as boolean) ?? false
+        const isWeaveSet    = (ev.data?.isWeaveSet as boolean) ?? false
+        const isBackstabSet = (ev.data?.isBackstabSet as boolean) ?? false
         this.weaveBandolierActive = isWeaveSet
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          this.backstab.onBandolierChanged(isBackstabSet)
+          break
+        }
         // Inferred DW mode: arm the no-roll timer when the weave bandolier loads and
         // the swap falls inside the current weave window.
         if (isWeaveSet && this.cfg.INFERRED_DW_CHECKS
@@ -518,10 +663,8 @@ export class RefinedOverlay {
         break
       }
       case EvType.STATS_UPDATE: {
-        const atk   = ev.data?.atkRating as number | undefined
-        const haste = ev.data?.hastePct  as number | undefined
-        if (atk   != null) this.lastKnownAtkRating = atk
-        if (haste != null) this.lastKnownHastePct  = haste
+        const atk = ev.data?.atkRating as number | undefined
+        if (atk != null) this.lastKnownAtkRating = atk
         break
       }
       case EvType.CRIT_HIT: {
@@ -583,6 +726,34 @@ export class RefinedOverlay {
     this.dwPendingTs = 0
   }
 
+  /** Called when Rogue Mode is toggled on/off mid-session (Settings or tray) so
+   *  state starts clean regardless of whether a fight is in progress. */
+  resetRogueMode(): void {
+    this.rogueInCombat = false
+    this.rogueDamageTotal = 0
+    this.rogueBackstabDamageTotal = 0
+    this.rogueBackstabHits = 0
+    this.rogueBackstabMisses = 0
+    this.rogueSummaryScreen = null
+    this.backstab = new BackstabTimer(this.cfg.ROGUE_SWAP_WARN_MS)
+  }
+
+  private finishRogueFight(mobName: string): void {
+    this.rogueInCombat = false
+    this.backstab.onCombatEnd()
+    this.audio.play('combat_end')
+    const fightDuration = Math.max(1, now() - this.rogueFightStartTs)
+    const seconds = fightDuration / 1000
+    this.rogueSummaryScreen = new RogueSummaryScreen({
+      mobName,
+      fightDuration,
+      netDps:      this.rogueDamageTotal / seconds,
+      backstabDps: this.rogueBackstabDamageTotal / seconds,
+      hits:        this.rogueBackstabHits,
+      misses:      this.rogueBackstabMisses,
+    })
+  }
+
   private recordHit(list: HitRecord[], damage: number, target: string): void {
     const date = new Date().toLocaleString('en-US', {
       month: 'numeric', day: 'numeric',
@@ -633,12 +804,13 @@ export class RefinedOverlay {
       timestamp:                Date.now(),
       characterName:            this.cfg.LEADERBOARD_CHARACTER_NAME,
       serverName:               'Project Quarm',
+      appVersion:               '',   // stamped authoritatively by the main process
       weapons: {
         mainhand: this.lastKnownMainhand || 'Unknown',
         offhand:  this.cfg.OFFHAND_WEAPON_NAME || 'Unknown',
       },
       atkRating:       this.lastKnownAtkRating,
-      hastePct:        this.lastKnownHastePct,
+      hastePct:        this.displayHastePct,
       engagedMs:       result.engagedMs,
       outOfRangeMs:    result.outOfRangeMs,
       disciplinesUsed: Array.from(this.rhythm.disciplinesUsed),
@@ -646,6 +818,31 @@ export class RefinedOverlay {
       dpsSamples: this.rhythm.getDpsSamples(),
     }
     window.electronAPI?.sendLeaderboardRecord(record)
+  }
+
+  /** Close the current haste segment and open a new one at `newHaste`.
+   *  Called whenever HASTE_PCT is about to change so the weighted-time buffer
+   *  captures how long the previous value actually held. */
+  private trackHasteChange(newHaste: number): void {
+    const t = now()
+    if (this.hasteSegStart !== null) {
+      this.hasteFightWeightedMs += this.hasteSegValue * (t - this.hasteSegStart)
+    }
+    this.hasteSegStart = t
+    this.hasteSegValue = newHaste
+  }
+
+  /** Time-weighted average haste% across the current (or just-ended) fight.
+   *  Falls back to the instantaneous HASTE_PCT before the first combat start. */
+  private get displayHastePct(): number {
+    if (this.combatStartTs <= 0) return this.cfg.HASTE_PCT
+    const t = now()
+    const elapsed = t - this.combatStartTs
+    if (elapsed <= 0) return this.cfg.HASTE_PCT
+    const weighted = this.hasteSegStart !== null
+      ? this.hasteFightWeightedMs + this.hasteSegValue * (t - this.hasteSegStart)
+      : this.hasteFightWeightedMs
+    return weighted / elapsed
   }
 
   private flushBuffs(fightDuration: number): { avatar: number; savagery: number; innerflame: number } {
@@ -724,57 +921,75 @@ export class RefinedOverlay {
     if (this.speed === 0) this.speed = this.targetSpeed
     else this.speed += (this.targetSpeed - this.speed) * Math.min(1, dt * 12)
 
-    if (this.rhythm.inCombat && this.lastCombatActivity > 0
-        && t - this.lastCombatActivity > COMBAT_IDLE_TIMEOUT_MS) {
-      this.postCombatGlideUntil = t + 3000
-      this.postCombatNextSwing  = this.rhythm.nextSwingTime
-      this.postCombatLastCrush  = this.rhythm.lastCrushTime
-      this.postCombatRoundOpen  = this.rhythm.roundOpen
-      const result = this.rhythm.onCombatEnd(t)
-      this.audio.play('combat_end')
-      this.gradeScreen = new GradeScreen(result)
-      this.lastCombatActivity = 0
-    }
-
-    if (this.rhythm.swingTimerValid) this.swingTimerEverValid = true
-    if (this.rhythm.inCombat && !this.rhythm.swingTimerValid
-        && !this.swingTimerEverValid
-        && this.combatStartTs > 0 && t - this.combatStartTs > 5000) this.resetTrack()
-    if (this.audioMutedRapidAttack && t > this.rapidAttackMuteUntil) this.clearRapidAttackMute()
-
-    this.rhythm.update(t)
-    if (this.rhythm.calibrationEvent) {
-      const iv           = this.rhythm.calibrationEvent.interval
-      const derivedHaste = Math.max(0, (this.cfg.BASE_WEAPON_DELAY / 10 / iv - 1) * 100)
-      this.cfg.HASTE_PCT      = derivedHaste
-      this.cfg.PUNCH_INTERVAL = iv
-      const fistDelay         = this.rhythm.effectiveOffhandDelay
-      this.cfg.GOOD_WINDOW    = Math.max(0.2, iv - fistDelay) / 2
-      this.hasteCalibrated = true
-      this.banners.push(new Banner(`Auto-calibrated: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% haste)`, '#ffc844', 3000))
-      this.rhythm.calibrationEvent = null
-    }
-    if (this.rhythm.roundEndDamage !== null) {
-      if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
-        const rd = this.rhythm.roundEndDamage
-        this.audio.playFileSound('oh_snap', true)
-        this.banners.push(new Banner('Huge Round!!!', '#ffd700', 3000, rd.toLocaleString()))
-        this.recordHit(this.topHugeRounds, rd, this.currentTarget)
-        this.lastOhSnapTs = t
+    if (this.cfg.ROGUE_MODE_ENABLED) {
+      if (this.rogueInCombat && this.lastCombatActivity > 0
+          && t - this.lastCombatActivity > COMBAT_IDLE_TIMEOUT_MS) {
+        this.finishRogueFight('')
+        this.lastCombatActivity = 0
       }
-      this.rhythm.roundEndDamage = null
-    }
-    // Consume the round-close flag (no longer used for display — timer below handles it)
-    if (this.rhythm.dwRollFailed) this.rhythm.dwRollFailed = false
+      this.backstab.update(t)
+      if (this.backstab.shouldPromptSwapIn && !this.backstab.swapInPromptShown) {
+        this.backstab.swapInPromptShown = true
+        this.banners.push(new Banner('Swap to BACKSTAB weapon!', PAL.weaveText, 2500))
+      }
+      if (this.backstab.shouldPromptSwapOut && !this.backstab.swapOutPromptShown) {
+        this.backstab.swapOutPromptShown = true
+        this.banners.push(new Banner('Swap back to DPS weapon', PAL.weaveText, 2500))
+      }
+    } else {
+      if (this.rhythm.inCombat && this.lastCombatActivity > 0
+          && t - this.lastCombatActivity > COMBAT_IDLE_TIMEOUT_MS) {
+        this.postCombatGlideUntil = t + 3000
+        this.postCombatNextSwing  = this.rhythm.nextSwingTime
+        this.postCombatLastCrush  = this.rhythm.lastCrushTime
+        this.postCombatRoundOpen  = this.rhythm.roundOpen
+        const result = this.rhythm.onCombatEnd(t)
+        this.audio.play('combat_end')
+        this.gradeScreen = new GradeScreen(result)
+        this.lastCombatActivity = 0
+      }
 
-    // Timer-based DW no-roll: show indicator only after the offhand weapon had enough
-    // time to swing but nothing appeared in the log.
-    if (this.dwPendingTs > 0) {
-      const offhandMs = this.rhythm.effectiveOffhandDelay * 1000 + this.cfg.DW_ROLL_FAIL_DELAY_MS
-      if (t - this.dwPendingTs > offhandMs) {
-        this.dwRollFlash = 1
-        this.audio.play('dw_ok')
-        this.dwPendingTs = 0
+      if (this.rhythm.swingTimerValid) this.swingTimerEverValid = true
+      if (this.rhythm.inCombat && !this.rhythm.swingTimerValid
+          && !this.swingTimerEverValid
+          && this.combatStartTs > 0 && t - this.combatStartTs > 5000) this.resetTrack()
+      if (this.audioMutedRapidAttack && t > this.rapidAttackMuteUntil) this.clearRapidAttackMute()
+
+      this.rhythm.update(t)
+      if (this.rhythm.calibrationEvent) {
+        const iv           = this.rhythm.calibrationEvent.interval
+        const derivedHaste = Math.max(0, (this.cfg.BASE_WEAPON_DELAY / 10 / iv - 1) * 100)
+        this.trackHasteChange(derivedHaste)
+        this.cfg.HASTE_PCT      = derivedHaste
+        this.cfg.PUNCH_INTERVAL = iv
+        const fistDelay         = this.rhythm.effectiveOffhandDelay
+        this.cfg.GOOD_WINDOW    = Math.max(0.2, iv - fistDelay) / 2
+        this.hasteCalibrated = true
+        this.banners.push(new Banner(`Auto-calibrated: ${iv.toFixed(2)}s  (${derivedHaste.toFixed(0)}% haste)`, '#ffc844', 3000))
+        this.rhythm.calibrationEvent = null
+      }
+      if (this.rhythm.roundEndDamage !== null) {
+        if (this.rhythm.roundEndDamage > this.cfg.HUGE_ROUND_THRESHOLD && t - this.lastOhSnapTs > 1000) {
+          const rd = this.rhythm.roundEndDamage
+          this.audio.playFileSound('oh_snap', true)
+          this.banners.push(new Banner('Huge Round!!!', '#ffd700', 3000, rd.toLocaleString()))
+          this.recordHit(this.topHugeRounds, rd, this.currentTarget)
+          this.lastOhSnapTs = t
+        }
+        this.rhythm.roundEndDamage = null
+      }
+      // Consume the round-close flag (no longer used for display — timer below handles it)
+      if (this.rhythm.dwRollFailed) this.rhythm.dwRollFailed = false
+
+      // Timer-based DW no-roll: show indicator only after the offhand weapon had enough
+      // time to swing but nothing appeared in the log.
+      if (this.dwPendingTs > 0) {
+        const offhandMs = this.rhythm.effectiveOffhandDelay * 1000 + this.cfg.DW_ROLL_FAIL_DELAY_MS
+        if (t - this.dwPendingTs > offhandMs) {
+          this.dwRollFlash = 1
+          this.audio.play('dw_ok')
+          this.dwPendingTs = 0
+        }
       }
     }
 
@@ -793,9 +1008,10 @@ export class RefinedOverlay {
 
     this.banners = this.banners.filter(b => !b.expired)
     if (this.gradeScreen?.expired) this.gradeScreen = null
+    if (this.rogueSummaryScreen?.expired) this.rogueSummaryScreen = null
 
     // DPS
-    if (t - this.dpsLastUpdate >= 250) {
+    if (!this.cfg.ROGUE_MODE_ENABLED && t - this.dpsLastUpdate >= 250) {
       this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
       this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
       this.dpsLastUpdate = t
@@ -810,23 +1026,28 @@ export class RefinedOverlay {
 
     // Backgrounds
     ctx.fillStyle = PAL.bg; ctx.fillRect(0,0,w,h)
-    this.drawHighway()
     this.drawHeader()
     this.drawFooter()
-    this.drawDynamicWeaveWindows()
-    this.drawHitZone()
+    if (this.cfg.ROGUE_MODE_ENABLED) {
+      this.drawRogueTrack()
+    } else {
+      this.drawHighway()
+      this.drawDynamicWeaveWindows()
+      this.drawHitZone()
+      this.drawOffhandSwingTimer()
+    }
     this.drawParticles()
     this.drawMissFlash()
     this.drawClipWarn()
     this.drawDwRollFail()
-    this.drawOffhandSwingTimer()
     this.drawNoLogNotice()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
+    if (this.rogueSummaryScreen) this.drawRogueSummaryScreen(this.rogueSummaryScreen)
   }
 
   private drawNoLogNotice(): void {
-    if (this.rhythm.inCombat || this.gradeScreen) return
+    if (this.rhythm.inCombat || this.gradeScreen || this.rogueInCombat || this.rogueSummaryScreen) return
     const t = now()
     const stale = this.logSelected && (t - this.lastLogActivityTs) > 60_000
     if (!this.logSelected || stale) {
@@ -1001,7 +1222,7 @@ export class RefinedOverlay {
     ctx.fillText(`${this.cfg.PUNCH_INTERVAL.toFixed(2)}s`, w - 70, HEADER_H / 2)
     ctx.font = '500 10px "JetBrains Mono", monospace'
     ctx.fillStyle = this.hasteCalibrated ? '#ffc844' : PAL.textDim
-    ctx.fillText(`${this.cfg.HASTE_PCT.toFixed(0)}%`, w - 10, HEADER_H / 2)
+    ctx.fillText(`${this.displayHastePct.toFixed(0)}%`, w - 10, HEADER_H / 2)
     ctx.textAlign = 'left'
   }
 
@@ -1472,6 +1693,74 @@ export class RefinedOverlay {
     ctx.textAlign = 'right'
     ctx.fillText('[ V ] copy  ·  [ space ] dismiss', w - 10, h - 10)
     ctx.textAlign = 'left'
+  }
+
+  // ── Rogue Mode ─────────────────────────────────────────────
+  private drawRogueTrack(): void {
+    const ctx = this.ctx
+    const w = this.canvas.width
+    const hy = this.highwayY, hh = this.highwayH
+    ctx.fillStyle = PAL.highway; ctx.fillRect(0, hy, w, hh)
+
+    const bs = this.backstab
+    const pct = bs.progressPct
+    const ready = bs.state === 'ready'
+
+    // Progress bar
+    const barY = hy + hh * 0.55
+    const barH = Math.max(6, hh * 0.22)
+    ctx.fillStyle = 'rgba(255,255,255,0.06)'
+    ctx.fillRect(8, barY, w - 16, barH)
+    const fillW = Math.max(0, (w - 16) * pct)
+    ctx.fillStyle = ready ? PAL.hitZone : `${PAL.weaveFill}0.85)`
+    ctx.fillRect(8, barY, fillW, barH)
+    if (ready) {
+      const pulse = (1 + Math.sin(now() / 220)) / 2
+      ctx.fillStyle = `rgba(255,200,40,${(0.15 + pulse * 0.25).toFixed(2)})`
+      ctx.fillRect(8, barY - 2, w - 16, barH + 4)
+    }
+
+    // Countdown / status text
+    const seconds = bs.remainingMs / 1000
+    const label = ready ? 'BACKSTAB READY' : seconds.toFixed(1) + 's'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = ready ? '700 20px "Space Grotesk", sans-serif' : '700 26px "Space Grotesk", sans-serif'
+    ctx.fillStyle = ready ? PAL.hitZone : PAL.text
+    ctx.fillText(label, w / 2, hy + hh * 0.28)
+
+    if (bs.isReadyButNotSwapped) {
+      ctx.font = '600 10px "JetBrains Mono", monospace'
+      ctx.fillStyle = PAL.weaveText
+      ctx.fillText('swap to backstab weapon', w / 2, hy + hh * 0.28 + 20)
+    }
+    ctx.textAlign = 'left'
+  }
+
+  private drawRogueSummaryScreen(rs: RogueSummaryScreen): void {
+    const ctx = this.ctx
+    const w = this.canvas.width, h = this.canvas.height
+    const a = rs.alpha
+    if (a <= 0) return
+    const r = rs.result
+    ctx.fillStyle = this.rgba('#0a0c16', 0.92 * a); ctx.fillRect(0, 0, w, h)
+
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+    ctx.font = '600 11px "JetBrains Mono", monospace'
+    ctx.fillStyle = this.rgba(PAL.textDim, a)
+    ctx.fillText(r.mobName || 'Fight complete', 16, h / 2 - 26)
+
+    ctx.font = '700 20px "Space Grotesk", sans-serif'
+    ctx.fillStyle = this.rgba(PAL.text, a)
+    ctx.fillText(`NET ${Math.round(r.netDps)} dps`, 16, h / 2 - 4)
+
+    ctx.font = '700 16px "Space Grotesk", sans-serif'
+    ctx.fillStyle = this.rgba(PAL.hitZone, a)
+    ctx.fillText(`BACKSTAB ${Math.round(r.backstabDps)} dps`, 16, h / 2 + 16)
+
+    ctx.font = '500 10px "JetBrains Mono", monospace'
+    ctx.fillStyle = this.rgba(PAL.textDim, a)
+    ctx.fillText(`${r.hits}/${r.hits + r.misses} backstabs landed`, 16, h / 2 + 34)
   }
 
   // ── Tiny utils ──────────────────────────────────────────────

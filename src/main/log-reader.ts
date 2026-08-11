@@ -51,6 +51,7 @@ export class LogReader {
 
   private currentTarget   = ''   // most recent mob the player was attacking
   private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
+  private lastRiposteTs   = 0    // performance.now() of last "You riposte" line (__DEV__ debug only)
   private lastHastePct    = -1   // dedup: last emitted haste value
   private lastHasteEmitTs = 0    // dedup: when it was emitted
   private lastAtkRating   = 0
@@ -79,6 +80,9 @@ export class LogReader {
   // (e.g. slash/pierce offhand weave weapon when mainhand is crush).
   private weaveHitRe:    RegExp
   private weaveMissRe:   RegExp
+  // Rogue Mode — backstab hit/miss (fixed patterns, not weapon-type-dependent)
+  private backstabHitRe:  RegExp = /^You backstab (.+?) for (\d+) points? of damage\.?\s*$/i
+  private backstabMissRe: RegExp = /^You try to backstab (.+?), but miss!\s*$/i
   private flyingKickRe:  RegExp[]
   private procHitRe:     RegExp[]
   private oorRe:           RegExp[]
@@ -244,8 +248,16 @@ export class LogReader {
         }
         return
       }
-      // Mainhand crush hit (may be DW offhand)
+      // Backstab hit (Rogue Mode) — authoritative damage source in hybrid mode
+      if (this.backstabHitRe.test(content)) {
+        const m = this.backstabHitRe.exec(content)
+        const damage = m ? parseInt(m[2], 10) : 0
+        if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'backstab' } })
+        return
+      }
+      // Mainhand crush hit (may be DW offhand) — suppressed in Rogue Mode
       if (this.crushHitRe.some(r => r.test(content))) {
+        if (this.cfg.ROGUE_MODE_ENABLED) return
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
         const damage = parseDamage(content)
         if (bandolierWeave || (this.offhandCrushPending && now < this.offhandCrushExpiry)) {
@@ -260,14 +272,16 @@ export class LogReader {
         }
         return
       }
-      // Fist hit
+      // Fist hit — suppressed in Rogue Mode
       if (this.fistHitRe.some(r => r.test(content))) {
+        if (this.cfg.ROGUE_MODE_ENABLED) return
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
         return
       }
-      // Non-punch bandolier weave hit
+      // Non-punch bandolier weave hit — suppressed in Rogue Mode
       if (this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveHitRe.test(content)) {
+        if (this.cfg.ROGUE_MODE_ENABLED) return
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
         return
@@ -298,7 +312,13 @@ export class LogReader {
     if (this.missOnly) {
       // Ripostes must never affect the swing timer — drop them before the miss checks
       // so a riposte miss with a slash/pierce weapon doesn't look like a mainhand miss.
-      if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) return
+      if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
+        if (__DEV__) {
+          console.debug(`[riposte][missOnly] line="${content}" offhandCrushPending=${this.offhandCrushPending}`)
+          this.lastRiposteTs = now
+        }
+        return
+      }
 
       // Track bandolier swaps in missOnly mode only when noBandolier is not set.
       // In hybrid mode the Zeal pipe owns bandolier detection (with off-delay);
@@ -309,20 +329,34 @@ export class LogReader {
         if (bm) {
           const setName = bm[1].trim().replace(/^\[|\]$/g, '')
           const isWeaveSet = setName.toLowerCase().includes('weave')
+          const isBackstabSet = setName.toLowerCase().includes(this.cfg.ROGUE_BACKSTAB_SET_NAME.toLowerCase())
           this.cfg.WEAVE_BANDOLIER_ACTIVE = isWeaveSet
-          this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet } })
+          this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = isBackstabSet
+          this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet, isBackstabSet } })
           return
         }
+      }
+      // Backstab miss (Rogue Mode)
+      if (this.backstabMissRe.test(content)) {
+        this.emit({ type: EvType.BACKSTAB_ATTACK, ts: now, data: { damage: 0, hit: false } })
+        return
       }
       // Catch both explicit miss patterns ("You try to slash") and zero-damage hit-verb
       // lines ("You slash NAME but miss!" / "You slash NAME." with no damage).  Some EQ
       // clients omit the "try to" prefix for the primary attack; the double-attack attempt
       // uses it, which is why double misses produce audio but single misses previously didn't.
-      const isMainhandMiss = this.crushMissRe.some(r => r.test(content)) ||
-        (this.crushHitRe.some(r => r.test(content)) && parseDamage(content) === 0)
+      const isMainhandMiss = !this.cfg.ROGUE_MODE_ENABLED && (this.crushMissRe.some(r => r.test(content)) ||
+        (this.crushHitRe.some(r => r.test(content)) && parseDamage(content) === 0))
       if (isMainhandMiss) {
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
-        if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
+        const offhandWindowActive = this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        if (__DEV__) {
+          const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
+          console.debug(`[mainhand][missOnly] miss line="${content}" bandolierWeave=${bandolierWeave} ` +
+            `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
+            `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
+        }
+        if (bandolierWeave || offhandWindowActive) {
           this.offhandCrushPending = false
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage: 0, hit: false, line: content } })
@@ -334,11 +368,11 @@ export class LogReader {
             this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
           }
         }
-      } else if (this.fistMissRe.some(r => r.test(content)) ||
-                 (this.fistHitRe.some(r => r.test(content)) && parseDamage(content) === 0)) {
+      } else if (!this.cfg.ROGUE_MODE_ENABLED && (this.fistMissRe.some(r => r.test(content)) ||
+                 (this.fistHitRe.some(r => r.test(content)) && parseDamage(content) === 0))) {
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
-      } else if (this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveMissRe.test(content)) {
+      } else if (!this.cfg.ROGUE_MODE_ENABLED && this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveMissRe.test(content)) {
         // Non-punch offhand weave miss (different verb from mainhand and fist)
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
@@ -368,11 +402,31 @@ export class LogReader {
       if (bm) {
         const setName = bm[1].trim().replace(/^\[|\]$/g, '')
         const isWeaveSet = setName.toLowerCase().includes('weave')
+        const isBackstabSet = setName.toLowerCase().includes(this.cfg.ROGUE_BACKSTAB_SET_NAME.toLowerCase())
         this.cfg.WEAVE_BANDOLIER_ACTIVE = isWeaveSet
-        this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet } })
+        this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = isBackstabSet
+        this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet, isBackstabSet } })
         return
       }
       if (/^bandolier set swap complete\.?\s*$/i.test(content)) return
+    }
+
+    // ── Backstab hit/miss (Rogue Mode) ──────────────────────────
+    // Checked ahead of the normal mainhand/fist blocks so backstab events
+    // always fire even while those blocks are suppressed below.
+    const bsHit = this.backstabHitRe.exec(content)
+    if (bsHit) {
+      this.ensureCombat(now)
+      this.currentTarget = bsHit[1]
+      this.lastAttackTs  = now
+      this.emit({ type: EvType.BACKSTAB_ATTACK, ts: now,
+        data: { damage: parseInt(bsHit[2], 10), hit: true, target: bsHit[1] } })
+      return
+    }
+    if (this.backstabMissRe.test(content)) {
+      this.ensureCombat(now)
+      this.emit({ type: EvType.BACKSTAB_ATTACK, ts: now, data: { damage: 0, hit: false } })
+      return
     }
 
     // ── Riposte — count damage toward DPS but no track/sound effect ──
@@ -383,6 +437,12 @@ export class LogReader {
     // for lines starting with "You " to prevent mob-riposte lines
     // ("NAME ripostes your slash!") from being credited as player damage.
     if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
+      if (__DEV__) {
+        const sinceLastCrush = this.lastAttackTs > 0 ? ((now - this.lastAttackTs) / 1000).toFixed(3) : 'n/a'
+        console.debug(`[riposte] line="${content}" playerSourced=${content.startsWith('You ')} ` +
+          `sinceLastMainhandLine=${sinceLastCrush}s offhandCrushPending=${this.offhandCrushPending}`)
+        this.lastRiposteTs = now
+      }
       if (this.inCombat && content.startsWith('You ')) {
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
@@ -390,71 +450,66 @@ export class LogReader {
       return
     }
 
-    // ── Mainhand crush hit ──────────────────────────────────
-    if (this.crushHitRe.some(r => r.test(content))) {
-      this.ensureCombat(now)
-      const tm = LogReader.TARGET_RE.exec(content)
-      const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
-      if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
-        // Offhand weave — classified by bandolier state or timing window
-        this.offhandCrushPending = false
-        if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
-        this.emit({ type: EvType.FIST_ATTACK, ts: now,
-          data: { damage: parseDamage(content), hit: true, line: content } })
-      } else {
-        if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
-        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-          data: { damage: parseDamage(content), hit: true, line: content, target: this.currentTarget } })
-        if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
-          this.offhandCrushPending = true
-          this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+    // ── Normal mainhand/offhand swing detection — suppressed entirely in Rogue Mode ──
+    if (!this.cfg.ROGUE_MODE_ENABLED) {
+      // ── Mainhand crush hit ──────────────────────────────────
+      if (this.crushHitRe.some(r => r.test(content))) {
+        this.ensureCombat(now)
+        const tm = LogReader.TARGET_RE.exec(content)
+        const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
+        const offhandWindowActive = this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        if (__DEV__) {
+          const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
+          console.debug(`[mainhand] hit line="${content}" bandolierWeave=${bandolierWeave} ` +
+            `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
+            `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
         }
-      }
-      return
-    }
-
-    // ── Mainhand crush miss ─────────────────────────────────
-    if (this.crushMissRe.some(r => r.test(content))) {
-      this.ensureCombat(now)
-      const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
-      if (bandolierWeave || (this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry)) {
-        this.offhandCrushPending = false
-        this.emit({ type: EvType.FIST_ATTACK, ts: now,
-          data: { damage: 0, hit: false, line: content } })
-      } else {
-        this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
-          data: { damage: 0, hit: false, line: content } })
-        if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
-          this.offhandCrushPending = true
-          this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+        if (bandolierWeave || offhandWindowActive) {
+          // Offhand weave — classified by bandolier state or timing window
+          this.offhandCrushPending = false
+          if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage: parseDamage(content), hit: true, line: content } })
+        } else {
+          if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+          this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+            data: { damage: parseDamage(content), hit: true, line: content, target: this.currentTarget } })
+          if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
+            this.offhandCrushPending = true
+            this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+          }
         }
+        return
       }
-      return
-    }
 
-    // ── Fist attack hit ─────────────────────────────────────
-    if (this.fistHitRe.some(r => r.test(content))) {
-      this.ensureCombat(now)
-      const tm = LogReader.TARGET_RE.exec(content)
-      if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
-      this.emit({ type: EvType.FIST_ATTACK, ts: now,
-        data: { damage: parseDamage(content), hit: true, line: content } })
-      return
-    }
+      // ── Mainhand crush miss ─────────────────────────────────
+      if (this.crushMissRe.some(r => r.test(content))) {
+        this.ensureCombat(now)
+        const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
+        const offhandWindowActive = this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        if (__DEV__) {
+          const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
+          console.debug(`[mainhand] miss line="${content}" bandolierWeave=${bandolierWeave} ` +
+            `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
+            `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
+        }
+        if (bandolierWeave || offhandWindowActive) {
+          this.offhandCrushPending = false
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage: 0, hit: false, line: content } })
+        } else {
+          this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
+            data: { damage: 0, hit: false, line: content } })
+          if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
+            this.offhandCrushPending = true
+            this.offhandCrushExpiry  = now + this.cfg.PUNCH_INTERVAL * 1000 * 0.9
+          }
+        }
+        return
+      }
 
-    // ── Fist attack miss ────────────────────────────────────
-    if (this.fistMissRe.some(r => r.test(content))) {
-      this.ensureCombat(now)
-      this.emit({ type: EvType.FIST_ATTACK, ts: now,
-        data: { damage: 0, hit: false, line: content } })
-      return
-    }
-
-    // ── Non-punch offhand weave (slash/pierce/crush when WEAVE_BANDOLIER_ACTIVE) ──
-    // Catches offhand DW attacks that use a different verb than both the mainhand
-    // and fist patterns — e.g. a slash weave weapon when mainhand is crush.
-    if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
-      if (this.weaveHitRe.test(content)) {
+      // ── Fist attack hit ─────────────────────────────────────
+      if (this.fistHitRe.some(r => r.test(content))) {
         this.ensureCombat(now)
         const tm = LogReader.TARGET_RE.exec(content)
         if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
@@ -462,11 +517,33 @@ export class LogReader {
           data: { damage: parseDamage(content), hit: true, line: content } })
         return
       }
-      if (this.weaveMissRe.test(content)) {
+
+      // ── Fist attack miss ────────────────────────────────────
+      if (this.fistMissRe.some(r => r.test(content))) {
         this.ensureCombat(now)
         this.emit({ type: EvType.FIST_ATTACK, ts: now,
           data: { damage: 0, hit: false, line: content } })
         return
+      }
+
+      // ── Non-punch offhand weave (slash/pierce/crush when WEAVE_BANDOLIER_ACTIVE) ──
+      // Catches offhand DW attacks that use a different verb than both the mainhand
+      // and fist patterns — e.g. a slash weave weapon when mainhand is crush.
+      if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
+        if (this.weaveHitRe.test(content)) {
+          this.ensureCombat(now)
+          const tm = LogReader.TARGET_RE.exec(content)
+          if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage: parseDamage(content), hit: true, line: content } })
+          return
+        }
+        if (this.weaveMissRe.test(content)) {
+          this.ensureCombat(now)
+          this.emit({ type: EvType.FIST_ATTACK, ts: now,
+            data: { damage: 0, hit: false, line: content } })
+          return
+        }
       }
     }
 

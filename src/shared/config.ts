@@ -181,6 +181,14 @@ export const Config = {
   WEAVE_BANDOLIER_ACTIVE:       false, // runtime: true while a weave bandolier set is loaded (set name contains "weave")
   WEAVE_BANDOLIER_OFF_DELAY_MS: 400,   // ms to keep weave active after swap-back message (Zeal pipe arrives before hit)
 
+  // ── Rogue Mode ──────────────────────────────────────────────
+  // Replaces normal mainhand/offhand swing tracking with a backstab-cooldown
+  // timer + weapon-swap prompts. Fixed 10s base cooldown, scaled by haste.
+  ROGUE_MODE_ENABLED:        false,      // user toggle
+  ROGUE_BACKSTAB_SET_NAME:   'backstab', // substring match (case-insensitive) against "Loading bandolier set <name>."
+  ROGUE_BACKSTAB_SET_ACTIVE: false,      // runtime: true while the backstab bandolier set is loaded
+  ROGUE_SWAP_WARN_MS:        1500,       // ms before backstab-ready to fire the "swap to backstab weapon" prompt
+
   // Mainhand 2H weapons — used for swing interval detection via /mystats
   WEAPON_PRESETS: {
     "Skull Staff of Geoffrey":                 { delay: 20, attackType: 'crush' },
@@ -380,6 +388,11 @@ export const Config = {
   // ── Leaderboard ───────────────────────────────────────────────
   LEADERBOARD_CHARACTER_NAME: '',   // auto-populated from log filename or Zeal pipe
   LEADERBOARD_OPT_OUT: false,       // when true, fight records are never uploaded to the community leaderboard
+
+  // ── Ignored characters ──────────────────────────────────────────
+  // When the active character (LEADERBOARD_CHARACTER_NAME) matches one of these
+  // names (case-insensitive), the overlay window is not kept always-on-top.
+  IGNORED_CHARACTERS: [] as string[],
 
   // Critical hit notification lines — separate from the damage line
   CRIT_HIT_PATTERNS: [

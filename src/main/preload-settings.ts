@@ -38,4 +38,10 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   onWeaveKeyLearned2: (cb: (result: { keycode: number; display: string } | null) => void): void => {
     ipcRenderer.on('weave-key-learned-2', (_e, result) => cb(result))
   },
+
+  getLogCharacters: (): Promise<string[]> =>
+    ipcRenderer.invoke('get-log-characters'),
+
+  getZealStatus: (): Promise<{ pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null }> =>
+    ipcRenderer.invoke('zeal-status-get'),
 })

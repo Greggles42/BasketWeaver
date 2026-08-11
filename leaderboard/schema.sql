@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS records (
   weave_landed     INTEGER  NOT NULL DEFAULT 0,
   avg_reaction_ms  REAL,
   timestamp        BIGINT   NOT NULL,
+  app_version      TEXT     NOT NULL DEFAULT '',
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -36,3 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_ts      ON records(timestamp DESC);
 
 -- Migration: run once on existing databases to add total_damage column
 -- ALTER TABLE records ADD COLUMN IF NOT EXISTS total_damage BIGINT NOT NULL DEFAULT 0;
+
+-- Migration: run once on existing databases to add app_version column
+-- (records.ts also runs this automatically on cold start, so this is just for reference)
+-- ALTER TABLE records ADD COLUMN IF NOT EXISTS app_version TEXT NOT NULL DEFAULT '';

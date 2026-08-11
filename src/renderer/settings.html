@@ -346,6 +346,54 @@
       font-style: italic;
     }
 
+    /* ── Ignored characters ─────────────────────────────── */
+    .row input[type="text"] {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 3px 8px;
+      font-size: 13px;
+    }
+    .row input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    #detectedCharsList:empty::before,
+    #detectedCharsList {
+      font-size: 12px;
+      color: var(--dim);
+    }
+    .ignored-chars-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .ignored-char-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 6px 2px 10px;
+      font-size: 12px;
+      color: var(--gold);
+    }
+    .ignored-char-chip-remove {
+      background: none;
+      border: none;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+    }
+    .ignored-char-chip-remove:hover {
+      color: var(--accent);
+    }
+
     /* ── Tooltip ───────────────────────────────────────── */
     #settings-tip {
       position: fixed;
@@ -426,6 +474,11 @@
           <label><input type="radio" name="tracking" value="log" /> Log File</label>
           <label><input type="radio" name="tracking" value="hybrid" /> Hybrid (Zeal + Log)</label>
         </div>
+      </div>
+      <div class="row" id="zealStatusRow" style="display:none" data-tip="Confirms the Zeal pipe is connected and actually delivering your swing hit/miss data — useful for troubleshooting a player whose hybrid-mode tracking looks stuck.">
+        <label>Zeal Pipe Status</label>
+        <span id="zealStatusDot" style="width:9px;height:9px;border-radius:50%;display:inline-block;background:#666;flex-shrink:0"></span>
+        <span id="zealStatusText" class="hint" style="margin-left:6px">Checking…</span>
       </div>
     </div>
 
@@ -564,6 +617,38 @@
       </div>
       <div class="checkbox-grid" style="margin-top:6px">
         <label data-tip="When enabled, your fight results are kept locally but never uploaded to the community leaderboard."><input type="checkbox" id="leaderboardOptOut" /> Opt Out of Leaderboard</label>
+      </div>
+    </div>
+
+    <!-- ── Ignored Characters ──────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Ignored Characters</div>
+      <div class="row" style="min-height:auto;padding-top:0">
+        <span class="hint" style="margin-left:0">While logged in as an ignored character, the overlay will not stay on top of the game window.</span>
+      </div>
+
+      <div id="detectedCharsList" class="checkbox-grid" style="margin-top:6px"></div>
+
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="ignoredCharInput" placeholder="Type a character name" style="flex:1" />
+        <button class="btn-learn-key" id="btnAddIgnoredChar">Add</button>
+      </div>
+
+      <div id="ignoredCharsChips" class="ignored-chars-chips"></div>
+    </div>
+
+    <!-- ── Rogue Mode ───────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Rogue Mode <span style="color:#e0a855;font-size:11px;font-weight:600">(Alpha)</span></div>
+      <div class="row" style="min-height:auto;padding-top:0">
+        <span class="hint" style="margin-left:0">Still under development — expect rough edges and behavior to change.</span>
+      </div>
+      <div class="checkbox-grid">
+        <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking) <span style="color:#e0a855;font-size:10px;font-weight:600">(Alpha)</span></label>
+      </div>
+      <div class="row" style="margin-top:6px" data-tip="Bandolier set name (or substring) that identifies your backstab weapon set — must match what you named it via /bandolier. Used to prompt weapon swaps and to know when you've swapped in/out.">
+        <label for="rogueBackstabSetName">Backstab Set Name</label>
+        <input type="text" id="rogueBackstabSetName" placeholder="backstab" style="flex:1" />
       </div>
     </div>
 

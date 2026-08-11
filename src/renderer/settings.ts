@@ -15,6 +15,8 @@ declare global {
       startWeaveKeyLearn2(): void
       cancelWeaveKeyLearn2(): void
       onWeaveKeyLearned2(cb: (result: { keycode: number; display: string } | null) => void): void
+      getLogCharacters(): Promise<string[]>
+      getZealStatus(): Promise<{ pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null }>
     }
   }
 }
@@ -114,6 +116,7 @@ const OFFHAND_PRESETS: Record<string, number> = {
   "Premier Battlehammer of Secundae":        20,
   "Premier Mace of Secundae":                20,
   "Hammer of the Ironfrost":                 20,
+  "Yttrium Spiked Gloves":                   20,
   "Grats Bloodfrenzy":                       20,
   "Bloodfrenzy":                             20,
   "Braid of Golden Hair":                    21,
@@ -207,6 +210,110 @@ function setupToggle(id: string, key: string, currentVal: boolean): void {
   })
 }
 
+/**
+ * Wire up the "Ignored Characters" section: while the active character is on
+ * this list, the overlay window will not be kept always-on-top.
+ * Detected names come from eqlog_*.txt files in the log directory; the user
+ * can also type in a name manually.
+ */
+async function initIgnoredCharacters(initial: string[]): Promise<void> {
+  let ignored = [...initial]
+
+  const detectedList = document.getElementById('detectedCharsList') as HTMLElement | null
+  const chipsEl       = document.getElementById('ignoredCharsChips') as HTMLElement | null
+  const inputEl        = document.getElementById('ignoredCharInput') as HTMLInputElement | null
+  const addBtn          = document.getElementById('btnAddIgnoredChar') as HTMLButtonElement | null
+
+  function persist(): void {
+    window.settingsAPI.setSetting('IGNORED_CHARACTERS', ignored)
+  }
+
+  function isIgnored(name: string): boolean {
+    const n = name.trim().toLowerCase()
+    return ignored.some(c => c.trim().toLowerCase() === n)
+  }
+
+  function renderChips(): void {
+    if (!chipsEl) return
+    chipsEl.innerHTML = ''
+    for (const name of ignored) {
+      const chip = document.createElement('span')
+      chip.className = 'ignored-char-chip'
+      chip.textContent = name
+      const rm = document.createElement('button')
+      rm.textContent = '×'
+      rm.className = 'ignored-char-chip-remove'
+      rm.addEventListener('click', () => {
+        ignored = ignored.filter(c => c.toLowerCase() !== name.toLowerCase())
+        persist()
+        renderChips()
+        syncDetectedCheckboxes()
+      })
+      chip.appendChild(rm)
+      chipsEl.appendChild(chip)
+    }
+  }
+
+  function syncDetectedCheckboxes(): void {
+    if (!detectedList) return
+    detectedList.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach(cb => {
+      cb.checked = isIgnored(cb.value)
+    })
+  }
+
+  function addIgnored(name: string): void {
+    const trimmed = name.trim()
+    if (!trimmed || isIgnored(trimmed)) return
+    ignored.push(trimmed)
+    persist()
+    renderChips()
+    syncDetectedCheckboxes()
+  }
+
+  renderChips()
+
+  addBtn?.addEventListener('click', () => {
+    if (!inputEl) return
+    addIgnored(inputEl.value)
+    inputEl.value = ''
+  })
+  inputEl?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key !== 'Enter') return
+    addIgnored(inputEl.value)
+    inputEl.value = ''
+  })
+
+  if (detectedList) {
+    try {
+      const names = await window.settingsAPI.getLogCharacters()
+      detectedList.innerHTML = ''
+      for (const name of names) {
+        const label = document.createElement('label')
+        const cb = document.createElement('input')
+        cb.type = 'checkbox'
+        cb.value = name
+        cb.checked = isIgnored(name)
+        cb.addEventListener('change', () => {
+          if (cb.checked) addIgnored(name)
+          else {
+            ignored = ignored.filter(c => c.toLowerCase() !== name.toLowerCase())
+            persist()
+            renderChips()
+          }
+        })
+        label.appendChild(cb)
+        label.appendChild(document.createTextNode(' ' + name))
+        detectedList.appendChild(label)
+      }
+      if (names.length === 0) {
+        detectedList.textContent = 'No characters detected yet — select a log file first.'
+      }
+    } catch {
+      detectedList.textContent = 'Could not read log directory.'
+    }
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────
 
 async function init(): Promise<void> {
@@ -261,10 +368,57 @@ async function init(): Promise<void> {
     for (const r of radios) {
       if (r.value === s.TRACKING_SOURCE) r.checked = true
       r.addEventListener('change', () => {
-        if (r.checked) window.settingsAPI.setSetting('TRACKING_SOURCE', r.value)
+        if (r.checked) {
+          window.settingsAPI.setSetting('TRACKING_SOURCE', r.value)
+          updateZealStatusVisibility()
+        }
       })
     }
   }
+
+  // ── Zeal pipe status (hybrid mode diagnostic) ─────────────────
+  const zealStatusRow  = document.getElementById('zealStatusRow')  as HTMLElement | null
+  const zealStatusDot  = document.getElementById('zealStatusDot')  as HTMLElement | null
+  const zealStatusText = document.getElementById('zealStatusText') as HTMLElement | null
+
+  function isHybridSelected(): boolean {
+    return trackingGroup?.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.value === 'hybrid'
+  }
+
+  function updateZealStatusVisibility(): void {
+    if (!zealStatusRow) return
+    zealStatusRow.style.display = isHybridSelected() ? 'flex' : 'none'
+  }
+
+  async function refreshZealStatus(): Promise<void> {
+    if (!zealStatusRow || !zealStatusDot || !zealStatusText || zealStatusRow.style.display === 'none') return
+    const status = await window.settingsAPI.getZealStatus()
+    let color: string, text: string
+    if (!status.pipeConnected) {
+      color = '#e05555'
+      text = 'Not connected — is EverQuest running with Zeal loaded?'
+    } else if (status.msSinceLastSwingData === null) {
+      color = '#e0a855'
+      text = status.characterName
+        ? `Connected as "${status.characterName}" — no swing data seen yet this session`
+        : 'Connected — waiting on character identification'
+    } else if (status.msSinceLastSwingData < 15_000) {
+      color = '#55c46a'
+      text = `Receiving swing data (${status.characterName}) — last seen ${(status.msSinceLastSwingData / 1000).toFixed(0)}s ago`
+    } else {
+      color = '#e0a855'
+      const ago = status.msSinceLastSwingData > 120_000
+        ? `${Math.round(status.msSinceLastSwingData / 60_000)}m`
+        : `${Math.round(status.msSinceLastSwingData / 1000)}s`
+      text = `Connected (${status.characterName}) — no swing data for ${ago} (normal if out of combat)`
+    }
+    zealStatusDot.style.background = color
+    zealStatusText.textContent = text
+  }
+
+  updateZealStatusVisibility()
+  refreshZealStatus()
+  setInterval(refreshZealStatus, 2000)
 
   // ── Overlay style radio ──────────────────────────────────────
   const styleGroup = document.getElementById('overlayStyle')
@@ -581,6 +735,19 @@ async function init(): Promise<void> {
   })
 
   setupToggle('leaderboardOptOut', 'LEADERBOARD_OPT_OUT', s.LEADERBOARD_OPT_OUT as boolean)
+
+  // ── Ignored characters ────────────────────────────────────────
+  await initIgnoredCharacters((s.IGNORED_CHARACTERS as string[]) ?? [])
+
+  // ── Rogue Mode ───────────────────────────────────────────────
+  setupToggle('rogueModeEnabled', 'ROGUE_MODE_ENABLED', s.ROGUE_MODE_ENABLED as boolean)
+  const rogueBackstabSetNameEl = document.getElementById('rogueBackstabSetName') as HTMLInputElement | null
+  if (rogueBackstabSetNameEl) {
+    rogueBackstabSetNameEl.value = (s.ROGUE_BACKSTAB_SET_NAME as string) ?? 'backstab'
+    rogueBackstabSetNameEl.addEventListener('change', () => {
+      window.settingsAPI.setSetting('ROGUE_BACKSTAB_SET_NAME', rogueBackstabSetNameEl.value.trim())
+    })
+  }
 
   // ── Close / Save & Close buttons ─────────────────────────────
   document.getElementById('btnClose')?.addEventListener('click', () => {

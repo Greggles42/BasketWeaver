@@ -29,6 +29,7 @@ export interface EncounterRecord {
   timestamp: number            // Date.now() when fight ended
   characterName: string        // from Zeal pipe or config
   serverName: string           // user-configured EQ server name
+  appVersion: string           // Basketweaver version that produced this record (stamped by main process)
 
   weapons: {
     mainhand: string           // detected weapon name or 'Unknown'

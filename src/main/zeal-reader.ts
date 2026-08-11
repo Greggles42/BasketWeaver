@@ -51,11 +51,23 @@ const LOG = {
   SpecialAbilities:   271,  // ripostes, backstabs, finishing blows — damage counts, never swing-timer events
 }
 
+/** Hybrid-mode diagnostic snapshot — see ZealReader.getStatus(). */
+export interface ZealStatus {
+  pipeConnected: boolean
+  characterName: string
+  /** ms since the last own-swing hit/miss was seen, or null if none seen yet this session. */
+  msSinceLastSwingData: number | null
+}
+
 // "VERB TARGET for DAMAGE" — Zeal's abbreviated hit format for YouHitOther
 const ZEAL_HIT_RE = /^(flying kick|crush|punch|strike|kick|bash|slash|pierce|hit)\s+(.+?)\s+for\s+(\d+)/i
 
 // "missed TARGET" — Zeal's miss format for YouMissOther
 const ZEAL_MISS_RE = /^missed\s+(.+)/i
+
+// "backstab TARGET for DAMAGE" — Zeal's abbreviated backstab format, delivered via
+// SpecialAbilities (271) rather than YouHitOther (Rogue Mode only)
+const ZEAL_BACKSTAB_RE = /^backstab\s+(.+?)\s+for\s+(\d+)/i
 
 // /mystats (LOG.Skills) lines that describe the offhand/secondary weapon slot.
 // Matched lines are skipped so only mainhand weapon + haste are extracted.
@@ -104,6 +116,7 @@ function parseInnerData(raw: unknown): { type?: number; text?: string } | null {
 export class ZealReader {
   private cfg: ConfigType
   private onEvent: EventCallback
+  private onCharacterDetected?: (name: string) => void
   private stopped = false
   private sockets: net.Socket[] = []
   private scanTimer: NodeJS.Timeout | null = null
@@ -113,6 +126,10 @@ export class ZealReader {
   private seenLogTypes = new Set<number>()
   private characterName = ''
   private critRe: RegExp | null = null   // compiled once from characterName
+  // Wall-clock (Date.now()) timestamp of the last own-swing event (hit or miss)
+  // seen from the pipe. Used to verify Zeal is actually delivering swing data,
+  // as opposed to merely being connected — see getStatus().
+  private lastSwingDataWallTs = 0
 
   // ── Combat state ──────────────────────────────────────────────
   private inCombat = false
@@ -131,6 +148,7 @@ export class ZealReader {
   // for each weapon slot so we can classify misses by timing.
   private lastCrushHitTs = 0  // last YouHitOther crush hit (ms)
   private lastFistHitTs  = 0  // last YouHitOther punch/strike hit (ms)
+  private lastRiposteTs  = 0  // last riposte-classified event (ms, __DEV__ debug only)
 
   // ── Haste / ATK dedup ────────────────────────────────────────
   private lastHastePct = -1
@@ -155,9 +173,10 @@ export class ZealReader {
   private whirlwindGainedRe:  RegExp[]
   private whirlwindLostRe:    RegExp[]
 
-  constructor(cfg: ConfigType, onEvent: EventCallback) {
+  constructor(cfg: ConfigType, onEvent: EventCallback, onCharacterDetected?: (name: string) => void) {
     this.cfg     = cfg
     this.onEvent = onEvent
+    this.onCharacterDetected = onCharacterDetected
 
     const compile = (patterns: string[]) => patterns.map(p => new RegExp(p, 'i'))
     this.oorRe             = compile(cfg.OUT_OF_RANGE_PATTERNS)
@@ -264,6 +283,7 @@ export class ZealReader {
       if (!this.cfg.LEADERBOARD_CHARACTER_NAME) {
         this.cfg.LEADERBOARD_CHARACTER_NAME = this.characterName
       }
+      this.onCharacterDetected?.(this.characterName)
     }
 
     const logType = inner.type ?? -1
@@ -282,6 +302,13 @@ export class ZealReader {
   private processZealMessage(logType: number, text: string): void {
     const now = performance.now()
 
+    // Track receipt of the player's own swing events (hit or miss) — this is
+    // the signal the Settings UI uses to confirm swing data is actually
+    // flowing over the pipe, not just that a pipe connection exists.
+    if (logType === LOG.YouHitOther || logType === LOG.YouMissOther) {
+      this.lastSwingDataWallTs = Date.now()
+    }
+
     switch (logType) {
 
       // ── You hit something ──────────────────────────────────────
@@ -293,6 +320,11 @@ export class ZealReader {
         // "strike" and "(riposte)" in the text.  Either way, "riposte" always appears in
         // the text — catching it here before verb dispatch is the safe guard.
         if (/riposte/i.test(text)) {
+          if (__DEV__) {
+            const sinceLastCrush = this.lastCrushHitTs > 0 ? ((now - this.lastCrushHitTs) / 1000).toFixed(3) : 'n/a'
+            console.debug(`[riposte][zeal] YouHitOther text="${text}" sinceLastMainhandHit=${sinceLastCrush}s`)
+            this.lastRiposteTs = now
+          }
           const dmg = parseDamageShort(text)
           if (dmg > 0)
             this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage: dmg } })
@@ -314,7 +346,14 @@ export class ZealReader {
           (mainhandVerb === 'punch' && (verb === 'punch' || verb === 'strike'))
         const isFist = (verb === 'punch' || verb === 'strike') && !isMainhand
 
+        if (__DEV__) {
+          const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
+          console.debug(`[mainhand][zeal] YouHitOther verb=${verb} damage=${damage} isMainhand=${isMainhand} isFist=${isFist} ` +
+            `weaveBandolier=${this.cfg.WEAVE_BANDOLIER_ACTIVE} sinceLastRiposte=${sinceRiposte}s`)
+        }
+
         if (isMainhand) {
+          if (this.cfg.ROGUE_MODE_ENABLED) return
           this.lastCrushHitTs = now
           if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
             this.emit({ type: EvType.FIST_ATTACK, ts: now,
@@ -324,12 +363,14 @@ export class ZealReader {
               data: { damage, hit: true, line: text, target } })
           }
         } else if (isFist) {
+          if (this.cfg.ROGUE_MODE_ENABLED) return
           this.lastFistHitTs = now
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage, hit: true, line: text } })
         } else if (verb === 'flying kick' || verb === 'kick') {
           this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
         } else if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
+          if (this.cfg.ROGUE_MODE_ENABLED) return
           // Non-mainhand non-punch attack while weave bandolier is active →
           // offhand DW swing with a non-punch weapon type (e.g. slash/pierce offhand)
           this.lastFistHitTs = now
@@ -348,7 +389,24 @@ export class ZealReader {
       // When no damage is found (e.g. discipline activation text), fall through
       // to text-pattern matching so buff patterns can fire.
       case LOG.SpecialAbilities: {
+        if (this.cfg.ROGUE_MODE_ENABLED) {
+          const bs = ZEAL_BACKSTAB_RE.exec(text)
+          if (bs) {
+            const target = bs[1]
+            const damage = parseInt(bs[2], 10)
+            this.ensureCombat(now)
+            this.currentTarget = target
+            this.lastAttackTs  = now
+            this.emit({ type: EvType.BACKSTAB_ATTACK, ts: now, data: { damage, hit: true, target } })
+            return
+          }
+        }
         const damage = parseDamageShort(text)
+        if (__DEV__ && /riposte/i.test(text)) {
+          const sinceLastCrush = this.lastCrushHitTs > 0 ? ((now - this.lastCrushHitTs) / 1000).toFixed(3) : 'n/a'
+          console.debug(`[riposte][zeal] SpecialAbilities text="${text}" damage=${damage} sinceLastMainhandHit=${sinceLastCrush}s`)
+          this.lastRiposteTs = now
+        }
         if (damage > 0) {
           this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
           return
@@ -483,8 +541,10 @@ export class ZealReader {
       if (bm) {
         const setName = bm[1].trim().replace(/^\[|\]$/g, '')
         const isWeaveSet = setName.toLowerCase().includes('weave')
+        const isBackstabSet = setName.toLowerCase().includes(this.cfg.ROGUE_BACKSTAB_SET_NAME.toLowerCase())
+        this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = isBackstabSet
         // Emit BANDOLIER_CHANGED immediately (before any delayed deactivation)
-        this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet } })
+        this.emit({ type: EvType.BANDOLIER_CHANGED, ts: now, data: { setName, isWeaveSet, isBackstabSet } })
         if (isWeaveSet) {
           // Switching TO the weave set — activate immediately, cancel any pending deactivation
           if (this.weaveBandolierOffTimer !== null) {
@@ -654,6 +714,15 @@ export class ZealReader {
     this.onEvent(ev)
   }
 
+  /** Snapshot for the Settings UI's hybrid-mode diagnostic indicator. */
+  getStatus(): ZealStatus {
+    return {
+      pipeConnected: this.connectedPids.size > 0,
+      characterName: this.characterName,
+      msSinceLastSwingData: this.lastSwingDataWallTs > 0 ? Date.now() - this.lastSwingDataWallTs : null,
+    }
+  }
+
   stop(): void {
     this.stopped = true
     if (this.scanTimer) { clearInterval(this.scanTimer); this.scanTimer = null }
@@ -669,6 +738,7 @@ export class ZealReader {
     this.lastCrushHitTs      = 0
     this.lastFistHitTs       = 0
     this.cfg.WEAVE_BANDOLIER_ACTIVE = false
+    this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = false
     if (this.weaveBandolierOffTimer !== null) {
       clearTimeout(this.weaveBandolierOffTimer)
       this.weaveBandolierOffTimer = null
@@ -680,5 +750,6 @@ export class ZealReader {
     this.weaponTrackActive = false
     this.weaponTrack2H   = ''
     this.weaponTrackOH   = ''
+    this.lastSwingDataWallTs = 0
   }
 }

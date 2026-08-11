@@ -12,6 +12,7 @@ import * as https from 'https'
 import type { EncounterRecord } from '../shared/leaderboard-types'
 
 const MAX_PER_MOB = 100
+const MAX_LOG_BYTES = 512 * 1024   // truncate upload log once it exceeds this size
 
 /**
  * Mobs whose kills may be uploaded to the online leaderboard.
@@ -92,11 +93,32 @@ const ONLINE_ELIGIBLE_MOBS = new Set<string>([
 
 export class LeaderboardManager {
   private filePath: string
+  private logFilePath: string
   private records: EncounterRecord[] = []
 
   constructor(configDir: string) {
     this.filePath = path.join(configDir, 'leaderboard.json')
+    this.logFilePath = path.join(configDir, 'leaderboard-upload.log')
     this.load()
+  }
+
+  /**
+   * Persist a one-line diagnostic to disk. console.log is invisible for a
+   * packaged app launched by double-click (no attached console), so this is
+   * the only way upload failures are ever visible to a user asked to send
+   * their log — see leaderboard-upload.log next to leaderboard.json.
+   */
+  log(message: string): void {
+    const line = `[${new Date().toISOString()}] ${message}\n`
+    console.log(message)
+    try {
+      if (fs.existsSync(this.logFilePath) && fs.statSync(this.logFilePath).size > MAX_LOG_BYTES) {
+        fs.writeFileSync(this.logFilePath, '', 'utf8')
+      }
+      fs.appendFileSync(this.logFilePath, line, 'utf8')
+    } catch (err) {
+      console.error('[Leaderboard] Failed to write upload log:', err)
+    }
   }
 
   private load(): void {
@@ -188,13 +210,27 @@ export class LeaderboardManager {
         },
       }
       const req = https.request(options, (res) => {
-        resolve(res.statusCode === 200 || res.statusCode === 201)
+        const ok = res.statusCode === 200 || res.statusCode === 201
+        if (!ok) {
+          let body = ''
+          res.on('data', (c) => { body += c })
+          res.on('end', () => {
+            this.log(`[Leaderboard] Upload rejected for "${record.mobName}": HTTP ${res.statusCode} ${body.slice(0, 300)}`)
+            resolve(false)
+          })
+        } else {
+          resolve(true)
+        }
       })
       req.on('error', (err) => {
-        console.error('[Leaderboard] Upload error:', err.message)
+        this.log(`[Leaderboard] Upload error for "${record.mobName}": ${err.message}`)
         resolve(false)
       })
-      req.setTimeout(8000, () => { req.destroy(); resolve(false) })
+      req.setTimeout(8000, () => {
+        this.log(`[Leaderboard] Upload timed out for "${record.mobName}" after 8s`)
+        req.destroy()
+        resolve(false)
+      })
       req.write(body)
       req.end()
     })

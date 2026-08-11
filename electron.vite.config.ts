@@ -4,13 +4,16 @@ import { loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const isDev = mode !== 'production'
+  const define = {
+    __LEADERBOARD_WORKER_URL__: JSON.stringify(env.LEADERBOARD_WORKER_URL ?? ''),
+    __LEADERBOARD_API_KEY__:    JSON.stringify(env.LEADERBOARD_API_KEY    ?? ''),
+    __DEV__: JSON.stringify(isDev),
+  }
   return {
   main: {
     plugins: [externalizeDepsPlugin()],
-    define: {
-      __LEADERBOARD_WORKER_URL__: JSON.stringify(env.LEADERBOARD_WORKER_URL ?? ''),
-      __LEADERBOARD_API_KEY__:    JSON.stringify(env.LEADERBOARD_API_KEY    ?? ''),
-    },
+    define,
     build: {
       rollupOptions: {
         input: {
@@ -21,6 +24,7 @@ export default defineConfig(({ mode }) => {
   },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    define,
     build: {
       rollupOptions: {
         input: {
@@ -32,6 +36,7 @@ export default defineConfig(({ mode }) => {
     }
   },
   renderer: {
+    define,
     build: {
       rollupOptions: {
         input: {

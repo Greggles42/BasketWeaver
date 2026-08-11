@@ -23,6 +23,7 @@ declare global {
       onTogglePin:              (cb: () => void) => void
       onClearBuffs:             (cb: () => void) => void
       onToggleBuffSound:        (cb: () => void) => void
+      onToggleRogueMode:        (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       onSetVolumes:           (cb: (master: number, proc: number, epic: number, debounceMs: number) => void) => void
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
@@ -73,6 +74,7 @@ const overlay: {
   toggleDynamicWeaving(): void
   toggleOffhandTimer(): void
   resetTrack(): void
+  resetRogueMode(): void
   handleWeaveKeyPressed(ts: number): void
   applyDynamicWeaveWindow(delayTenths: number, name?: string): void
   readonly audio: import('./audio-manager').AudioManager
@@ -133,6 +135,8 @@ window.electronAPI.onClearBuffs(() => {
 window.electronAPI.onToggleBuffSound(() => {
   audio.buffSoundEnabled = !audio.buffSoundEnabled
 })
+
+window.electronAPI.onToggleRogueMode(() => overlay.resetRogueMode())
 
 window.electronAPI.onTogglePin(() => {
   overlay.pinned = !overlay.pinned

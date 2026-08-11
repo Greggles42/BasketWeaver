@@ -228,8 +228,13 @@ export class RhythmEngine {
 
     if (this.roundOpen) {
       if (damage > 0) this.roundMainhandDamage += damage
+      if (__DEV__) console.debug(`[calib] mainhand crush (same round): damage=${damage} hit=${_hit} skipCalibration=${skipCalibration}`)
       this.lastCrushTime = ts
     } else {
+      if (__DEV__) {
+        const sinceLast = this.lastCrushTime > 0 ? ((ts - this.lastCrushTime) / 1000).toFixed(3) : 'n/a'
+        console.debug(`[calib] mainhand crush (new round): damage=${damage} hit=${_hit} skipCalibration=${skipCalibration} sinceLastCrush=${sinceLast}s`)
+      }
       this.roundOpen = true
       this.roundSkipCalibration = skipCalibration
       this.lastCrushTime = ts
@@ -546,6 +551,7 @@ export class RhythmEngine {
   private closeRound(): void {
     this.roundOpen = false
     const roundEnd = this.lastCrushTime
+    const prevInterval = this.cfg.PUNCH_INTERVAL
 
     let interval: number
     if (this.lastRoundCloseTime > 0) {
@@ -558,7 +564,8 @@ export class RhythmEngine {
       // Any measured gap shorter than this must be a riposte or other non-swing event
       // that slipped through — reject it before it can pollute the rolling median.
       const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 2.25
-      if (!this.roundSkipCalibration && measured >= minPlausible && measured <= maxPlausible) {
+      const inRange = measured >= minPlausible && measured <= maxPlausible
+      if (!this.roundSkipCalibration && inRange) {
         // Change detection: if the new measurement diverges from the running median
         // by more than 8%, a genuine haste or weapon-swap event has occurred.
         // Discard stale samples so calibration converges in ~3 swings instead of
@@ -566,6 +573,10 @@ export class RhythmEngine {
         if (this.measuredIntervals.length >= 3) {
           const currentMedian = RhythmEngine.median(this.measuredIntervals)
           if (Math.abs(measured - currentMedian) / currentMedian > 0.08) {
+            if (__DEV__) {
+              console.debug(`[calib] flushed buffer: measured=${measured.toFixed(3)}s diverged ` +
+                `${(Math.abs(measured - currentMedian) / currentMedian * 100).toFixed(1)}% from median=${currentMedian.toFixed(3)}s`)
+            }
             this.measuredIntervals = []
           }
         }
@@ -573,12 +584,22 @@ export class RhythmEngine {
         if (this.measuredIntervals.length > RhythmEngine.CALIB_BUFFER)
           this.measuredIntervals.shift()
       }
+      if (__DEV__) {
+        const reason = this.roundSkipCalibration
+          ? 'skipCalibration (bandolier weave)'
+          : !inRange
+            ? (measured < minPlausible ? `too short (< ${minPlausible.toFixed(3)}s, likely riposte/offhand bleed-through)` : `too long (> ${maxPlausible.toFixed(3)}s, likely OOR/skipped swing)`)
+            : 'accepted'
+        console.debug(`[calib] round close: measured=${measured.toFixed(3)}s reason=${reason} ` +
+          `buffer=[${this.measuredIntervals.map(v => v.toFixed(3)).join(', ')}]`)
+      }
       // Rolling median: robust to outliers — up to (n/2 - 1) bad values can't corrupt the result.
       // Use 3+ samples for stability; fall back to current PUNCH_INTERVAL while building up.
       const raw = this.measuredIntervals.length >= 3
         ? RhythmEngine.median(this.measuredIntervals)
         : this.cfg.PUNCH_INTERVAL
       if (raw < minPlausible) {
+        if (__DEV__) console.debug(`[calib] median ${raw.toFixed(3)}s below minPlausible — buffer reset, keeping PUNCH_INTERVAL=${this.cfg.PUNCH_INTERVAL.toFixed(3)}s`)
         this.measuredIntervals = []
         interval = this.cfg.PUNCH_INTERVAL
       } else {
@@ -586,11 +607,16 @@ export class RhythmEngine {
       }
     } else {
       interval = this.predictedInterval
+      if (__DEV__) console.debug(`[calib] first round after (re)anchor — using predictedInterval=${interval.toFixed(3)}s`)
     }
 
     // Signal a calibration banner when the interval shifts by more than 50 ms.
     if (Math.abs(interval - this.cfg.PUNCH_INTERVAL) > 0.05) {
       this.calibrationEvent = { interval }
+      if (__DEV__) {
+        console.debug(`[calib] AUTO-CALIBRATE: ${prevInterval.toFixed(3)}s -> ${interval.toFixed(3)}s ` +
+          `(${((this.cfg.BASE_WEAPON_DELAY / 10 / interval - 1) * 100).toFixed(1)}% haste)`)
+      }
     }
 
     this.lastRoundCloseTime = roundEnd

@@ -4,7 +4,7 @@
  * These are sent over the IPC channel 'game-event'.
  */
 
-export const enum EvType {
+export enum EvType {
   COMBAT_START    = 'COMBAT_START',
   COMBAT_END      = 'COMBAT_END',   // silent end: you died / zoned / logout
   MOB_DIED        = 'MOB_DIED',     // mob you were fighting died → grade + sound
@@ -21,8 +21,9 @@ export const enum EvType {
   CRIT_HIT        = 'CRIT_HIT',        // data: { damage: number }
   STATS_UPDATE    = 'STATS_UPDATE',    // data: { atkRating?: number, hastePct?: number }
   WEAPON_TRACK       = 'WEAPON_TRACK',       // data: { mainhand: string, offhand: string }
-  BANDOLIER_CHANGED  = 'BANDOLIER_CHANGED',  // data: { setName: string, isWeaveSet: boolean }
-  LOG_DAMAGE         = 'LOG_DAMAGE',         // data: { damage, source: 'mainhand'|'fist'|'misc' }
+  BANDOLIER_CHANGED  = 'BANDOLIER_CHANGED',  // data: { setName: string, isWeaveSet: boolean, isBackstabSet: boolean }
+  LOG_DAMAGE         = 'LOG_DAMAGE',         // data: { damage, source: 'mainhand'|'fist'|'misc'|'backstab' }
+  BACKSTAB_ATTACK    = 'BACKSTAB_ATTACK',    // data: { damage: number, hit: boolean, target?: string }
 }
 
 export interface GameEvent {
@@ -58,6 +59,7 @@ export const IPC = {
   TOGGLE_PIN:             'toggle-pin',               // tray → renderer
   CLEAR_BUFFS:            'clear-buffs',              // tray → renderer
   TOGGLE_BUFF_SOUND:      'toggle-buff-sound',        // tray → renderer
+  TOGGLE_ROGUE_MODE:      'toggle-rogue-mode',        // tray/settings → renderer: Rogue Mode enabled/disabled
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: { label: string, full: string }[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }
@@ -81,4 +83,6 @@ export const IPC = {
   LEADERBOARD_GET:     'leaderboard-get',       // renderer → main: request records
   LEADERBOARD_DATA:    'leaderboard-data',      // main → renderer: EncounterRecord[]
   LEADERBOARD_OPEN:    'leaderboard-open',      // tray/renderer → main: open leaderboard window
+  GET_LOG_CHARACTERS:  'get-log-characters',    // settings renderer → main: string[] of chars detected in log dir
+  ZEAL_STATUS_GET:     'zeal-status-get',       // settings renderer → main: request ZealStatus snapshot
 } as const
