@@ -443,7 +443,11 @@ export class LogReader {
           `sinceLastMainhandLine=${sinceLastCrush}s offhandCrushPending=${this.offhandCrushPending}`)
         this.lastRiposteTs = now
       }
-      if (this.inCombat && content.startsWith('You ')) {
+      // Don't require inCombat already true — a riposte can be the very first
+      // player-sourced line of an engagement (mirrors damageOnly mode, which
+      // has no such gate) and should still register as combat + count damage.
+      if (content.startsWith('You ')) {
+        this.ensureCombat(now)
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
       }
@@ -557,12 +561,13 @@ export class LogReader {
     }
 
     // ── Item proc damage ─────────────────────────────────────
+    // No inCombat gate — mirrors damageOnly mode, which counts these
+    // unconditionally. A proc landing is itself proof combat is happening.
     if (this.procHitRe.some(r => r.test(content))) {
-      if (this.inCombat) {
-        const damage = parseDamage(content)
-        if (damage > 0)
-          this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
-      }
+      this.ensureCombat(now)
+      const damage = parseDamage(content)
+      if (damage > 0)
+        this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
       return
     }
 

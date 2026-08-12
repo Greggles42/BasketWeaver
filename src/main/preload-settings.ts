@@ -46,6 +46,12 @@ contextBridge.exposeInMainWorld('settingsAPI', {
   getLogCharacters: (): Promise<string[]> =>
     ipcRenderer.invoke('get-log-characters'),
 
-  getZealStatus: (): Promise<{ pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null }> =>
+  getZealStatus: (): Promise<{
+    pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null
+    eqProcessFound: boolean; lastPipeError: string | null; scanError: string | null
+  }> =>
     ipcRenderer.invoke('zeal-status-get'),
+
+  openZealLog: (): Promise<string | null> =>
+    ipcRenderer.invoke('zeal-log-open'),
 })

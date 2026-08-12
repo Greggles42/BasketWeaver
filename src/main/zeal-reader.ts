@@ -21,12 +21,16 @@
  */
 
 import * as net from 'net'
+import * as fs from 'fs'
+import * as path from 'path'
 import { exec } from 'child_process'
 import { performance } from 'perf_hooks'
 import { EvType, type GameEvent } from '../shared/events'
 import { type ConfigType } from '../shared/config'
 import { type EventCallback } from './log-reader'
 import { parseHaste, calcInterval, parseAtkRating } from './haste-calc'
+
+const MAX_LOG_BYTES = 512 * 1024   // truncate diagnostic log once it exceeds this size
 
 // PipeMessageType.LogText = 0
 const PIPE_MSG_LOGTEXT = 0
@@ -57,6 +61,12 @@ export interface ZealStatus {
   characterName: string
   /** ms since the last own-swing hit/miss was seen, or null if none seen yet this session. */
   msSinceLastSwingData: number | null
+  /** true if the most recent process scan found at least one eqgame.exe. */
+  eqProcessFound: boolean
+  /** message from the most recent pipe socket error, or null if none this session. */
+  lastPipeError: string | null
+  /** message from the most recent `tasklist` scan failure, or null if none this session. */
+  scanError: string | null
 }
 
 // "VERB TARGET for DAMAGE" — Zeal's abbreviated hit format for YouHitOther
@@ -82,12 +92,12 @@ function parseDamageShort(text: string): number {
   return m ? parseInt(m[1], 10) : 0
 }
 
-function findEQProcessIds(): Promise<number[]> {
+function findEQProcessIds(onError: (message: string) => void): Promise<number[]> {
   return new Promise((resolve) => {
     exec('tasklist /FI "IMAGENAME eq eqgame.exe" /FO CSV /NH',
       { encoding: 'utf8', timeout: 3000 },
       (err, stdout) => {
-        if (err) { resolve([]); return }
+        if (err) { onError(err.message); resolve([]); return }
         const pids: number[] = []
         for (const line of stdout.split('\n')) {
           const parts = line.split(',')
@@ -130,6 +140,35 @@ export class ZealReader {
   // seen from the pipe. Used to verify Zeal is actually delivering swing data,
   // as opposed to merely being connected — see getStatus().
   private lastSwingDataWallTs = 0
+  private eqProcessFound = false
+  private lastPipeError: string | null = null
+  private scanError: string | null = null
+  private readonly logFilePath: string | null
+
+  /**
+   * Persist a one-line diagnostic to disk. console.log is invisible for a
+   * packaged app launched by double-click (no attached console), so this is
+   * the only way hybrid-mode failures are ever visible to a user asked to
+   * send their log — see zeal-reader.log next to settings.json.
+   * ERROR-level lines are prefixed so a user pasting the file can spot the
+   * relevant lines at a glance without understanding the rest of the log.
+   */
+  private log(message: string, level: 'INFO' | 'ERROR' = 'INFO'): void {
+    console.log(message)
+    if (!this.logFilePath) return
+    try {
+      if (fs.existsSync(this.logFilePath) && fs.statSync(this.logFilePath).size > MAX_LOG_BYTES) {
+        fs.writeFileSync(this.logFilePath, '', 'utf8')
+      }
+      fs.appendFileSync(this.logFilePath, `[${new Date().toISOString()}] ${level}  ${message}\n`, 'utf8')
+    } catch (err) {
+      console.error('[ZealReader] Failed to write diagnostic log:', err)
+    }
+  }
+
+  private logError(message: string): void {
+    this.log(message, 'ERROR')
+  }
 
   // ── Combat state ──────────────────────────────────────────────
   private inCombat = false
@@ -173,10 +212,11 @@ export class ZealReader {
   private whirlwindGainedRe:  RegExp[]
   private whirlwindLostRe:    RegExp[]
 
-  constructor(cfg: ConfigType, onEvent: EventCallback, onCharacterDetected?: (name: string) => void) {
+  constructor(cfg: ConfigType, onEvent: EventCallback, onCharacterDetected?: (name: string) => void, logDir?: string) {
     this.cfg     = cfg
     this.onEvent = onEvent
     this.onCharacterDetected = onCharacterDetected
+    this.logFilePath = logDir ? path.join(logDir, 'zeal-reader.log') : null
 
     const compile = (patterns: string[]) => patterns.map(p => new RegExp(p, 'i'))
     this.oorRe             = compile(cfg.OUT_OF_RANGE_PATTERNS)
@@ -207,11 +247,15 @@ export class ZealReader {
 
   private scan(): void {
     if (this.stopped) return
-    findEQProcessIds().then(pids => {
+    findEQProcessIds((message) => {
+      this.scanError = message
+      this.logError(`[ZealReader] tasklist scan failed: ${message}`)
+    }).then(pids => {
       if (this.stopped) return
+      this.eqProcessFound = pids.length > 0
       for (const pid of pids) {
         if (!this.connectedPids.has(pid)) {
-          console.log(`[ZealReader] Found new EQ process PID ${pid}, connecting…`)
+          this.log(`[ZealReader] Found new EQ process PID ${pid}, connecting…`)
           this.connectedPids.add(pid)
           this.connectToPipe(pid)
         }
@@ -228,14 +272,14 @@ export class ZealReader {
     let firstChunk = true
 
     socket.on('connect', () => {
-      console.log(`[ZealReader] Connected to Zeal pipe for PID ${pid}`)
+      this.log(`[ZealReader] Connected to Zeal pipe for PID ${pid}`)
     })
 
     socket.on('data', (chunk: Buffer) => {
       const text = chunk.toString('utf8')
       if (firstChunk) {
         firstChunk = false
-        console.log(`[ZealReader] PID ${pid} first data (${text.length} bytes): ${text.slice(0, 200).replace(/\n/g, '\\n')}`)
+        this.log(`[ZealReader] PID ${pid} first data (${text.length} bytes): ${text.slice(0, 200).replace(/\n/g, '\\n')}`)
       }
 
       buffer += text
@@ -251,7 +295,9 @@ export class ZealReader {
     })
 
     socket.on('error', (err) => {
-      console.log(`[ZealReader] Pipe error for PID ${pid}: ${err.message}`)
+      const code = (err as NodeJS.ErrnoException).code ? ` (${(err as NodeJS.ErrnoException).code})` : ''
+      this.lastPipeError = `${err.message}${code}`
+      this.logError(`[ZealReader] Pipe error for PID ${pid}: ${err.message}${code}`)
       this.connectedPids.delete(pid)
       const idx = this.sockets.indexOf(socket)
       if (idx !== -1) this.sockets.splice(idx, 1)
@@ -259,7 +305,7 @@ export class ZealReader {
     })
 
     socket.on('close', () => {
-      console.log(`[ZealReader] Pipe closed for PID ${pid}`)
+      this.log(`[ZealReader] Pipe closed for PID ${pid}`)
       this.connectedPids.delete(pid)
       const idx = this.sockets.indexOf(socket)
       if (idx !== -1) this.sockets.splice(idx, 1)
@@ -268,17 +314,23 @@ export class ZealReader {
 
   private parsePipeMessage(json: string): void {
     let outer: { type: number; character?: string; data?: unknown }
-    try { outer = JSON.parse(json) } catch { return }
+    try { outer = JSON.parse(json) } catch (err) {
+      this.logError(`[ZealReader] Outer JSON parse failed: ${(err as Error).message} — raw: ${json.slice(0, 200)}`)
+      return
+    }
     if (outer.type !== PIPE_MSG_LOGTEXT || !outer.data) return
 
     const inner = parseInnerData(outer.data)
-    if (!inner || !inner.text) return
+    if (!inner || !inner.text) {
+      this.logError(`[ZealReader] Inner data parse failed — raw: ${JSON.stringify(outer.data).slice(0, 200)}`)
+      return
+    }
 
     if (!this.characterName && outer.character) {
       this.characterName = outer.character
       const nameEsc = this.characterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       this.critRe = new RegExp(`^${nameEsc}\\b.*?\\((\\d+)\\)`, 'i')
-      console.log(`[ZealReader] Character: "${this.characterName}"`)
+      this.log(`[ZealReader] Character: "${this.characterName}"`)
       // Populate leaderboard character name if not already set by user
       if (!this.cfg.LEADERBOARD_CHARACTER_NAME) {
         this.cfg.LEADERBOARD_CHARACTER_NAME = this.characterName
@@ -291,7 +343,7 @@ export class ZealReader {
 
     if (!this.seenLogTypes.has(logType)) {
       this.seenLogTypes.add(logType)
-      console.log(`[ZealReader] NEW type=${logType} text=${text.slice(0, 120)}`)
+      this.log(`[ZealReader] NEW type=${logType} text=${text.slice(0, 120)}`)
     }
 
     this.processZealMessage(logType, text)
@@ -720,6 +772,9 @@ export class ZealReader {
       pipeConnected: this.connectedPids.size > 0,
       characterName: this.characterName,
       msSinceLastSwingData: this.lastSwingDataWallTs > 0 ? Date.now() - this.lastSwingDataWallTs : null,
+      eqProcessFound: this.eqProcessFound,
+      lastPipeError: this.lastPipeError,
+      scanError: this.scanError,
     }
   }
 

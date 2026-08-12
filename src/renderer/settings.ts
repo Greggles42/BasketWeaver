@@ -17,7 +17,11 @@ declare global {
       cancelWeaveKeyLearn2(): void
       onWeaveKeyLearned2(cb: (result: { keycode: number; display: string } | null) => void): void
       getLogCharacters(): Promise<string[]>
-      getZealStatus(): Promise<{ pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null }>
+      getZealStatus(): Promise<{
+        pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null
+        eqProcessFound: boolean; lastPipeError: string | null; scanError: string | null
+      }>
+      openZealLog(): Promise<string | null>
     }
   }
 }
@@ -381,14 +385,25 @@ async function init(): Promise<void> {
   const zealStatusRow  = document.getElementById('zealStatusRow')  as HTMLElement | null
   const zealStatusDot  = document.getElementById('zealStatusDot')  as HTMLElement | null
   const zealStatusText = document.getElementById('zealStatusText') as HTMLElement | null
+  const zealLogRow     = document.getElementById('zealLogRow')     as HTMLElement | null
+  const btnOpenZealLog = document.getElementById('btnOpenZealLog') as HTMLButtonElement | null
 
   function isHybridSelected(): boolean {
     return trackingGroup?.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.value === 'hybrid'
   }
 
   function updateZealStatusVisibility(): void {
-    if (!zealStatusRow) return
-    zealStatusRow.style.display = isHybridSelected() ? 'flex' : 'none'
+    if (zealStatusRow) zealStatusRow.style.display = isHybridSelected() ? 'flex' : 'none'
+    if (zealLogRow)    zealLogRow.style.display    = isHybridSelected() ? 'flex' : 'none'
+  }
+
+  if (btnOpenZealLog) {
+    btnOpenZealLog.addEventListener('click', async () => {
+      const original = btnOpenZealLog.textContent
+      const err = await window.settingsAPI.openZealLog()
+      btnOpenZealLog.textContent = err ? `Failed: ${err}` : 'Opened'
+      setTimeout(() => { btnOpenZealLog.textContent = original }, 2000)
+    })
   }
 
   async function refreshZealStatus(): Promise<void> {
@@ -397,7 +412,15 @@ async function init(): Promise<void> {
     let color: string, text: string
     if (!status.pipeConnected) {
       color = '#e05555'
-      text = 'Not connected — is EverQuest running with Zeal loaded?'
+      if (status.scanError) {
+        text = `Not connected — process scan failed: ${status.scanError}`
+      } else if (!status.eqProcessFound) {
+        text = 'Not connected — no eqgame.exe process found. Is EverQuest running?'
+      } else if (status.lastPipeError) {
+        text = `Not connected — pipe error: ${status.lastPipeError}. Is Zeal loaded (/zeal)?`
+      } else {
+        text = 'Not connected — is EverQuest running with Zeal loaded?'
+      }
     } else if (status.msSinceLastSwingData === null) {
       color = '#e0a855'
       text = status.characterName
@@ -577,6 +600,7 @@ async function init(): Promise<void> {
     'offhandCustomRow', 'offhandCustom', 'offhandCustomSec',
     OFFHAND_PRESETS, s.OFFHAND_WEAPON_DELAY as number,
     'OFFHAND_WEAPON_DELAY', 'OFFHAND_WEAPON_NAME',
+    s.OFFHAND_WEAPON_NAME as string | null ?? null,
   )
 
   // ── Mainhand attack type dropdown ────────────────────────────

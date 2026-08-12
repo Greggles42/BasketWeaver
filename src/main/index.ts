@@ -8,7 +8,7 @@
  *   • Handle file picker, opacity, and window resize requests
  */
 
-import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, screen, shell } from 'electron'
 import * as path from 'path'
 import { performance } from 'perf_hooks'
 import { Config } from '../shared/config'
@@ -493,7 +493,7 @@ function startHybridReader(): void {
       settingsWin.webContents.send(IPC.CHARACTER_DETECTED, Config.LEADERBOARD_CHARACTER_NAME)
     }
     saveSettings()
-  })
+  }, configDir())
   activeZealReader = zealReader
   stopZeal = zealReader.start()
 
@@ -643,9 +643,21 @@ function setupIPC(): void {
 
   ipcMain.handle(IPC.ZEAL_STATUS_GET, () => {
     if (Config.TRACKING_SOURCE !== 'hybrid' || !activeZealReader) {
-      return { pipeConnected: false, characterName: '', msSinceLastSwingData: null }
+      return {
+        pipeConnected: false, characterName: '', msSinceLastSwingData: null,
+        eqProcessFound: false, lastPipeError: null, scanError: null,
+      }
     }
     return activeZealReader.getStatus()
+  })
+
+  ipcMain.handle(IPC.ZEAL_LOG_OPEN, async () => {
+    const logPath = path.join(configDir(), 'zeal-reader.log')
+    if (!fs.existsSync(logPath)) {
+      fs.writeFileSync(logPath, '', 'utf8')
+    }
+    const err = await shell.openPath(logPath)
+    return err ? err : null
   })
 
   ipcMain.handle(IPC.SETTINGS_GET, () => ({

@@ -501,9 +501,21 @@ export class RefinedOverlay {
         break
       }
       case EvType.BACKSTAB_ATTACK: {
-        if (!this.cfg.ROGUE_MODE_ENABLED) break
         const damage = (ev.data?.damage as number) ?? 0
         const hit    = (ev.data?.hit as boolean) ?? false
+        if (!this.cfg.ROGUE_MODE_ENABLED) {
+          // Not in Rogue Mode's dedicated backstab UI, but the damage still
+          // needs to count toward normal DPS — mirrors how hybrid mode's
+          // LOG_DAMAGE(source: 'backstab') is handled just above.
+          if (hit && damage > 0) {
+            const bsLogNow = now()
+            this.rhythm.onReturnInRange(bsLogNow)
+            if (!this.rhythm.inCombat) this.rhythm.onCombatStart(bsLogNow)
+            this.lastCombatActivity = bsLogNow
+            this.rhythm.onLogDamage(damage, 'misc')
+          }
+          break
+        }
         if (ev.data?.target) this.currentTarget = ev.data.target as string
         const bsNow = now()
         if (!this.rogueInCombat) {
