@@ -586,6 +586,15 @@
         <input type="range" id="opacity" min="50" max="100" step="1" />
         <span class="val" id="opacityVal">88</span>
       </div>
+
+      <div class="row" data-tip="How the overlay competes with other always-on-top apps (GINA, Discord overlay, etc). Standard: default OS topmost. Elevated: requests a higher topmost band, less likely to be covered. Aggressive: elevated band plus periodically re-asserting topmost — can cause visible flicker if another app does the same.">
+        <label>Always-on-Top Mode</label>
+        <div class="radio-group" id="alwaysOnTopMode">
+          <label><input type="radio" name="aot" value="standard" /> Standard</label>
+          <label><input type="radio" name="aot" value="elevated" /> Elevated</label>
+          <label><input type="radio" name="aot" value="aggressive" /> Aggressive</label>
+        </div>
+      </div>
     </div>
 
     <!-- ── Options ───────────────────────────────────── -->

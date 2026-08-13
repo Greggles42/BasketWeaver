@@ -11,6 +11,13 @@ export const Config = {
   FPS:           60,
   WINDOW_OPACITY: 0.88,
   ALWAYS_ON_TOP:  true,
+  // 'standard'   — default OS-level topmost, set once when the overlay should be shown.
+  // 'elevated'   — requests a higher topmost band ('screen-saver'), less likely to be
+  //                bumped by other overlays that only request plain topmost.
+  // 'aggressive' — elevated band, plus periodically re-asserts topmost so the overlay
+  //                reclaims the front if another app steals it. Costs a bit more CPU
+  //                and can cause visible z-order flicker if two apps both do this.
+  ALWAYS_ON_TOP_MODE: 'standard' as 'standard' | 'elevated' | 'aggressive',
   VISUAL_MODE:    2,    // 1=circles 2=window bars 3=static timeline 4=swing timer
 
   // ── Layout ───────────────────────────────────────────────────

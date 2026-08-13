@@ -274,6 +274,27 @@ canvas.addEventListener('mousedown', (e: MouseEvent) => {
   clickDownClientY = e.clientY
 })
 
+// Accumulate move deltas and flush at most once per animation frame instead
+// of calling moveWindow() (IPC + synchronous setPosition) on every mousemove.
+// A high-poll-rate mouse can fire mousemove hundreds of times/sec; hammering
+// setPosition that fast while the OS holds mouse capture on this window is
+// what causes the cursor to get visibly stuck/jittery mid-drag on Windows
+// (only clearing on alt+tab, which forces the input subsystem to reset).
+let pendingDx  = 0
+let pendingDy  = 0
+let flushQueued = false
+
+function flushMove(): void {
+  flushQueued = false
+  if (!dragging) { pendingDx = 0; pendingDy = 0; return }
+  if (pendingDx !== 0 || pendingDy !== 0) {
+    window.electronAPI.moveWindow(pendingDx, pendingDy)
+    pendingDx = 0
+    pendingDy = 0
+  }
+  if (dragging) { flushQueued = true; requestAnimationFrame(flushMove) }
+}
+
 window.addEventListener('mousemove', (e: MouseEvent) => {
   if (!dragPending && !dragging) return
   if (!(e.buttons & 1)) { dragPending = false; dragging = false; if (overlay.pinned) window.electronAPI.releaseMouse(); return }
@@ -285,19 +306,23 @@ window.addEventListener('mousemove', (e: MouseEvent) => {
     if (overlay.pinned) { dragPending = false; return }  // position locked
     dragging    = true
     dragPending = false
+    if (!flushQueued) { flushQueued = true; requestAnimationFrame(flushMove) }
   }
 
-  const dx = e.screenX - lastScreenX
-  const dy = e.screenY - lastScreenY
+  pendingDx  += e.screenX - lastScreenX
+  pendingDy  += e.screenY - lastScreenY
   lastScreenX = e.screenX
   lastScreenY = e.screenY
-  if (dx !== 0 || dy !== 0) window.electronAPI.moveWindow(dx, dy)
 })
 
 window.addEventListener('blur', () => {
   dragPending = false
   dragging    = false
-  window.electronAPI.releaseMouse()
+  // Only release mouse capture on focus loss while pinned (click-through mode).
+  // While unpinned the overlay should stay fully clickable/draggable even after
+  // the game window regains focus, otherwise it can get stuck relying on a
+  // forwarded mouseenter event to recapture, which isn't always reliable.
+  if (overlay.pinned) window.electronAPI.releaseMouse()
 })
 
 window.addEventListener('mouseup', (e: MouseEvent) => {

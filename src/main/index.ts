@@ -166,6 +166,9 @@ function loadSettings(): void {
       if (typeof saved.BUFF_SOUND_ENABLED         === 'boolean') Config.BUFF_SOUND_ENABLED         = saved.BUFF_SOUND_ENABLED
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
+      if (saved.ALWAYS_ON_TOP_MODE === 'standard' || saved.ALWAYS_ON_TOP_MODE === 'elevated' || saved.ALWAYS_ON_TOP_MODE === 'aggressive') {
+        Config.ALWAYS_ON_TOP_MODE = saved.ALWAYS_ON_TOP_MODE
+      }
       if (typeof saved.POSITIVE_AUDIO_IN_WINDOW   === 'boolean') Config.POSITIVE_AUDIO_IN_WINDOW   = saved.POSITIVE_AUDIO_IN_WINDOW
       if (typeof saved.LEADERBOARD_CHARACTER_NAME  === 'string')  Config.LEADERBOARD_CHARACTER_NAME  = saved.LEADERBOARD_CHARACTER_NAME
       if (typeof saved.LEADERBOARD_OPT_OUT         === 'boolean') Config.LEADERBOARD_OPT_OUT         = saved.LEADERBOARD_OPT_OUT
@@ -208,6 +211,7 @@ export function saveSettings(): void {
       BUFF_SOUND_ENABLED:        Config.BUFF_SOUND_ENABLED,
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
+      ALWAYS_ON_TOP_MODE:        Config.ALWAYS_ON_TOP_MODE,
       POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
       LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
       LEADERBOARD_OPT_OUT:        Config.LEADERBOARD_OPT_OUT,
@@ -429,7 +433,7 @@ function createWindow(): void {
 
   win.on('moved', () => saveSettings())
   win.on('close', () => saveSettings())
-  win.on('closed', () => { win = null })
+  win.on('closed', () => { win = null; stopAlwaysOnTopReassert() })
 }
 
 // ── Reader management ─────────────────────────────────────────
@@ -550,10 +554,42 @@ function isCharacterIgnored(name: string): boolean {
   return Config.IGNORED_CHARACTERS.some(c => c.trim().toLowerCase() === n)
 }
 
-/** Keep the overlay's always-on-top state in sync with the active character. */
+let alwaysOnTopReassertTimer: ReturnType<typeof setInterval> | null = null
+
+function stopAlwaysOnTopReassert(): void {
+  if (alwaysOnTopReassertTimer) {
+    clearInterval(alwaysOnTopReassertTimer)
+    alwaysOnTopReassertTimer = null
+  }
+}
+
+/** Apply the overlay's always-on-top state per the configured mode. */
+function applyAlwaysOnTop(enable: boolean): void {
+  if (!win) return
+  if (!enable) {
+    stopAlwaysOnTopReassert()
+    win.setAlwaysOnTop(false)
+    return
+  }
+  const level = Config.ALWAYS_ON_TOP_MODE === 'standard' ? undefined : 'screen-saver'
+  if (level) win.setAlwaysOnTop(true, level)
+  else win.setAlwaysOnTop(true)
+
+  if (Config.ALWAYS_ON_TOP_MODE === 'aggressive') {
+    if (!alwaysOnTopReassertTimer) {
+      alwaysOnTopReassertTimer = setInterval(() => {
+        if (win && !win.isDestroyed()) win.setAlwaysOnTop(true, 'screen-saver')
+      }, 2000)
+    }
+  } else {
+    stopAlwaysOnTopReassert()
+  }
+}
+
+/** Keep the overlay's always-on-top state in sync with the active character and mode. */
 function updateOverlayAlwaysOnTop(): void {
   if (!win) return
-  win.setAlwaysOnTop(!isCharacterIgnored(identifiedCharacterName))
+  applyAlwaysOnTop(!isCharacterIgnored(identifiedCharacterName))
 }
 
 /** Handle a newly selected log file, respecting the current tracking mode. */
@@ -688,6 +724,7 @@ function setupIPC(): void {
     BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
     WINDOW_PINNED:            Config.WINDOW_PINNED,
+    ALWAYS_ON_TOP_MODE:       Config.ALWAYS_ON_TOP_MODE,
     AUTO_DETECT_LOG:          Config.AUTO_DETECT_LOG,
     LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
     LEADERBOARD_OPT_OUT:        Config.LEADERBOARD_OPT_OUT,
@@ -799,6 +836,13 @@ function setupIPC(): void {
         if (Config.WINDOW_PINNED !== value) {
           Config.WINDOW_PINNED = value as boolean
           win?.webContents.send(IPC.TOGGLE_PIN)
+        }
+        break
+
+      case 'ALWAYS_ON_TOP_MODE':
+        if (Config.ALWAYS_ON_TOP_MODE !== value) {
+          Config.ALWAYS_ON_TOP_MODE = value as 'standard' | 'elevated' | 'aggressive'
+          updateOverlayAlwaysOnTop()
         }
         break
 

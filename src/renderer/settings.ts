@@ -456,6 +456,18 @@ async function init(): Promise<void> {
     }
   }
 
+  // ── Always-on-top mode radio ──────────────────────────────────
+  const aotGroup = document.getElementById('alwaysOnTopMode')
+  if (aotGroup) {
+    const radios = aotGroup.querySelectorAll<HTMLInputElement>('input[type="radio"]')
+    for (const r of radios) {
+      if (r.value === s.ALWAYS_ON_TOP_MODE) r.checked = true
+      r.addEventListener('change', () => {
+        if (r.checked) window.settingsAPI.setSetting('ALWAYS_ON_TOP_MODE', r.value)
+      })
+    }
+  }
+
   // ── Weapon search helper ─────────────────────────────────────
   function setupWeaponSearch(
     searchId: string,
