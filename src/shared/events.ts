@@ -83,6 +83,7 @@ export const IPC = {
   LEADERBOARD_GET:     'leaderboard-get',       // renderer → main: request records
   LEADERBOARD_DATA:    'leaderboard-data',      // main → renderer: EncounterRecord[]
   LEADERBOARD_OPEN:    'leaderboard-open',      // tray/renderer → main: open leaderboard window
+  LEADERBOARD_RANK:    'leaderboard-rank',      // main → renderer: { mobName: string, rank: number }
   GET_LOG_CHARACTERS:  'get-log-characters',    // settings renderer → main: string[] of chars detected in log dir
   ZEAL_STATUS_GET:     'zeal-status-get',       // settings renderer → main: request ZealStatus snapshot
   ZEAL_LOG_OPEN:       'zeal-log-open',         // settings renderer → main: open zeal-reader.log in default editor

@@ -193,8 +193,9 @@ export class LeaderboardManager {
   }
 
   /** Upload a single record to the Vercel API (basketweaver.vercel.app).
-   *  Returns true on success, false on error. */
-  async upload(record: EncounterRecord, workerUrl: string, apiKey: string): Promise<boolean> {
+   *  Returns { ok: true, rank } on success — rank is this fight's placement
+   *  among all records for the same mob, sorted by total DPS (1 = best). */
+  async upload(record: EncounterRecord, workerUrl: string, apiKey: string): Promise<{ ok: boolean; rank?: number }> {
     return new Promise((resolve) => {
       const body = JSON.stringify(record)
       const url  = new URL('/api/records', workerUrl)
@@ -211,25 +212,30 @@ export class LeaderboardManager {
       }
       const req = https.request(options, (res) => {
         const ok = res.statusCode === 200 || res.statusCode === 201
-        if (!ok) {
-          let body = ''
-          res.on('data', (c) => { body += c })
-          res.on('end', () => {
+        let body = ''
+        res.on('data', (c) => { body += c })
+        res.on('end', () => {
+          if (!ok) {
             this.log(`[Leaderboard] Upload rejected for "${record.mobName}": HTTP ${res.statusCode} ${body.slice(0, 300)}`)
-            resolve(false)
-          })
-        } else {
-          resolve(true)
-        }
+            resolve({ ok: false })
+            return
+          }
+          try {
+            const parsed = JSON.parse(body) as { rank?: number }
+            resolve({ ok: true, rank: parsed.rank })
+          } catch {
+            resolve({ ok: true })
+          }
+        })
       })
       req.on('error', (err) => {
         this.log(`[Leaderboard] Upload error for "${record.mobName}": ${err.message}`)
-        resolve(false)
+        resolve({ ok: false })
       })
       req.setTimeout(8000, () => {
         this.log(`[Leaderboard] Upload timed out for "${record.mobName}" after 8s`)
         req.destroy()
-        resolve(false)
+        resolve({ ok: false })
       })
       req.write(body)
       req.end()

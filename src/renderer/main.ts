@@ -38,6 +38,7 @@ declare global {
       onSetInferredDwChecks:         (cb: (enabled: boolean) => void) => void
       onSetPunchInterval:            (cb: (interval: number) => void) => void
       onWeaveKeyPressed:             (cb: (ts: number) => void) => void
+      onLeaderboardRank:             (cb: (mobName: string, rank: number) => void) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -203,6 +204,11 @@ window.electronAPI.onSetBaseWeaponDelay((delay) => {
 
 window.electronAPI.onWeaveKeyPressed((ts: number) => {
   overlay.handleWeaveKeyPressed(ts)
+})
+
+window.electronAPI.onLeaderboardRank((mobName: string, rank: number) => {
+  const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
+  ;(overlay as any).showBanner?.(`${medal} #${rank} Total DPS vs ${mobName}!`, '#ffd700', 6000)
 })
 
 // ── Status requests from tray ─────────────────────────────────

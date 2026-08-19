@@ -987,8 +987,12 @@ function setupIPC(): void {
     } else if (!LeaderboardManager.isOnlineEligible(record.mobName)) {
       leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (not on allowlist)`)
     } else {
-      const ok = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
-      leaderboardManager.log(`[Leaderboard] Upload ${ok ? 'OK' : 'FAILED'} for "${record.mobName}" (v${record.appVersion}, char "${record.characterName}")`)
+      const result = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
+      leaderboardManager.log(`[Leaderboard] Upload ${result.ok ? 'OK' : 'FAILED'} for "${record.mobName}" (v${record.appVersion}, char "${record.characterName}"` +
+        `${result.rank ? `, rank #${result.rank}` : ''})`)
+      if (result.ok && result.rank && result.rank <= 3) {
+        win?.webContents.send(IPC.LEADERBOARD_RANK, { mobName: record.mobName, rank: result.rank })
+      }
     }
   })
 

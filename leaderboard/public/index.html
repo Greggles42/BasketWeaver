@@ -275,6 +275,7 @@
           <td>${fmtDur(r.fight_duration ?? 0)}</td>
           <td>${escHtml(r.character_name || '—')}</td>
           <td>${fmtDate(r.timestamp)}</td>
+          <td>${escHtml(r.app_version || '—')}</td>
         </tr>`
       }).join('')
 
@@ -284,7 +285,7 @@
           <th>Mainhand</th><th>Offhand</th><th>ATK</th><th>Haste%</th>
           <th>Disc</th><th>Buffs</th>
           <th>Engaged</th><th>Duration</th>
-          <th>Character</th><th>Date</th>
+          <th>Character</th><th>Date</th><th>Version</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`

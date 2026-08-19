@@ -77,7 +77,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           rec.appVersion       ?? '',
         ]
       )
-      return res.status(201).json({ ok: true })
+
+      // Rank this fight against every other record for the same mob, by total DPS.
+      const rankResult = await client.query(
+        `SELECT COUNT(*) AS beaten_by FROM records WHERE LOWER(mob_name) = LOWER($1) AND total_dps > $2`,
+        [rec.mobName, rec.totalDps ?? 0]
+      )
+      const rank = Number(rankResult.rows[0]?.beaten_by ?? 0) + 1
+
+      return res.status(201).json({ ok: true, rank })
     }
 
     // ── GET /api/records — character history ─────────────────────────────────

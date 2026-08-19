@@ -102,6 +102,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLeaderboardOpen: (cb: () => void) =>
     ipcRenderer.on(IPC.LEADERBOARD_OPEN, () => cb()),
 
+  onLeaderboardRank: (cb: (mobName: string, rank: number) => void) =>
+    ipcRenderer.on(IPC.LEADERBOARD_RANK, (_e, d: { mobName: string; rank: number }) => cb(d.mobName, d.rank)),
+
   // ── Renderer → main ─────────────────────────────────────
   quit: () => ipcRenderer.send(IPC.QUIT),
 
