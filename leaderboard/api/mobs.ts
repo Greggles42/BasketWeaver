@@ -2,6 +2,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { db } from '@vercel/postgres'
 import { ALLOWED_MOBS } from './_allowed-mobs'
 
+// See records.ts — strips a zone-disambiguation suffix (e.g. "(Plane of
+// Disease)") before checking mob_name against ALLOWED_MOBS.
+const BASE_MOB_NAME_SQL = "regexp_replace(LOWER(mob_name), '\\s*\\([^)]*\\)\\s*$', '')"
+
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET,OPTIONS',
@@ -25,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const mobPlaceholders = ALLOWED_MOBS.map((_, i) => `$${params.length + i + 1}`).join(', ')
   params.push(...ALLOWED_MOBS)
-  conditions.push(`LOWER(mob_name) IN (${mobPlaceholders})`)
+  conditions.push(`${BASE_MOB_NAME_SQL} IN (${mobPlaceholders})`)
 
   const where = 'WHERE ' + conditions.join(' AND ')
 

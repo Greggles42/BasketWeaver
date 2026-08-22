@@ -24,6 +24,7 @@ export enum EvType {
   BANDOLIER_CHANGED  = 'BANDOLIER_CHANGED',  // data: { setName: string, isWeaveSet: boolean, isBackstabSet: boolean }
   LOG_DAMAGE         = 'LOG_DAMAGE',         // data: { damage, source: 'mainhand'|'fist'|'misc'|'backstab' }
   BACKSTAB_ATTACK    = 'BACKSTAB_ATTACK',    // data: { damage: number, hit: boolean, target?: string }
+  ZONE_CHANGED       = 'ZONE_CHANGED',       // data: { zone: string } — from "You have entered X."
 }
 
 export interface GameEvent {

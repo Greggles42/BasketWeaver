@@ -2,6 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { db } from '@vercel/postgres'
 import { ALLOWED_MOBS } from './_allowed-mobs'
 
+// A handful of raid bosses reuse the same NPC name for two distinct
+// encounters (e.g. "Bertoxxulous"); the client disambiguates those by
+// suffixing the zone name onto mob_name (e.g. "Bertoxxulous (Plane of
+// Disease)"). Strip that suffix before comparing against ALLOWED_MOBS so
+// both versions still pass the allowlist.
+const BASE_MOB_NAME_SQL = "regexp_replace(LOWER(mob_name), '\\s*\\([^)]*\\)\\s*$', '')"
+
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -101,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const mobPlaceholders = ALLOWED_MOBS.map((_, i) => `$${params.length + i + 1}`).join(', ')
       params.push(...ALLOWED_MOBS)
-      conditions.push(`LOWER(mob_name) IN (${mobPlaceholders})`)
+      conditions.push(`${BASE_MOB_NAME_SQL} IN (${mobPlaceholders})`)
 
       params.push(limit)
       const where = 'WHERE ' + conditions.join(' AND ')
@@ -130,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const placeholders = ALLOWED_MOBS.map((_, i) => `$${i + 1}`).join(', ')
       const result = await client.query(
-        `DELETE FROM records WHERE LOWER(mob_name) NOT IN (${placeholders})`,
+        `DELETE FROM records WHERE ${BASE_MOB_NAME_SQL} NOT IN (${placeholders})`,
         ALLOWED_MOBS
       )
       return res.status(200).json({ deleted: result.rowCount })

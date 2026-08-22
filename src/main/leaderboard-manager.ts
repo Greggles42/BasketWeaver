@@ -89,6 +89,58 @@ const ONLINE_ELIGIBLE_MOBS = new Set<string>([
   'diabo xi xin', 'diabo xi va', 'diabo xi xin thall', 'thall va kelun',
   'diabo xi va terminiel', 'thunderos xi diabo',
   'kaas thox xi aten ha ra', 'va xi aten ha ra', 'aten ha ra',
+
+  // ── Planes of Power ─────────────────────────────────────────────
+  'a deadly warboar', 'a ferocious warboar', 'a monstrous mudwalker',
+  'a mystical arbitor of earth', 'a perfected warder of earth', 'a rathe councilman',
+  'advocent joran', "aerin'dar", 'agnarr the storm lord', 'anar of water',
+  'arch mage alchtonion', 'arch mage yozanni', 'arlyxir', 'auliffe chaoswind',
+  'avatar of dust', 'avatar of earth', 'avatar of mist', 'avatar of smoke',
+  'avatar of the elements', 'avatar of wind', 'azobian the darklord',
+  'babnoxis the spider queen', 'baltaldor the cursed',
+  'bertoxxulous',   // two versions — disambiguated by zone, see AMBIGUOUS_MOBS
+  'blazzax the omnifiend', 'brynju thunderclap',
+  'chamberlain escalardian', 'champion of torment', 'chancellor kirta', 'chancellor traxom',
+  'coirnav the avatar of water', 'criare sunmane',
+  'deathbringer blackheart', 'deathbringer skullsmash',
+  'decorin berik', 'decorin grunhork', 'derugoak bloodwalker',
+  "dersool fal'giersnaol", 'deyid the twisted', 'dreamwarp',
+  "drornok tok vo'lok", 'earthen overseer', 'eindride icestorm',
+  'emmerik skyfury', 'evynd firestorm', 'falto, lord of thunder',
+  'fennin ro, the tyrant of fire', 'freegan haun', 'gaukr sandstorm',
+  'general druav flamesinger', 'general reparm', 'glykus helmir',
+  'grioihin the wise', 'grummus', 'guardian of coirnav', 'guardian of doomfire',
+  'gurebk, lord of krendic', 'gutripping war beast', 'halgoz rellinic',
+  'hebabbilys the ragelord', 'high priest ultor szanvon', 'hobgoblin anguish lord',
+  'hreidar lynhillig', 'hydrotha',
+  'javonn the overlord', 'jaxoliz dawneyes', 'jeplak, lord of srerendi', 'jiva',
+  'kazrok of fire', 'krziik the mighty', 'kuanbyr hailstorm', 'laef windfall',
+  'lord mithaniel marr', 'maareq the prophet', 'magmaton', 'manaetic behemoth',
+  'mujaki the devourer', "neffiken, lord of kelek'vor", 'neimon of air',
+  'ofossaa the enlightened', 'omni magus crato', 'oreen wavecrasher',
+  'overlord banord paffa', 'peregrin rockskull', 'pyronis', 'quarm',
+  'quavonis firetail', 'queen silandria', 'ralthazor, champion of marr', 'ralthos enrok',
+  'rallos zek',   // two versions — disambiguated by zone, see AMBIGUOUS_MOBS
+  'rallos zek the warlord', 'reaxnous the chaoslord', 'rinturion windblade',
+  'rizlona', 'rythor of the undead', 'salczek the fleshgrinder',
+  'saryrn',   // two versions — disambiguated by zone, see AMBIGUOUS_MOBS
+  'solusek ro', 'sorrowsong', "ston'ruak, ancient of the trees", 'supernatural guardian',
+  "ta'grusch the abomination",
+  'tallon zek',   // two versions — disambiguated by zone, see AMBIGUOUS_MOBS
+  'terris-thule',   // two versions — disambiguated by zone, see AMBIGUOUS_MOBS
+  'the keeper of sorrow', 'the protector of desolik',
+  'vallon zek',   // two versions — disambiguated by zone, see AMBIGUOUS_MOBS
+  'warlord prollaz', 'xanamech nezmirthafen', 'xegony', 'xuzl',
+])
+
+/**
+ * Mobs whose NPC name is reused for two distinct raid encounters.
+ * When one of these is uploaded, its mob name is suffixed with the player's
+ * current zone (e.g. "Bertoxxulous (Plane of Disease)") so the two versions
+ * land in separate leaderboard buckets instead of colliding.
+ */
+const AMBIGUOUS_MOBS = new Set<string>([
+  'bertoxxulous', 'rallos zek', 'saryrn', 'terris-thule', 'tallon zek', 'vallon zek',
 ])
 
 export class LeaderboardManager {
@@ -187,9 +239,22 @@ export class LeaderboardManager {
     return [...new Set(this.records.map(r => r.mobName))].sort()
   }
 
-  /** Returns true if this mob's kills are permitted on the online leaderboard. */
+  /** Returns true if this mob's kills are permitted on the online leaderboard.
+   *  Strips a trailing zone qualifier (e.g. "(Plane of Disease)") added by
+   *  qualifyMobName() so ambiguous-mob uploads still pass the allowlist. */
   static isOnlineEligible(mobName: string): boolean {
-    return ONLINE_ELIGIBLE_MOBS.has(mobName.toLowerCase())
+    const base = mobName.replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase()
+    return ONLINE_ELIGIBLE_MOBS.has(base)
+  }
+
+  /** For mobs whose NPC name is reused by two distinct raid encounters (see
+   *  AMBIGUOUS_MOBS), appends the current zone name so the two versions are
+   *  tracked as separate leaderboard entries. No-op for every other mob, or
+   *  when the current zone is unknown. */
+  static qualifyMobName(mobName: string, zoneName: string): string {
+    if (!zoneName) return mobName
+    if (!AMBIGUOUS_MOBS.has(mobName.trim().toLowerCase())) return mobName
+    return `${mobName} (${zoneName})`
   }
 
   /** Upload a single record to the Vercel API (basketweaver.vercel.app).

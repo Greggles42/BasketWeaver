@@ -376,6 +376,10 @@ let lastLogPath = ''
 // for leaderboard-submission purposes. Only this drives the ignore-list check.
 let identifiedCharacterName = ''
 
+// Most recent zone name from "You have entered X." — used to disambiguate
+// raid bosses whose NPC name is reused across two distinct encounters.
+let currentZoneName = ''
+
 let leaderboardManager: LeaderboardManager
 
 function createWindow(): void {
@@ -451,6 +455,9 @@ function forwardEvent(ev: GameEvent): void {
   // so miss patterns stay in sync (e.g. switching to a slash weapon mid-session).
   if (ev.type === EvType.WEAPON_DETECTED && activeLogReader) {
     activeLogReader.updateAttackType(Config.MAINHAND_ATTACK_TYPE)
+  }
+  if (ev.type === EvType.ZONE_CHANGED) {
+    currentZoneName = String(ev.data?.zone ?? '')
   }
   win?.webContents.send(IPC.GAME_EVENT, ev)
 }
@@ -971,6 +978,9 @@ function setupIPC(): void {
   ipcMain.on(IPC.LEADERBOARD_RECORD, async (_e, record: EncounterRecord) => {
     // Stamp authoritatively — never trust a version string from the renderer.
     record.appVersion = app.getVersion()
+    // Disambiguate raid bosses whose NPC name is reused by two encounters
+    // (e.g. "Bertoxxulous") by appending the player's current zone.
+    record.mobName = LeaderboardManager.qualifyMobName(record.mobName, currentZoneName)
     leaderboardManager.addRecord(record)
     // Forward to leaderboard window if open
     if (leaderboardWin && !leaderboardWin.isDestroyed()) {

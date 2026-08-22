@@ -71,6 +71,9 @@ export class LogReader {
   // Extracts target name from "You crush/punch/strike/hit X for N points"
   private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash|hit) (.+?) for \d+/i
 
+  // Matches the EQ system message printed on every zone transition.
+  private static readonly ZONE_ENTER_RE = /^You have entered ([^.]+)\.$/i
+
   private crushHitRe:    RegExp[]
   private crushMissRe:   RegExp[]
   private riposteRe:     RegExp[]
@@ -221,6 +224,14 @@ export class LogReader {
     if (!line) return
     const content = stripPrefix(line)
     const now = performance.now()
+
+    // ── Zone transitions — tracked in every mode so ambiguous same-name
+    // raid bosses can be disambiguated by zone at upload time. ──
+    const zoneMatch = LogReader.ZONE_ENTER_RE.exec(content)
+    if (zoneMatch) {
+      this.emit({ type: EvType.ZONE_CHANGED, ts: now, data: { zone: zoneMatch[1].trim() } })
+      return
+    }
 
     // ── Weapon track — BW2H / BWOH work standalone in any channel ──
     // Checked before missOnly so it works in hybrid mode too.

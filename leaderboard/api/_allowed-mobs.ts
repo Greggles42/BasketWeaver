@@ -46,4 +46,45 @@ export const ALLOWED_MOBS = [
   'diabo xi xin', 'diabo xi va', 'diabo xi xin thall', 'thall va kelun',
   'diabo xi va terminiel', 'thunderos xi diabo',
   'va xi aten ha ra', 'aten ha ra',
+  // Planes of Power
+  'a deadly warboar', 'a ferocious warboar', 'a monstrous mudwalker',
+  'a mystical arbitor of earth', 'a perfected warder of earth', 'a rathe councilman',
+  'advocent joran', "aerin'dar", 'agnarr the storm lord', 'anar of water',
+  'arch mage alchtonion', 'arch mage yozanni', 'arlyxir', 'auliffe chaoswind',
+  'avatar of dust', 'avatar of earth', 'avatar of mist', 'avatar of smoke',
+  'avatar of the elements', 'avatar of wind', 'azobian the darklord',
+  'babnoxis the spider queen', 'baltaldor the cursed',
+  'bertoxxulous',   // two versions — disambiguated by zone in mob_name
+  'blazzax the omnifiend', 'brynju thunderclap',
+  'chamberlain escalardian', 'champion of torment', 'chancellor kirta', 'chancellor traxom',
+  'coirnav the avatar of water', 'criare sunmane',
+  'deathbringer blackheart', 'deathbringer skullsmash',
+  'decorin berik', 'decorin grunhork', 'derugoak bloodwalker',
+  "dersool fal'giersnaol", 'deyid the twisted', 'dreamwarp',
+  "drornok tok vo'lok", 'earthen overseer', 'eindride icestorm',
+  'emmerik skyfury', 'evynd firestorm', 'falto, lord of thunder',
+  'fennin ro, the tyrant of fire', 'freegan haun', 'gaukr sandstorm',
+  'general druav flamesinger', 'general reparm', 'glykus helmir',
+  'grioihin the wise', 'grummus', 'guardian of coirnav', 'guardian of doomfire',
+  'gurebk, lord of krendic', 'gutripping war beast', 'halgoz rellinic',
+  'hebabbilys the ragelord', 'high priest ultor szanvon', 'hobgoblin anguish lord',
+  'hreidar lynhillig', 'hydrotha',
+  'javonn the overlord', 'jaxoliz dawneyes', 'jeplak, lord of srerendi', 'jiva',
+  'kazrok of fire', 'krziik the mighty', 'kuanbyr hailstorm', 'laef windfall',
+  'lord mithaniel marr', 'maareq the prophet', 'magmaton', 'manaetic behemoth',
+  'mujaki the devourer', "neffiken, lord of kelek'vor", 'neimon of air',
+  'ofossaa the enlightened', 'omni magus crato', 'oreen wavecrasher',
+  'overlord banord paffa', 'peregrin rockskull', 'pyronis', 'quarm',
+  'quavonis firetail', 'queen silandria', 'ralthazor, champion of marr', 'ralthos enrok',
+  'rallos zek',   // two versions — disambiguated by zone in mob_name
+  'rallos zek the warlord', 'reaxnous the chaoslord', 'rinturion windblade',
+  'rizlona', 'rythor of the undead', 'salczek the fleshgrinder',
+  'saryrn',   // two versions — disambiguated by zone in mob_name
+  'solusek ro', 'sorrowsong', "ston'ruak, ancient of the trees", 'supernatural guardian',
+  "ta'grusch the abomination",
+  'tallon zek',   // two versions — disambiguated by zone in mob_name
+  'terris-thule',   // two versions — disambiguated by zone in mob_name
+  'the keeper of sorrow', 'the protector of desolik',
+  'vallon zek',   // two versions — disambiguated by zone in mob_name
+  'warlord prollaz', 'xanamech nezmirthafen', 'xegony', 'xuzl',
 ]
