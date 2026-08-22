@@ -8,6 +8,16 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type,X-API-Key',
 }
 
+// Lazily add the app_version column on cold start so existing production
+// databases don't need a manual migration. Cheap no-op once the column exists;
+// memoized per warm serverless instance so it only runs once per cold start.
+let schemaEnsured = false
+async function ensureSchema(client: Awaited<ReturnType<typeof db.connect>>): Promise<void> {
+  if (schemaEnsured) return
+  await client.query(`ALTER TABLE records ADD COLUMN IF NOT EXISTS app_version TEXT NOT NULL DEFAULT ''`)
+  schemaEnsured = true
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   Object.entries(CORS).forEach(([k, v]) => res.setHeader(k, v))
   if (req.method === 'OPTIONS') return res.status(200).end()
@@ -27,6 +37,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Missing required fields: id, mobName, characterName' })
       }
 
+      await ensureSchema(client)
+
       await client.query(
         `INSERT INTO records (
           id, character_name, server_name, mob_name, grade,
@@ -34,9 +46,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mainhand, offhand, atk_rating, haste_pct,
           disciplines_used, buffs_at_start,
           pct_in_green, total_rounds, weave_attempts, weave_landed,
-          avg_reaction_ms, timestamp
+          avg_reaction_ms, timestamp, app_version
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24
         ) ON CONFLICT (id) DO NOTHING`,
         [
           rec.id,
@@ -62,9 +74,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           Math.round(rec.weaveLanded  ?? 0),
           rec.avgReactionMs    ?? null,
           rec.timestamp        ?? Date.now(),
+          rec.appVersion       ?? '',
         ]
       )
-      return res.status(201).json({ ok: true })
+
+      // Rank this fight against every other record for the same mob, by total DPS.
+      const rankResult = await client.query(
+        `SELECT COUNT(*) AS beaten_by FROM records WHERE LOWER(mob_name) = LOWER($1) AND total_dps > $2`,
+        [rec.mobName, rec.totalDps ?? 0]
+      )
+      const rank = Number(rankResult.rows[0]?.beaten_by ?? 0) + 1
+
+      return res.status(201).json({ ok: true, rank })
     }
 
     // ── GET /api/records — character history ─────────────────────────────────

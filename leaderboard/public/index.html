@@ -69,6 +69,34 @@
     }
     select:focus, input:focus { border-color: var(--accent); }
 
+    .combobox { position: relative; }
+    .combobox input { width: 180px; }
+    .combobox-list {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 100%;
+      max-height: 260px;
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      z-index: 20;
+      list-style: none;
+    }
+    .combobox-list.open { display: block; }
+    .combobox-list li {
+      padding: 6px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .combobox-list li:hover,
+    .combobox-list li.active { background: #141830; color: var(--accent); }
+    .combobox-list li.empty { color: var(--dim); cursor: default; }
+    .combobox-list li.empty:hover { background: none; color: var(--dim); }
+
     .main { max-width: 1400px; margin: 0 auto; padding: 24px; }
 
     table {
@@ -158,9 +186,10 @@
 
   <div class="controls">
     <label>Mob</label>
-    <select id="mobSelect">
-      <option value="">All mobs</option>
-    </select>
+    <div class="combobox" id="mobCombobox">
+      <input type="text" id="mobInput" placeholder="All mobs" autocomplete="off" style="width:180px" />
+      <ul class="combobox-list" id="mobList"></ul>
+    </div>
     <label>Character</label>
     <input type="text" id="charInput" placeholder="all characters" style="width:140px" />
     <label>Sort by</label>
@@ -176,12 +205,18 @@
   </div>
 
   <script>
-    const mobSelect   = document.getElementById('mobSelect')
+    const mobCombobox = document.getElementById('mobCombobox')
+    const mobInput    = document.getElementById('mobInput')
+    const mobList     = document.getElementById('mobList')
     const charInput   = document.getElementById('charInput')
     const sortSelect  = document.getElementById('sortSelect')
     const content     = document.getElementById('content')
 
     const BASE = location.origin
+
+    let allMobs = []      // [{ mob_name, count }]
+    let selectedMob = ''  // '' means all mobs
+    let activeIndex = -1
 
     function escHtml(s) {
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
@@ -203,16 +238,80 @@
       const res = await fetch(`${BASE}/api/mobs`)
       if (!res.ok) return
       const { mobs } = await res.json()
-      mobs.forEach(m => {
-        const opt = document.createElement('option')
-        opt.value = m.mob_name
-        opt.textContent = `${m.mob_name} (${m.count})`
-        mobSelect.appendChild(opt)
-      })
+      allMobs = mobs
+      renderMobList(mobInput.value.trim())
     }
 
+    function renderMobList(filter) {
+      const q = (filter || '').toLowerCase()
+      const matches = allMobs.filter(m => m.mob_name.toLowerCase().includes(q))
+      activeIndex = -1
+
+      let html = `<li data-value="" class="${selectedMob === '' ? 'active' : ''}">All mobs</li>`
+      html += matches.map(m =>
+        `<li data-value="${escHtml(m.mob_name)}" class="${m.mob_name === selectedMob ? 'active' : ''}">${escHtml(m.mob_name)} (${m.count})</li>`
+      ).join('')
+      if (!matches.length) html += `<li class="empty">No matching mobs</li>`
+
+      mobList.innerHTML = html
+    }
+
+    function openMobList() {
+      renderMobList(mobInput.value.trim())
+      mobList.classList.add('open')
+    }
+
+    function closeMobList() {
+      mobList.classList.remove('open')
+      activeIndex = -1
+    }
+
+    function selectMob(name) {
+      selectedMob = name
+      mobInput.value = name
+      closeMobList()
+      loadLeaderboard()
+    }
+
+    mobInput.addEventListener('focus', openMobList)
+    mobInput.addEventListener('input', () => {
+      const val = mobInput.value.trim()
+      // Typing filters the list; only an empty box counts as "all mobs" until a match is picked
+      if (val === '' && selectedMob !== '') { selectedMob = ''; loadLeaderboard() }
+      openMobList()
+    })
+    mobInput.addEventListener('keydown', (e) => {
+      const items = Array.from(mobList.querySelectorAll('li:not(.empty)'))
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (!mobList.classList.contains('open')) { openMobList(); return }
+        activeIndex = Math.min(activeIndex + 1, items.length - 1)
+        items.forEach((li, i) => li.classList.toggle('active', i === activeIndex))
+        items[activeIndex]?.scrollIntoView({ block: 'nearest' })
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        activeIndex = Math.max(activeIndex - 1, 0)
+        items.forEach((li, i) => li.classList.toggle('active', i === activeIndex))
+        items[activeIndex]?.scrollIntoView({ block: 'nearest' })
+      } else if (e.key === 'Enter') {
+        e.preventDefault()
+        const li = activeIndex >= 0 ? items[activeIndex] : items[0]
+        if (li) selectMob(li.dataset.value)
+      } else if (e.key === 'Escape') {
+        closeMobList()
+      }
+    })
+    mobList.addEventListener('mousedown', (e) => {
+      const li = e.target.closest('li[data-value]')
+      if (!li) return
+      selectMob(li.dataset.value)
+    })
+    document.addEventListener('click', (e) => {
+      if (!mobCombobox.contains(e.target)) closeMobList()
+    })
+
     async function loadLeaderboard() {
-      const mob  = mobSelect.value
+      const mob  = selectedMob
       const char = charInput.value.trim()
       const sort = sortSelect.value
 
@@ -291,7 +390,6 @@
       </table>`
     }
 
-    mobSelect.addEventListener('change', loadLeaderboard)
     charInput.addEventListener('change', loadLeaderboard)
     sortSelect.addEventListener('change', loadLeaderboard)
 
