@@ -272,6 +272,47 @@ export class AudioManager {
     return this.makeBuffer(out)
   }
 
+  /** A single brass-like note built from a few decaying harmonics (rather
+   *  than a bare sine), used by makeFanfare() for a horn-line timbre. */
+  private brassNote(freq: number, durSec: number, vol: number): Float32Array {
+    const sr = this.cfg.SAMPLE_RATE
+    const n  = Math.floor(durSec * sr)
+    const out = new Float32Array(n)
+    const twoPi = 2 * Math.PI
+    for (let i = 0; i < n; i++) {
+      const t = i / sr
+      out[i] = (
+        Math.sin(twoPi * freq       * t) * 1.00 +
+        Math.sin(twoPi * freq * 2   * t) * 0.45 +
+        Math.sin(twoPi * freq * 3   * t) * 0.25 +
+        Math.sin(twoPi * freq * 4   * t) * 0.12
+      ) * vol * 0.32
+    }
+    return out
+  }
+
+  /** Short triumphant horn line for a top-3 community leaderboard placement:
+   *  a rising major arpeggio (C5–E5–G5) into a held, brighter C6. */
+  private makeFanfare(): AudioBuffer {
+    const vol = this.cfg.FX_VOLUME
+    const notes: Array<[number, number]> = [
+      [523.25, 0.11],   // C5
+      [659.25, 0.11],   // E5
+      [783.99, 0.11],   // G5
+      [1046.50, 0.38],  // C6 — held final note
+    ]
+    const chunks = notes.map(([freq, dur]) => {
+      const chunk = this.brassNote(freq, dur, vol)
+      this.applyEnvelope(chunk, 0.004, dur > 0.2 ? 0.20 : 0.015)
+      return chunk
+    })
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0)
+    const out = new Float32Array(totalLen)
+    let offset = 0
+    for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length }
+    return this.makeBuffer(out)
+  }
+
   private makeCombatEnd(): AudioBuffer {
     const sr  = this.cfg.SAMPLE_RATE
     const vol = this.cfg.FX_VOLUME
@@ -308,6 +349,7 @@ export class AudioManager {
         case 'whiff':        this.buffers.set(name, this.makeWhiff());      break
         case 'error':        this.buffers.set(name, this.makeError());      break
         case 'dw_ok':        this.buffers.set(name, this.makeDwOk());      break
+        case 'fanfare':      this.buffers.set(name, this.makeFanfare());   break
         default: throw new Error(`Unknown sound: ${name}`)
       }
     }
@@ -319,7 +361,7 @@ export class AudioManager {
   /** Pre-generate all sound buffers so the first call has no latency. */
   preload(): void {
     for (const name of ['tick', 'perfect', 'good', 'miss',
-                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error', 'dw_ok']) {
+                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error', 'dw_ok', 'fanfare']) {
       try { this.getBuffer(name) } catch {}
     }
   }

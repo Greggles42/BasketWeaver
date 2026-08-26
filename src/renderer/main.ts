@@ -209,6 +209,7 @@ window.electronAPI.onWeaveKeyPressed((ts: number) => {
 window.electronAPI.onLeaderboardRank((mobName: string, rank: number) => {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉'
   ;(overlay as any).showBanner?.(`${medal} #${rank} Total DPS vs ${mobName}!`, '#ffd700', 6000)
+  overlay.audio.playForce('fanfare')
 })
 
 // ── Status requests from tray ─────────────────────────────────

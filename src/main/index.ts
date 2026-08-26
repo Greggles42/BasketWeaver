@@ -1009,6 +1009,14 @@ function setupIPC(): void {
   ipcMain.handle(IPC.LEADERBOARD_GET, () => leaderboardManager.getAll())
 
   ipcMain.on(IPC.LEADERBOARD_OPEN, () => createLeaderboardWindow())
+
+  // Dev-only hook so the rank banner/fanfare can be triggered on demand
+  // (e.g. via the V8 inspector) without needing a real top-3 upload.
+  if (__DEV__) {
+    ;(global as any).__debugTriggerRank = (mobName: string, rank: number): void => {
+      win?.webContents.send(IPC.LEADERBOARD_RANK, { mobName, rank })
+    }
+  }
 }
 
 export function createLeaderboardWindow(): void {
