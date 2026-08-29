@@ -18,6 +18,9 @@ contextBridge.exposeInMainWorld('leaderboardAPI', {
   uploadRecord: (record: unknown) =>
     ipcRenderer.send('leaderboard-record', record),
 
+  uploadManual: (id: string): Promise<{ ok: boolean; rank?: number; error?: string }> =>
+    ipcRenderer.invoke('leaderboard-upload-manual', id),
+
   getAll: () => ipcRenderer.invoke('leaderboard-get'),
 
   openSettings: () => ipcRenderer.send('open-settings'),

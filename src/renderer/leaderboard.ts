@@ -13,6 +13,7 @@ declare global {
       onData:       (cb: (records: unknown[]) => void) => void
       onConfig:     (cb: (cfg: { workerUrl: string; characterName: string; uploadEnabled: boolean }) => void) => void
       uploadRecord: (record: unknown) => void
+      uploadManual: (id: string) => Promise<{ ok: boolean; rank?: number; error?: string }>
       getAll:       () => Promise<unknown[]>
       openSettings: () => void
     }
@@ -26,6 +27,7 @@ let sortCol   = 'totalDps'
 let sortAsc   = false
 let workerUrl = ''
 const uploadedIds = new Set<string>()
+const failedUploads = new Map<string, string>()   // id -> error message
 
 // ── DOM refs ──────────────────────────────────────────────────
 
@@ -115,8 +117,10 @@ function render(): void {
     ].filter(Boolean).join(', ') || '—'
 
     const uploaded = uploadedIds.has(r.id)
-    const uploadLabel = uploaded ? '✓ Sent' : 'Upload'
-    const uploadClass = uploaded ? 'uploaded' : ''
+    const failReason = failedUploads.get(r.id)
+    const uploadLabel = uploaded ? '✓ Sent' : failReason ? '✗ Retry' : 'Upload'
+    const uploadClass = uploaded ? 'uploaded' : failReason ? 'failed' : ''
+    const uploadTitle = failReason ? ` title="${escHtml(failReason)}"` : ''
 
     return `<tr data-id="${escHtml(r.id)}">
       <td>${escHtml(r.mobName || 'Unknown')}</td>
@@ -136,7 +140,7 @@ function render(): void {
       <td>${(r.pctInGreen * 100).toFixed(0)}%</td>
       <td>${escHtml(r.characterName || '—')}</td>
       <td>${fmtDate(r.timestamp)}</td>
-      <td><button class="upload-btn ${uploadClass}" data-upload="${escHtml(r.id)}">${uploadLabel}</button></td>
+      <td><button class="upload-btn ${uploadClass}" data-upload="${escHtml(r.id)}"${uploadTitle}>${uploadLabel}</button></td>
     </tr>`
   }).join('')
 }
@@ -152,10 +156,14 @@ async function uploadRecord(id: string): Promise<void> {
   if (!rec) return
   const btn = tbody.querySelector(`[data-upload="${id}"]`) as HTMLButtonElement | null
   if (btn) { btn.textContent = '…'; btn.disabled = true }
-  window.leaderboardAPI.uploadRecord(rec)
-  // Optimistically mark as uploaded (main process logs result)
-  uploadedIds.add(id)
-  if (btn) { btn.textContent = '✓ Sent'; btn.classList.add('uploaded'); btn.disabled = false }
+  failedUploads.delete(id)
+  const result = await window.leaderboardAPI.uploadManual(id)
+  if (result.ok) {
+    uploadedIds.add(id)
+  } else {
+    failedUploads.set(id, result.error ?? 'Upload failed')
+  }
+  render()
 }
 
 // ── DPS Chart ─────────────────────────────────────────────────

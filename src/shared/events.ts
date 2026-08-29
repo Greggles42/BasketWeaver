@@ -81,6 +81,7 @@ export const IPC = {
   SET_PUNCH_INTERVAL:           'set-punch-interval',
   SET_BASE_WEAPON_DELAY:        'set-base-weapon-delay',
   LEADERBOARD_RECORD:  'leaderboard-record',   // renderer → main: EncounterRecord
+  LEADERBOARD_UPLOAD_MANUAL: 'leaderboard-upload-manual', // leaderboard renderer → main (invoke): re-upload an existing local record, returns { ok, rank?, error? }
   LEADERBOARD_GET:     'leaderboard-get',       // renderer → main: request records
   LEADERBOARD_DATA:    'leaderboard-data',      // main → renderer: EncounterRecord[]
   LEADERBOARD_OPEN:    'leaderboard-open',      // tray/renderer → main: open leaderboard window

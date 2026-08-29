@@ -1008,6 +1008,29 @@ function setupIPC(): void {
 
   ipcMain.handle(IPC.LEADERBOARD_GET, () => leaderboardManager.getAll())
 
+  // Manual re-upload of an already-recorded local fight, triggered by the
+  // "Upload" button in the leaderboard window. Unlike the automatic upload
+  // path above, this is an explicit per-record user action, so it bypasses
+  // the live "character identified" / opt-out gates (which exist to guard
+  // automatic uploads, not a deliberate click) and uses the record's own
+  // stored characterName rather than whatever character is live right now.
+  // Returns the real result so the UI can show success/failure instead of
+  // optimistically assuming the upload worked.
+  ipcMain.handle(IPC.LEADERBOARD_UPLOAD_MANUAL, async (_e, id: string): Promise<{ ok: boolean; rank?: number; error?: string }> => {
+    const record = leaderboardManager.getAll().find(r => r.id === id)
+    if (!record) return { ok: false, error: 'Record not found' }
+    if (!__LEADERBOARD_WORKER_URL__ || !__LEADERBOARD_API_KEY__) {
+      return { ok: false, error: 'Build is missing worker URL/API key' }
+    }
+    if (!LeaderboardManager.isOnlineEligible(record.mobName)) {
+      return { ok: false, error: `"${record.mobName}" is not on the community leaderboard allowlist` }
+    }
+    const result = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
+    leaderboardManager.log(`[Leaderboard] Manual upload ${result.ok ? 'OK' : 'FAILED'} for "${record.mobName}" (char "${record.characterName}"` +
+      `${result.rank ? `, rank #${result.rank}` : ''})`)
+    return result.ok ? { ok: true, rank: result.rank } : { ok: false, error: 'Upload failed — see leaderboard-upload.log' }
+  })
+
   ipcMain.on(IPC.LEADERBOARD_OPEN, () => createLeaderboardWindow())
 
   // Dev-only hook so the rank banner/fanfare can be triggered on demand
