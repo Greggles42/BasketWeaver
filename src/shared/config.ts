@@ -347,10 +347,10 @@ export const Config = {
   PROC_HIT_PATTERNS:     ['^You hit\\b', ' was hit by non-melee for '],
   OUT_OF_RANGE_PATTERNS:    ['Your target is too far away', 'You cannot see your target', "You can't hit them from here"],
   CURSOR_BLOCKED_PATTERNS:  ['You cannot swap items when holding something'],
+  // Fight start is driven only by the player's own engagement — casting or landing/attempting
+  // an attack — never by the mob hitting/casting on the player first (see ensureCombat() calls).
   COMBAT_START_PATTERNS: [
     '^You begin casting\\b',
-    '\\bhits? [Yy]ou for \\d+',
-    '\\b(kicks?|bites?|claws?|strikes?|slashes?|bashes?|pierces?) [Yy]ou for \\d+',
   ],
   // Mob-death patterns — trigger grade screen + end-combat sound
   MOB_DEATH_PATTERNS: [] as string[],   // handled in code, not regex

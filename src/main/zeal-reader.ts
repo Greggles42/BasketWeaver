@@ -487,15 +487,15 @@ export class ZealReader {
         return
       }
 
-      // ── Something hit/missed you — combat start indicator ──────
-      // Only trigger combat start when not already in combat.  When already in combat,
-      // being hit by ANY mob (not just the current target) would call ensureCombat()
-      // which always re-emits COMBAT_START and refreshes lastCombatActivity.  That
-      // prevented the 10-second idle timeout from firing after the target mob died
-      // whenever other mobs in the area continued attacking the player.
+      // ── Something hit/missed you — idle-timeout keep-alive only ──
+      // Fight start must come from the player's own engagement (see ensureCombat()),
+      // never from a mob hitting/missing the player first. When combat is already
+      // active, re-emit COMBAT_START purely to refresh lastCombatActivity so the
+      // 10-second idle timeout doesn't fire while other mobs keep swinging on the
+      // player after the tracked target dies. When not in combat, do nothing.
       case LOG.OtherHitsYou:
       case LOG.OtherMissesYou:
-        if (!this.inCombat) this.ensureCombat(now)
+        if (this.inCombat) this.emit({ type: EvType.COMBAT_START, ts: now })
         return
 
       // ── You died ───────────────────────────────────────────────
