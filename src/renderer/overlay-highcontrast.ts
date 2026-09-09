@@ -18,6 +18,7 @@ import { RhythmEngine, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
 import type { EncounterRecord } from '../shared/leaderboard-types'
 import { BackstabTimer } from './backstab-timer'
+import { lookupMobAc } from '../shared/mob-ac'
 
 const COMBAT_IDLE_TIMEOUT_MS = 10_000
 
@@ -47,8 +48,9 @@ class Banner {
   static FADE_IN = 300; static FADE_OUT = 500
   text: string; color: string; duration: number; born = now()
   bigNumber?: string
-  constructor(text: string, color: string, duration = 4000, bigNumber?: string) {
-    this.text = text; this.color = color; this.duration = duration; this.bigNumber = bigNumber
+  large: boolean
+  constructor(text: string, color: string, duration = 4000, bigNumber?: string, large = false) {
+    this.text = text; this.color = color; this.duration = duration; this.bigNumber = bigNumber; this.large = large
   }
   get alpha() {
     const age = now() - this.born
@@ -81,6 +83,11 @@ class GradeScreen {
     const age = now() - this.born
     return age > GradeScreen.FADE_IN + GradeScreen.HOLD + GradeScreen.FADE_OUT
   }
+  get remainingMs() {
+    if (this.dismissed) return 0
+    const total = GradeScreen.FADE_IN + GradeScreen.HOLD + GradeScreen.FADE_OUT
+    return Math.max(0, total - (now() - this.born))
+  }
 }
 
 interface RogueSummaryResult {
@@ -108,6 +115,10 @@ class RogueSummaryScreen {
   get expired() {
     const age = now() - this.born
     return age > RogueSummaryScreen.FADE_IN + RogueSummaryScreen.HOLD + RogueSummaryScreen.FADE_OUT
+  }
+  get remainingMs() {
+    const total = RogueSummaryScreen.FADE_IN + RogueSummaryScreen.HOLD + RogueSummaryScreen.FADE_OUT
+    return Math.max(0, total - (now() - this.born))
   }
 }
 
@@ -263,8 +274,17 @@ export class HighContrastOverlay {
             Math.trunc(this.hzY + vo - (targetTime - t) * this.speed)]
   }
 
-  showBanner(text: string, color: string, duration?: number): void {
-    this.banners.push(new Banner(text, color, duration))
+  showBanner(text: string, color: string, duration?: number, large = false): void {
+    this.banners.push(new Banner(text, color, duration, undefined, large))
+  }
+
+  // Delays the banner until any active post-fight summary screen has finished
+  // (grade screen / rogue summary), so the rank alert doesn't compete with it.
+  showRankBanner(text: string, color: string, duration = 6000, onShow?: () => void): void {
+    const remaining = Math.max(this.gradeScreen?.remainingMs ?? 0, this.rogueSummaryScreen?.remainingMs ?? 0)
+    const fire = () => { this.showBanner(text, color, duration, true); onShow?.() }
+    if (remaining > 0) setTimeout(fire, remaining)
+    else fire()
   }
 
   // ── IPC ─────────────────────────────────────────────────────
@@ -1589,6 +1609,17 @@ export class HighContrastOverlay {
     ctx.fillStyle = HC.text
     ctx.fillText(`${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, 10, h - 5)
 
+    // AC (between weaves and net dps)
+    const targetAc = lookupMobAc(this.currentTarget)
+    const acVal = targetAc === 'ambiguous' ? '--*' : targetAc !== undefined ? `${targetAc}` : '--'
+    ctx.textAlign = 'center'
+    ctx.font = '600 9px "Archivo", sans-serif'
+    ctx.fillStyle = HC.textDim
+    ctx.fillText('AC', w * 0.32, h - 18)
+    ctx.font = '800 15px "Archivo", sans-serif'
+    ctx.fillStyle = HC.text
+    ctx.fillText(acVal, w * 0.32, h - 5)
+
     // NET DPS
     ctx.textAlign = 'center'
     ctx.font = '600 9px "Archivo", sans-serif'
@@ -1623,10 +1654,13 @@ export class HighContrastOverlay {
     let y = this.highwayY + 14
     for (const b of this.banners) {
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.font = '800 11px "Archivo", sans-serif'
+      ctx.font = b.large ? '800 22px "Archivo", sans-serif' : '800 11px "Archivo", sans-serif'
       ctx.fillStyle = this.rgba(b.color, b.alpha)
-      ctx.fillText(b.text, w / 2, y)
-      y += 14
+      const lineH = b.large ? 26 : 14
+      for (const line of b.text.split('\n')) {
+        ctx.fillText(line, w / 2, y)
+        y += lineH
+      }
       if (b.bigNumber) {
         ctx.font = '800 36px "Archivo Narrow", "Archivo", sans-serif'
         ctx.fillStyle = this.rgba(b.color, b.alpha)
