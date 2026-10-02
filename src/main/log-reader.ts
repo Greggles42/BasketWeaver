@@ -77,22 +77,33 @@ export class LogReader {
   private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash|hit) (.+?) for \d+/i
 
   // ── Technique of Master Wu detection ──────────────────────────
-  // Matches only the four skills Wu can proc as an extra attack (Flying Kick,
-  // Round Kick, Eagle Strike, Tiger Claw) — deliberately excludes the base
-  // "Kick" skill (not Wu-eligible) and all mainhand/weave verbs, so a round's
-  // damage total never picks up anything but genuine Wu-eligible special hits.
-  // This client prints the literal skill name in the verb, so classification
-  // doesn't require the damage-magnitude heuristics an ambiguous-verb client would need.
+  // Most EQ servers print no skill name at all for these attacks — just a
+  // generic verb (kick/strike/claw), the same ambiguity called out in this
+  // feature's original spec. "kick" covers Flying Kick, Round Kick, AND the
+  // base Kick skill indistinguishably; "strike" and "claw" are Eagle Strike
+  // and Tiger Claw but also collide with normal fist/offhand verbs. A few
+  // literal multi-word names are kept as a fallback for servers that do
+  // print them. Because of this ambiguity, flushWuRound() additionally
+  // requires a kick-family hit to "anchor" the round (Wu always fires off a
+  // Flying Kick use) before counting it as a proc — see there for why that
+  // keeps an incidental "strike" from a normal swing from being misread.
   private static readonly MONK_SPECIAL_HIT_RE =
-    /^You (flying kick|roundkick|eagle strike|tiger claw) (.+?) for (\d+)\s+points? of damage/i
+    /^You (flying kick|roundkick|eagle strike|tiger claw|kick|strike|claw) (.+?) for (\d+)\s+points? of damage/i
   private static readonly MONK_SPECIAL_MISS_RE =
-    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw)\b/i
+    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw|kick|strike|claw)\b/i
   private static readonly MONK_SKILL_NAMES: Record<string, string> = {
     'flying kick':   'Flying Kick',
     'roundkick':     'Round Kick',
     'eagle strike':  'Eagle Strike',
     'tiger claw':    'Tiger Claw',
+    'kick':          'Kick',
+    'strike':        'Strike',
+    'claw':          'Claw',
   }
+  // Skills whose presence in a round "anchors" it as a genuine Wu proc — Wu
+  // always triggers off a Flying Kick use, so require at least one kick-family
+  // hit before trusting a strike/claw coincidence as part of the same round.
+  private static readonly WU_ANCHOR_SKILLS = new Set(['Flying Kick', 'Round Kick', 'Kick'])
   // Window after a monk special attack line in which any further monk special
   // lines against the same target are considered part of the same Wu round.
   private static readonly WU_ROUND_WINDOW_MS = 300
@@ -275,11 +286,18 @@ export class LogReader {
     this.wuTimer = null
 
     const hits = buffer.filter(b => b.hit)
-    if (hits.length < 2) return  // a single Flying Kick (or any lone special) is not a proc
+    if (hits.length < 2) return  // a single special hit is not a proc
 
-    let mainIdx = hits.findIndex(h => h.skill === 'Flying Kick')
-    if (mainIdx === -1) {
-      mainIdx = hits.reduce((best, h, i, arr) => (h.damage > arr[best].damage ? i : best), 0)
+    // Wu always triggers off a Flying Kick use — without a kick-family hit
+    // anchoring the round, a "strike"/"claw" coincidence is more likely an
+    // ordinary swing landing nearby than a genuine proc (see the ambiguous-verb
+    // note on MONK_SPECIAL_HIT_RE above).
+    const anchorIdx = hits.findIndex(h => LogReader.WU_ANCHOR_SKILLS.has(h.skill))
+    if (anchorIdx === -1) return
+
+    let mainIdx = anchorIdx
+    for (let i = 0; i < hits.length; i++) {
+      if (LogReader.WU_ANCHOR_SKILLS.has(hits[i].skill) && hits[i].damage > hits[mainIdx].damage) mainIdx = i
     }
     const mainHit = hits[mainIdx]
     const extraHits = hits.filter((_, i) => i !== mainIdx)
@@ -324,6 +342,11 @@ export class LogReader {
 
     // ── damageOnly mode: emit LOG_DAMAGE for hit events; skip all state-machine logic ──
     if (this.damageOnly) {
+      // Wu round probe — checked first since generic "strike"/"claw" verbs would
+      // otherwise be consumed by the fist-hit branch below before ever being seen.
+      const monkDO = this.classifyMonkSpecial(content)
+      if (monkDO) this.trackWuRound(monkDO)
+
       // Ripostes → misc damage (player-sourced only)
       if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
         if (content.startsWith('You ')) {
@@ -372,8 +395,6 @@ export class LogReader {
       }
       // Flying kick
       if (this.flyingKickRe.some(r => r.test(content))) {
-        const monk = this.classifyMonkSpecial(content)
-        if (monk) this.trackWuRound(monk)
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
         return
@@ -540,6 +561,13 @@ export class LogReader {
       return
     }
 
+    // ── Wu round probe ────────────────────────────────────────────
+    // Checked ahead of the mainhand/fist block below since generic "strike"/
+    // "claw" verbs would otherwise be consumed by the fist-hit branch before
+    // ever being seen here.
+    const monk = this.classifyMonkSpecial(content)
+    if (monk) this.trackWuRound(monk)
+
     // ── Normal mainhand/offhand swing detection — suppressed entirely in Rogue Mode ──
     if (!this.cfg.ROGUE_MODE_ENABLED) {
       // ── Mainhand crush hit ──────────────────────────────────
@@ -640,8 +668,6 @@ export class LogReader {
     // ── Flying kick ──────────────────────────────────────────
     if (this.flyingKickRe.some(r => r.test(content))) {
       this.ensureCombat(now)
-      const monk = this.classifyMonkSpecial(content)
-      if (monk) this.trackWuRound(monk)
       const damage = parseDamage(content)
       if (damage > 0)
         this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
