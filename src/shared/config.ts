@@ -118,7 +118,7 @@ export const Config = {
   VOLUME_MASTER: 1.0,
   VOLUME_PROC:   1.0,
   VOLUME_EPIC:   1.0,
-  VOLUME_WU:     1.0,
+  VOLUME_WU:     0.7,
 
   // ── Audio debounce — minimum ms between repeated crush/punch/whiff sounds ──
   // 0 = disabled. Use ~50–150 ms to prevent double-firing in hybrid mode.
@@ -128,6 +128,7 @@ export const Config = {
   CRIT_DAMAGE_THRESHOLD:  400,   // min crit damage for epic.wav
   HUGE_ROUND_THRESHOLD:   800,   // min round damage for oh_snap.wav
   WU_PROC_CHANCE:         100,   // % chance (0-100) the kungfu sound plays when Wu procs
+  WU_DAMAGE_THRESHOLD:    200,   // min round damage for the kungfu sound to play (default mode: threshold-gated)
 
   // ── Runtime toggle states (tracked in main process) ──────────
   BUFF_SOUND_ENABLED: true,

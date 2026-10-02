@@ -165,6 +165,7 @@ function loadSettings(): void {
       if (typeof saved.CRIT_DAMAGE_THRESHOLD === 'number')  Config.CRIT_DAMAGE_THRESHOLD = saved.CRIT_DAMAGE_THRESHOLD
       if (typeof saved.HUGE_ROUND_THRESHOLD  === 'number')  Config.HUGE_ROUND_THRESHOLD  = saved.HUGE_ROUND_THRESHOLD
       if (typeof saved.WU_PROC_CHANCE        === 'number')  Config.WU_PROC_CHANCE        = saved.WU_PROC_CHANCE
+      if (typeof saved.WU_DAMAGE_THRESHOLD   === 'number')  Config.WU_DAMAGE_THRESHOLD   = saved.WU_DAMAGE_THRESHOLD
       if (typeof saved.BUFF_SOUND_ENABLED         === 'boolean') Config.BUFF_SOUND_ENABLED         = saved.BUFF_SOUND_ENABLED
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
@@ -212,6 +213,7 @@ export function saveSettings(): void {
       CRIT_DAMAGE_THRESHOLD: Config.CRIT_DAMAGE_THRESHOLD,
       HUGE_ROUND_THRESHOLD:  Config.HUGE_ROUND_THRESHOLD,
       WU_PROC_CHANCE:        Config.WU_PROC_CHANCE,
+      WU_DAMAGE_THRESHOLD:   Config.WU_DAMAGE_THRESHOLD,
       BUFF_SOUND_ENABLED:        Config.BUFF_SOUND_ENABLED,
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
@@ -773,6 +775,7 @@ function setupIPC(): void {
     CRIT_DAMAGE_THRESHOLD:    Config.CRIT_DAMAGE_THRESHOLD,
     HUGE_ROUND_THRESHOLD:     Config.HUGE_ROUND_THRESHOLD,
     WU_PROC_CHANCE:           Config.WU_PROC_CHANCE,
+    WU_DAMAGE_THRESHOLD:      Config.WU_DAMAGE_THRESHOLD,
     TRACKING_SOURCE:          Config.TRACKING_SOURCE,
     OVERLAY_STYLE:            Config.OVERLAY_STYLE,
     BASE_WEAPON_DELAY:        Config.BASE_WEAPON_DELAY,
@@ -834,11 +837,13 @@ function setupIPC(): void {
       case 'CRIT_DAMAGE_THRESHOLD':
       case 'HUGE_ROUND_THRESHOLD':
       case 'WU_PROC_CHANCE':
+      case 'WU_DAMAGE_THRESHOLD':
         (Config as any)[key] = value
         win?.webContents.send(IPC.SET_THRESHOLDS, {
           critDamage: Config.CRIT_DAMAGE_THRESHOLD,
           hugeRound:  Config.HUGE_ROUND_THRESHOLD,
           wuChance:   Config.WU_PROC_CHANCE,
+          wuDamageThreshold: Config.WU_DAMAGE_THRESHOLD,
         })
         break
 
@@ -1402,6 +1407,7 @@ app.whenReady().then(async () => {
       critDamage: Config.CRIT_DAMAGE_THRESHOLD,
       hugeRound:  Config.HUGE_ROUND_THRESHOLD,
       wuChance:   Config.WU_PROC_CHANCE,
+      wuDamageThreshold: Config.WU_DAMAGE_THRESHOLD,
     })
     // Sync pinned state
     if (!Config.WINDOW_PINNED) win!.webContents.send(IPC.TOGGLE_PIN)

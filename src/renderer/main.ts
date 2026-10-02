@@ -27,7 +27,7 @@ declare global {
       onToggleRogueMode:        (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       onSetVolumes:           (cb: (master: number, proc: number, epic: number, wu: number, debounceMs: number) => void) => void
-      onSetThresholds:        (cb: (critDamage: number, hugeRound: number, wuChance: number) => void) => void
+      onSetThresholds:        (cb: (critDamage: number, hugeRound: number, wuChance: number, wuDamageThreshold: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
       onSetShowAllCrits:             (cb: (enabled: boolean) => void) => void
@@ -169,10 +169,11 @@ window.electronAPI.onSetVolumes((master, proc, epic, wu, debounceMs) => {
   Config.AUDIO_DEBOUNCE_MS = debounceMs
 })
 
-window.electronAPI.onSetThresholds((critDamage, hugeRound, wuChance) => {
+window.electronAPI.onSetThresholds((critDamage, hugeRound, wuChance, wuDamageThreshold) => {
   Config.CRIT_DAMAGE_THRESHOLD = critDamage
   Config.HUGE_ROUND_THRESHOLD  = hugeRound
   Config.WU_PROC_CHANCE        = wuChance
+  Config.WU_DAMAGE_THRESHOLD   = wuDamageThreshold
 })
 
 window.electronAPI.onSetShowAllCrits((enabled) => {

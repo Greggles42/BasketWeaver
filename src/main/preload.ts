@@ -57,9 +57,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(IPC.SET_VOLUMES, (_e, d: { master: number; proc: number; epic: number; wu: number; debounceMs: number }) =>
       cb(d.master, d.proc, d.epic, d.wu, d.debounceMs)),
 
-  onSetThresholds: (cb: (critDamage: number, hugeRound: number, wuChance: number) => void) =>
-    ipcRenderer.on(IPC.SET_THRESHOLDS, (_e, d: { critDamage: number; hugeRound: number; wuChance: number }) =>
-      cb(d.critDamage, d.hugeRound, d.wuChance)),
+  onSetThresholds: (cb: (critDamage: number, hugeRound: number, wuChance: number, wuDamageThreshold: number) => void) =>
+    ipcRenderer.on(IPC.SET_THRESHOLDS, (_e, d: { critDamage: number; hugeRound: number; wuChance: number; wuDamageThreshold: number }) =>
+      cb(d.critDamage, d.hugeRound, d.wuChance, d.wuDamageThreshold)),
 
   onSetShowAllCrits: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.SET_SHOW_ALL_CRITS, (_e, enabled: boolean) => cb(enabled)),

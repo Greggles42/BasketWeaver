@@ -404,6 +404,19 @@ export class AudioManager {
     this.tempMuted = was
   }
 
+  private lastKungfuIndex = -1
+
+  /** Plays one of the three Wu-proc kungfu sounds at random, excluding
+   *  whichever one played last. True uniform random has a 1-in-3 chance of
+   *  repeating back-to-back, which reads as "not random" even though it's
+   *  correct — avoiding the immediate repeat is what actually feels random. */
+  playRandomKungfu(): void {
+    const choices = [0, 1, 2].filter(i => i !== this.lastKungfuIndex)
+    const idx = choices[Math.floor(Math.random() * choices.length)]
+    this.lastKungfuIndex = idx
+    this.playFileSound(`kungfu${idx + 1}`, true)
+  }
+
   /** Fetch and decode a .wav file, caching the result. gain defaults to 1.0. */
   async loadFile(name: string, url: string, gain = 1.0): Promise<void> {
     try {

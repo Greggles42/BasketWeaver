@@ -378,6 +378,15 @@ async function init(): Promise<void> {
     })
   }
 
+  const wuDamageEl = document.getElementById('wuDamageThreshold') as HTMLInputElement | null
+  if (wuDamageEl) {
+    wuDamageEl.value = String(s.WU_DAMAGE_THRESHOLD)
+    wuDamageEl.addEventListener('change', () => {
+      const v = parseInt(wuDamageEl.value, 10)
+      if (!isNaN(v) && v >= 0) window.settingsAPI.setSetting('WU_DAMAGE_THRESHOLD', v)
+    })
+  }
+
   // ── Tracking source radio ────────────────────────────────────
   const trackingGroup = document.getElementById('trackingSource')
   if (trackingGroup) {

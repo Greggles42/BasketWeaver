@@ -279,34 +279,39 @@ export class LogReader {
     this.wuTimer = setTimeout(() => this.flushWuRound(), LogReader.WU_ROUND_WINDOW_MS)
   }
 
-  /** Emits WU_PROC if the buffered round contains more than one landed monk special hit. */
+  /** Emits WU_PROC if the buffered round contains more than one monk special
+   *  attempt — hit OR miss. The proc is the extra *attempt*, not the damage;
+   *  a Wu-triggered swing that whiffs is still a Wu proc, so misses count
+   *  toward the attempt total even though they don't add to the damage total. */
   private flushWuRound(): void {
     const buffer = this.wuBuffer
     this.wuBuffer = []
     this.wuTimer = null
 
-    const hits = buffer.filter(b => b.hit)
-    if (hits.length < 2) return  // a single special hit is not a proc
+    if (buffer.length < 2) return  // a single special attempt is not a proc
 
-    // Wu always triggers off a Flying Kick use — without a kick-family hit
+    // Wu always triggers off a Flying Kick use — without a kick-family attempt
     // anchoring the round, a "strike"/"claw" coincidence is more likely an
     // ordinary swing landing nearby than a genuine proc (see the ambiguous-verb
     // note on MONK_SPECIAL_HIT_RE above).
-    const anchorIdx = hits.findIndex(h => LogReader.WU_ANCHOR_SKILLS.has(h.skill))
+    const anchorIdx = buffer.findIndex(h => LogReader.WU_ANCHOR_SKILLS.has(h.skill))
     if (anchorIdx === -1) return
 
-    let mainIdx = anchorIdx
-    for (let i = 0; i < hits.length; i++) {
-      if (LogReader.WU_ANCHOR_SKILLS.has(hits[i].skill) && hits[i].damage > hits[mainIdx].damage) mainIdx = i
+    // Prefer a landed kick-family hit as the "main" attack for display purposes;
+    // fall back to the anchor attempt itself if the triggering kick whiffed.
+    let mainIdx = buffer.findIndex(h => h.hit && LogReader.WU_ANCHOR_SKILLS.has(h.skill))
+    if (mainIdx === -1) mainIdx = anchorIdx
+    for (let i = 0; i < buffer.length; i++) {
+      if (buffer[i].hit && LogReader.WU_ANCHOR_SKILLS.has(buffer[i].skill) && buffer[i].damage > buffer[mainIdx].damage) mainIdx = i
     }
-    const mainHit = hits[mainIdx]
-    const extraHits = hits.filter((_, i) => i !== mainIdx)
-    const roundTotalDamage = hits.reduce((sum, h) => sum + h.damage, 0)
+    const mainHit = buffer[mainIdx]
+    const extraHits = buffer.filter((_, i) => i !== mainIdx)
+    const roundTotalDamage = buffer.reduce((sum, h) => sum + h.damage, 0)
 
     this.emit({ type: EvType.WU_PROC, ts: performance.now(), data: {
       target: this.wuTarget || this.currentTarget,
-      mainHit: { skill: mainHit.skill, damage: mainHit.damage },
-      extraHits: extraHits.map(h => ({ skill: h.skill, damage: h.damage })),
+      mainHit: { skill: mainHit.skill, damage: mainHit.damage, hit: mainHit.hit },
+      extraHits: extraHits.map(h => ({ skill: h.skill, damage: h.damage, hit: h.hit })),
       roundTotalDamage,
     } })
   }

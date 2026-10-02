@@ -479,6 +479,11 @@
         <input type="range" id="wuProcChance" min="0" max="100" step="1" />
         <span class="val" id="wuProcChanceVal">100%</span>
       </div>
+
+      <div class="row" data-tip="Minimum round damage required for the kungfu sound to play, same idea as the Crit Damage and Huge Round thresholds. A Wu proc below this (including a miss) still shows the visual indicator, just silently. Set to 0 to always play regardless of damage.">
+        <label for="wuDamageThreshold">Sound Damage Threshold</label>
+        <input type="number" id="wuDamageThreshold" min="0" max="9999" step="1" />
+      </div>
     </div>
 
     <!-- ── Tracking Source ───────────────────────────── -->

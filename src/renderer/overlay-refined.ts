@@ -722,8 +722,10 @@ export class RefinedOverlay {
         this.wuProcFlash = 1
         this.wuProcLabel = `Wu +${extraHits.length}`
         this.wuProcSub   = roundTotalDamage.toLocaleString()
-        if (Math.random() * 100 < this.cfg.WU_PROC_CHANCE) {
-          this.audio.playFileSound(`kungfu${1 + Math.floor(Math.random() * 3)}`, true)
+        // Notification always shows (even an all-miss round), but the sound
+        // cue only fires once the round clears the configured damage floor.
+        if (roundTotalDamage >= this.cfg.WU_DAMAGE_THRESHOLD && Math.random() * 100 < this.cfg.WU_PROC_CHANCE) {
+          this.audio.playRandomKungfu()
         }
         break
       }
