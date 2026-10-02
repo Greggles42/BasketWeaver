@@ -16,6 +16,7 @@ export class AudioManager {
   masterVolume = 1.0
   procVolume   = 1.0
   epicVolume   = 1.0
+  wuVolume     = 1.0
   private tempMuted = false
   private cfg: ConfigType
   private fileBuffers: Map<string, AudioBuffer> = new Map()
@@ -427,11 +428,13 @@ export class AudioManager {
       const ctx       = this.getCtx()
       const src       = ctx.createBufferSource()
       const gainNode  = ctx.createGain()
-      const catVol = (name === 'epic' || name === 'oh_snap' || name.startsWith('kungfu'))
+      const catVol = (name === 'epic' || name === 'oh_snap')
         ? this.epicVolume
-        : (name === 'avatar' || name === 'savagery' || name === 'hit_tick')
-          ? this.procVolume
-          : 1.0
+        : name.startsWith('kungfu')
+          ? this.wuVolume
+          : (name === 'avatar' || name === 'savagery' || name === 'hit_tick')
+            ? this.procVolume
+            : 1.0
       gainNode.gain.value = (this.fileGains.get(name) ?? 1.0) * this.masterVolume * catVol
       src.buffer = buf
       src.connect(gainNode)

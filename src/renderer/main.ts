@@ -26,8 +26,8 @@ declare global {
       onToggleBuffSound:        (cb: () => void) => void
       onToggleRogueMode:        (cb: () => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
-      onSetVolumes:           (cb: (master: number, proc: number, epic: number, debounceMs: number) => void) => void
-      onSetThresholds:        (cb: (critDamage: number, hugeRound: number) => void) => void
+      onSetVolumes:           (cb: (master: number, proc: number, epic: number, wu: number, debounceMs: number) => void) => void
+      onSetThresholds:        (cb: (critDamage: number, hugeRound: number, wuChance: number) => void) => void
       sendFightHistory:       (fights: { label: string, full: string }[]) => void
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
       onSetShowAllCrits:             (cb: (enabled: boolean) => void) => void
@@ -161,16 +161,18 @@ window.electronAPI.onSetOffhandDelay((delay, name) => {
   overlay.applyDynamicWeaveWindow(delay, name)
 })
 
-window.electronAPI.onSetVolumes((master, proc, epic, debounceMs) => {
+window.electronAPI.onSetVolumes((master, proc, epic, wu, debounceMs) => {
   audio.masterVolume = master
   audio.procVolume   = proc
   audio.epicVolume   = epic
+  audio.wuVolume     = wu
   Config.AUDIO_DEBOUNCE_MS = debounceMs
 })
 
-window.electronAPI.onSetThresholds((critDamage, hugeRound) => {
+window.electronAPI.onSetThresholds((critDamage, hugeRound, wuChance) => {
   Config.CRIT_DAMAGE_THRESHOLD = critDamage
   Config.HUGE_ROUND_THRESHOLD  = hugeRound
+  Config.WU_PROC_CHANCE        = wuChance
 })
 
 window.electronAPI.onSetShowAllCrits((enabled) => {

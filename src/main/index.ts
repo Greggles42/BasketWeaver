@@ -161,8 +161,10 @@ function loadSettings(): void {
       if (typeof saved.VOLUME_MASTER         === 'number')  Config.VOLUME_MASTER         = saved.VOLUME_MASTER
       if (typeof saved.VOLUME_PROC           === 'number')  Config.VOLUME_PROC           = saved.VOLUME_PROC
       if (typeof saved.VOLUME_EPIC           === 'number')  Config.VOLUME_EPIC           = saved.VOLUME_EPIC
+      if (typeof saved.VOLUME_WU             === 'number')  Config.VOLUME_WU             = saved.VOLUME_WU
       if (typeof saved.CRIT_DAMAGE_THRESHOLD === 'number')  Config.CRIT_DAMAGE_THRESHOLD = saved.CRIT_DAMAGE_THRESHOLD
       if (typeof saved.HUGE_ROUND_THRESHOLD  === 'number')  Config.HUGE_ROUND_THRESHOLD  = saved.HUGE_ROUND_THRESHOLD
+      if (typeof saved.WU_PROC_CHANCE        === 'number')  Config.WU_PROC_CHANCE        = saved.WU_PROC_CHANCE
       if (typeof saved.BUFF_SOUND_ENABLED         === 'boolean') Config.BUFF_SOUND_ENABLED         = saved.BUFF_SOUND_ENABLED
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
@@ -206,8 +208,10 @@ export function saveSettings(): void {
       VOLUME_MASTER:         Config.VOLUME_MASTER,
       VOLUME_PROC:           Config.VOLUME_PROC,
       VOLUME_EPIC:           Config.VOLUME_EPIC,
+      VOLUME_WU:             Config.VOLUME_WU,
       CRIT_DAMAGE_THRESHOLD: Config.CRIT_DAMAGE_THRESHOLD,
       HUGE_ROUND_THRESHOLD:  Config.HUGE_ROUND_THRESHOLD,
+      WU_PROC_CHANCE:        Config.WU_PROC_CHANCE,
       BUFF_SOUND_ENABLED:        Config.BUFF_SOUND_ENABLED,
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
@@ -765,8 +769,10 @@ function setupIPC(): void {
     VOLUME_MASTER:            Config.VOLUME_MASTER,
     VOLUME_PROC:              Config.VOLUME_PROC,
     VOLUME_EPIC:              Config.VOLUME_EPIC,
+    VOLUME_WU:                Config.VOLUME_WU,
     CRIT_DAMAGE_THRESHOLD:    Config.CRIT_DAMAGE_THRESHOLD,
     HUGE_ROUND_THRESHOLD:     Config.HUGE_ROUND_THRESHOLD,
+    WU_PROC_CHANCE:           Config.WU_PROC_CHANCE,
     TRACKING_SOURCE:          Config.TRACKING_SOURCE,
     OVERLAY_STYLE:            Config.OVERLAY_STYLE,
     BASE_WEAPON_DELAY:        Config.BASE_WEAPON_DELAY,
@@ -813,22 +819,26 @@ function setupIPC(): void {
       case 'VOLUME_MASTER':
       case 'VOLUME_PROC':
       case 'VOLUME_EPIC':
+      case 'VOLUME_WU':
       case 'AUDIO_DEBOUNCE_MS':
         (Config as any)[key] = value
         win?.webContents.send(IPC.SET_VOLUMES, {
           master:     Config.VOLUME_MASTER,
           proc:       Config.VOLUME_PROC,
           epic:       Config.VOLUME_EPIC,
+          wu:         Config.VOLUME_WU,
           debounceMs: Config.AUDIO_DEBOUNCE_MS,
         })
         break
 
       case 'CRIT_DAMAGE_THRESHOLD':
       case 'HUGE_ROUND_THRESHOLD':
+      case 'WU_PROC_CHANCE':
         (Config as any)[key] = value
         win?.webContents.send(IPC.SET_THRESHOLDS, {
           critDamage: Config.CRIT_DAMAGE_THRESHOLD,
           hugeRound:  Config.HUGE_ROUND_THRESHOLD,
+          wuChance:   Config.WU_PROC_CHANCE,
         })
         break
 
@@ -1385,11 +1395,13 @@ app.whenReady().then(async () => {
       master:     Config.VOLUME_MASTER,
       proc:       Config.VOLUME_PROC,
       epic:       Config.VOLUME_EPIC,
+      wu:         Config.VOLUME_WU,
       debounceMs: Config.AUDIO_DEBOUNCE_MS,
     })
     win!.webContents.send(IPC.SET_THRESHOLDS, {
       critDamage: Config.CRIT_DAMAGE_THRESHOLD,
       hugeRound:  Config.HUGE_ROUND_THRESHOLD,
+      wuChance:   Config.WU_PROC_CHANCE,
     })
     // Sync pinned state
     if (!Config.WINDOW_PINNED) win!.webContents.send(IPC.TOGGLE_PIN)

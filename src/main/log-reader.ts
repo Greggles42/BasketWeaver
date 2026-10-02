@@ -77,19 +77,21 @@ export class LogReader {
   private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash|hit) (.+?) for \d+/i
 
   // ── Technique of Master Wu detection ──────────────────────────
-  // Matches the monk special attacks eligible to proc as a Wu "extra" hit.
+  // Matches only the four skills Wu can proc as an extra attack (Flying Kick,
+  // Round Kick, Eagle Strike, Tiger Claw) — deliberately excludes the base
+  // "Kick" skill (not Wu-eligible) and all mainhand/weave verbs, so a round's
+  // damage total never picks up anything but genuine Wu-eligible special hits.
   // This client prints the literal skill name in the verb, so classification
   // doesn't require the damage-magnitude heuristics an ambiguous-verb client would need.
   private static readonly MONK_SPECIAL_HIT_RE =
-    /^You (flying kick|roundkick|eagle strike|tiger claw|kick) (.+?) for (\d+)\s+points? of damage/i
+    /^You (flying kick|roundkick|eagle strike|tiger claw) (.+?) for (\d+)\s+points? of damage/i
   private static readonly MONK_SPECIAL_MISS_RE =
-    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw|kick)\b/i
+    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw)\b/i
   private static readonly MONK_SKILL_NAMES: Record<string, string> = {
     'flying kick':   'Flying Kick',
     'roundkick':     'Round Kick',
     'eagle strike':  'Eagle Strike',
     'tiger claw':    'Tiger Claw',
-    'kick':          'Kick',
   }
   // Window after a monk special attack line in which any further monk special
   // lines against the same target are considered part of the same Wu round.

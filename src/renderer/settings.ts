@@ -347,6 +347,18 @@ async function init(): Promise<void> {
     v => window.settingsAPI.setSetting('VOLUME_EPIC', v / 100),
   )
 
+  setupSlider('volumeWu', 'volumeWuVal',
+    (s.VOLUME_WU as number) * 100,
+    v => v + '%',
+    v => window.settingsAPI.setSetting('VOLUME_WU', v / 100),
+  )
+
+  setupSlider('wuProcChance', 'wuProcChanceVal',
+    s.WU_PROC_CHANCE as number,
+    v => v + '%',
+    v => window.settingsAPI.setSetting('WU_PROC_CHANCE', v),
+  )
+
   // ── Threshold inputs ────────────────────────────────────────
   const critEl = document.getElementById('critThreshold') as HTMLInputElement | null
   if (critEl) {

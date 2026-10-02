@@ -675,7 +675,9 @@ export class HighContrastOverlay {
         this.wuProcFlash = 1
         this.wuProcLabel = `Wu +${extraHits.length}`
         this.wuProcSub   = roundTotalDamage.toLocaleString()
-        this.audio.playFileSound(`kungfu${1 + Math.floor(Math.random() * 3)}`, true)
+        if (Math.random() * 100 < this.cfg.WU_PROC_CHANCE) {
+          this.audio.playFileSound(`kungfu${1 + Math.floor(Math.random() * 3)}`, true)
+        }
         break
       }
     }
