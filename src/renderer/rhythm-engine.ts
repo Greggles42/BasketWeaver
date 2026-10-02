@@ -560,10 +560,15 @@ export class RhythmEngine {
       // weapon delay — a skipped/OOR swing appears as ≥2× the real interval and
       // would otherwise drag the median too low.
       const maxPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) * 1.3
-      // Minimum plausible interval = weapon at 125% haste cap (base / 2.25).
+      // Minimum plausible interval = weapon at a 225% haste cap (base / 3.25).
       // Any measured gap shorter than this must be a riposte or other non-swing event
       // that slipped through — reject it before it can pollute the rolling median.
-      const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 2.25
+      // Must stay well above any haste % actually achievable in-game: a raid character
+      // stacking spell + item + AA haste can realistically clear 125%+, and setting this
+      // too tight censors the fast (correct) swings while keeping the slow ones, which
+      // biases the rolling median down and stops calibration from ever reaching the true
+      // value — it plateaus noticeably below actual haste instead of converging to it.
+      const minPlausible = (this.cfg.BASE_WEAPON_DELAY / 10) / 3.25
       const inRange = measured >= minPlausible && measured <= maxPlausible
       if (!this.roundSkipCalibration && inRange) {
         // Change detection: if the new measurement diverges from the running median

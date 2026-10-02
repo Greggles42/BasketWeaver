@@ -120,12 +120,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ── DELETE /api/records — delete by id or purge non-allowlist records ───────
-    // Requires X-API-Key.
+    // Requires X-API-Key matching ADMIN_API_KEY — deliberately a *different*
+    // secret from the one embedded in the client build (which only grants
+    // POST). ADMIN_API_KEY must be set manually in the Vercel project's
+    // environment variables and used only from a private/ops context; it is
+    // never shipped in the app so a client-side key leak can't be used to
+    // delete community data.
     // ?id=<uuid>  → deletes that specific record, returns { deleted: 0|1 }
     // (no id)     → purges all records not on the raid boss allowlist
     if (req.method === 'DELETE') {
       const key = String(req.headers['x-api-key'] ?? '')
-      if (!process.env.API_KEY || key !== process.env.API_KEY) {
+      if (!process.env.ADMIN_API_KEY || key !== process.env.ADMIN_API_KEY) {
         return res.status(401).json({ error: 'Unauthorized' })
       }
 

@@ -25,6 +25,7 @@ export enum EvType {
   LOG_DAMAGE         = 'LOG_DAMAGE',         // data: { damage, source: 'mainhand'|'fist'|'misc'|'backstab' }
   BACKSTAB_ATTACK    = 'BACKSTAB_ATTACK',    // data: { damage: number, hit: boolean, target?: string }
   ZONE_CHANGED       = 'ZONE_CHANGED',       // data: { zone: string } — from "You have entered X."
+  WU_PROC            = 'WU_PROC',            // data: { target, mainHit: {skill,damage}, extraHits: {skill,damage}[], roundTotalDamage }
 }
 
 export interface GameEvent {

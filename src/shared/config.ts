@@ -125,7 +125,7 @@ export const Config = {
 
   // ── Sound trigger thresholds ─────────────────────────────────
   CRIT_DAMAGE_THRESHOLD:  400,   // min crit damage for epic.wav
-  HUGE_ROUND_THRESHOLD:   600,   // min round damage for oh_snap.wav
+  HUGE_ROUND_THRESHOLD:   800,   // min round damage for oh_snap.wav
 
   // ── Runtime toggle states (tracked in main process) ──────────
   BUFF_SOUND_ENABLED: true,

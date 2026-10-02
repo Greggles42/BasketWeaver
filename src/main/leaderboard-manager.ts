@@ -239,6 +239,37 @@ export class LeaderboardManager {
     return [...new Set(this.records.map(r => r.mobName))].sort()
   }
 
+  /** Record a successful upload so the background retry loop leaves it alone. */
+  markUploaded(id: string): void {
+    const r = this.records.find(r => r.id === id)
+    if (!r) return
+    r.uploadStatus = 'uploaded'
+    this.save()
+  }
+
+  /** Record a failed upload attempt, queuing it for background retry
+   *  (see getPendingUploads). Only call this for a genuine upload attempt
+   *  that reached the network — not for records skipped due to opt-out,
+   *  missing character name, or allowlist ineligibility, none of which will
+   *  resolve themselves by retrying. */
+  markUploadFailed(id: string): void {
+    const r = this.records.find(r => r.id === id)
+    if (!r) return
+    r.uploadStatus = 'pending'
+    r.uploadAttempts = (r.uploadAttempts ?? 0) + 1
+    r.lastUploadAttempt = Date.now()
+    this.save()
+  }
+
+  /** Records still owed an upload attempt, capped at maxAttempts so a
+   *  persistently-rejected record (e.g. bad data triggering a 400 forever)
+   *  doesn't retry indefinitely. */
+  getPendingUploads(maxAttempts: number): EncounterRecord[] {
+    return this.records.filter(
+      r => r.uploadStatus === 'pending' && (r.uploadAttempts ?? 0) < maxAttempts
+    )
+  }
+
   /** Returns true if this mob's kills are permitted on the online leaderboard.
    *  Strips a trailing zone qualifier (e.g. "(Plane of Disease)") added by
    *  qualifyMobName() so ambiguous-mob uploads still pass the allowlist. */

@@ -134,6 +134,9 @@ audio.loadFile('savagery', './sounds/savagery.wav')
 audio.loadFile('oh_snap',  './sounds/oh snap.wav')
 audio.loadFile('epic',     './sounds/epic.wav')
 audio.loadFile('hit_tick', './sounds/Hit tick.wav')
+audio.loadFile('kungfu1',  './sounds/kungfu1.wav')
+audio.loadFile('kungfu2',  './sounds/kungfu2.wav')
+audio.loadFile('kungfu3',  './sounds/kungfu3.wav')
 
 window.electronAPI.onClearBuffs(() => {
   overlay.avatarActive   = false

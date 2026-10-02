@@ -155,6 +155,9 @@ export class RefinedOverlay {
   private missFlash = 0       // soft "—" chip when a weave passes unused
   private clipWarn = 0        // harsh red wash on actual clip
   private dwRollFlash = 0     // DW roll failure: keystroke in window, no fist in log
+  private wuProcFlash = 0     // Technique of Master Wu proc indicator, by the target icon
+  private wuProcLabel = ''
+  private wuProcSub   = ''
   private dwPendingTs = 0    // timestamp when weave key landed in window; cleared by fist or timer
   private particles: Particle[] = []
   private banners: Banner[] = []
@@ -713,6 +716,15 @@ export class RefinedOverlay {
         }
         break
       }
+      case EvType.WU_PROC: {
+        const roundTotalDamage = (ev.data?.roundTotalDamage as number) ?? 0
+        const extraHits = (ev.data?.extraHits as { skill: string; damage: number }[]) ?? []
+        this.wuProcFlash = 1
+        this.wuProcLabel = `Wu +${extraHits.length}`
+        this.wuProcSub   = roundTotalDamage.toLocaleString()
+        this.audio.playFileSound(`kungfu${1 + Math.floor(Math.random() * 3)}`, true)
+        break
+      }
     }
   }
 
@@ -1030,6 +1042,7 @@ export class RefinedOverlay {
     this.missFlash   = Math.max(0, this.missFlash   - dt * 2)
     this.clipWarn    = Math.max(0, this.clipWarn    - dt * 2)
     this.dwRollFlash = Math.max(0, this.dwRollFlash - dt * 1.2)
+    this.wuProcFlash = Math.max(0, this.wuProcFlash - dt * 0.3)
 
     // Particles
     for (const p of this.particles) {
@@ -1072,6 +1085,7 @@ export class RefinedOverlay {
     this.drawMissFlash()
     this.drawClipWarn()
     this.drawDwRollFail()
+    this.drawWuProc()
     this.drawNoLogNotice()
     this.drawBanners()
     if (this.gradeScreen) this.drawGradeScreen(this.gradeScreen)
@@ -1258,6 +1272,29 @@ export class RefinedOverlay {
     ctx.textAlign = 'left'
   }
 
+  /** Draws a "LABEL  value" pair as one unit centered on centerX, at footer baseline fy. */
+  private drawFooterStat(centerX: number, fy: number, label: string, value: string, valueColor: string): void {
+    const ctx = this.ctx
+    ctx.font = '600 11px "JetBrains Mono", monospace'
+    const valueW = ctx.measureText(value).width
+    ctx.font = '500 9px "JetBrains Mono", monospace'
+    const labelW = ctx.measureText(label).width
+    this.drawFooterStatAt(centerX - (labelW + 6 + valueW) / 2, fy, label, value, valueColor)
+  }
+
+  /** Draws a "LABEL  value" pair left-anchored at x, at footer baseline fy. */
+  private drawFooterStatAt(x: number, fy: number, label: string, value: string, valueColor: string): void {
+    const ctx = this.ctx
+    ctx.textAlign = 'left'
+    ctx.font = '500 9px "JetBrains Mono", monospace'
+    ctx.fillStyle = PAL.textDim
+    ctx.fillText(label, x, fy)
+    const labelW = ctx.measureText(label).width
+    ctx.font = '600 11px "JetBrains Mono", monospace'
+    ctx.fillStyle = valueColor
+    ctx.fillText(value, x + labelW + 6, fy)
+  }
+
   private drawFooter(): void {
     const ctx = this.ctx
     const w = this.canvas.width, h = this.canvas.height
@@ -1268,56 +1305,18 @@ export class RefinedOverlay {
     ctx.textBaseline = 'middle'
 
     const fy = h - FOOTER_H / 2
-    // WEAVES (left)
-    ctx.font = '500 9px "JetBrains Mono", monospace'
-    ctx.fillStyle = PAL.textDim
-    ctx.fillText('WEAVES', 10, fy)
-    const lw = ctx.measureText('WEAVES').width
-    ctx.font = '600 11px "JetBrains Mono", monospace'
-    ctx.fillStyle = PAL.text
-    ctx.fillText(`${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, 10 + lw + 6, fy)
 
-    // AC (between weaves and net dps)
+    // Four categories centered in four equal columns, evenly spaced across
+    // the footer: WEAVES, AC, NET DPS, WEAVED DPS.
     const targetAc = lookupMobAc(this.currentTarget)
     const acVal = targetAc === 'ambiguous' ? '--*' : targetAc !== undefined ? `${targetAc}` : '--'
-    ctx.textAlign = 'center'
-    ctx.font = '600 11px "JetBrains Mono", monospace'
-    const acvw = ctx.measureText(acVal).width
-    ctx.font = '500 9px "JetBrains Mono", monospace'
-    const acLblW = ctx.measureText('AC').width
-    const acStartX = w * 0.32 - (acLblW + 6 + acvw) / 2
-    ctx.textAlign = 'left'
-    ctx.fillStyle = PAL.textDim
-    ctx.fillText('AC', acStartX, fy)
-    ctx.font = '600 11px "JetBrains Mono", monospace'
-    ctx.fillStyle = PAL.text
-    ctx.fillText(acVal, acStartX + acLblW + 6, fy)
 
-    // NET DPS (center)
-    ctx.textAlign = 'center'
-    const netVal = `${this.dpsDisplayTotal}`
-    ctx.font = '600 11px "JetBrains Mono", monospace'
-    const vw = ctx.measureText(netVal).width
-    ctx.font = '500 9px "JetBrains Mono", monospace'
-    const lblW = ctx.measureText('NET DPS').width
-    const startX = w / 2 - (lblW + 6 + vw) / 2
-    ctx.textAlign = 'left'
-    ctx.fillStyle = PAL.textDim
-    ctx.fillText('NET DPS', startX, fy)
-    ctx.font = '600 11px "JetBrains Mono", monospace'
-    ctx.fillStyle = PAL.text
-    ctx.fillText(netVal, startX + lblW + 6, fy)
+    this.drawFooterStatAt(10, fy, 'WEAVES',
+      `${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, PAL.text)
+    this.drawFooterStat(w * (5 / 16), fy, 'AC', acVal, PAL.text)
+    this.drawFooterStat(w * (9 / 16), fy, 'NET DPS', `${this.dpsDisplayTotal}`, PAL.text)
+    this.drawFooterStat(w * (7 / 8), fy, 'WEAVED DPS', `+${this.dpsDisplayFist}`, PAL.weaveText)
 
-    // WEAVED DPS (right)
-    ctx.textAlign = 'right'
-    const weaveVal = `+${this.dpsDisplayFist}`
-    ctx.font = '600 11px "JetBrains Mono", monospace'
-    const wvw = ctx.measureText(weaveVal).width
-    ctx.fillStyle = PAL.weaveText
-    ctx.fillText(weaveVal, w - 10, fy)
-    ctx.font = '500 9px "JetBrains Mono", monospace'
-    ctx.fillStyle = PAL.textDim
-    ctx.fillText('WEAVED DPS', w - 10 - wvw - 6, fy)
     ctx.textAlign = 'left'
   }
 
@@ -1686,6 +1685,30 @@ export class RefinedOverlay {
     ctx.fillStyle = `rgba(255,160,0,${this.dwRollFlash})`
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
     ctx.fillText('DW no roll', hzx + 32, hy - 2)
+    ctx.textAlign = 'left'
+  }
+
+  private drawWuProc(): void {
+    if (this.wuProcFlash <= 0) return
+    const ctx = this.ctx
+    const [hzx, hzy] = this.hzCenter()
+    // Fade in fast, hold, then fade out — avoids an abrupt linear-decay pop-in.
+    const a = Math.min(1, this.wuProcFlash * 2.5)
+    const chipW = 86, chipH = 30
+    const chipX = hzx - 12 - chipW
+    const chipY = hzy - chipH / 2
+    ctx.fillStyle = `rgba(40,30,0,${(a * 0.55).toFixed(2)})`
+    this.roundRect(chipX, chipY, chipW, chipH, 6); ctx.fill()
+    ctx.strokeStyle = `rgba(255,215,0,${(a * 0.7).toFixed(2)})`
+    ctx.lineWidth = 1.5
+    this.roundRect(chipX, chipY, chipW, chipH, 6); ctx.stroke()
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'
+    ctx.font = '700 13px "JetBrains Mono", monospace'
+    ctx.fillStyle = `rgba(255,215,0,${a.toFixed(2)})`
+    ctx.fillText(this.wuProcLabel, hzx - 20, hzy - 8)
+    ctx.font = '700 12px "JetBrains Mono", monospace'
+    ctx.fillStyle = `rgba(255,235,120,${a.toFixed(2)})`
+    ctx.fillText(this.wuProcSub, hzx - 20, hzy + 8)
     ctx.textAlign = 'left'
   }
 

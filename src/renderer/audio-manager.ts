@@ -427,7 +427,7 @@ export class AudioManager {
       const ctx       = this.getCtx()
       const src       = ctx.createBufferSource()
       const gainNode  = ctx.createGain()
-      const catVol = (name === 'epic' || name === 'oh_snap')
+      const catVol = (name === 'epic' || name === 'oh_snap' || name.startsWith('kungfu'))
         ? this.epicVolume
         : (name === 'avatar' || name === 'savagery' || name === 'hit_tick')
           ? this.procVolume

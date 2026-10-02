@@ -68,8 +68,32 @@ export class LogReader {
 
   // ── Bandolier weave tracking: state shared via cfg.WEAVE_BANDOLIER_ACTIVE ──
 
+  // ── Technique of Master Wu round clustering ───────────────────
+  private wuBuffer: Array<{ skill: string; hit: boolean; damage: number; target?: string }> = []
+  private wuTimer: ReturnType<typeof setTimeout> | null = null
+  private wuTarget = ''
+
   // Extracts target name from "You crush/punch/strike/hit X for N points"
   private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash|hit) (.+?) for \d+/i
+
+  // ── Technique of Master Wu detection ──────────────────────────
+  // Matches the monk special attacks eligible to proc as a Wu "extra" hit.
+  // This client prints the literal skill name in the verb, so classification
+  // doesn't require the damage-magnitude heuristics an ambiguous-verb client would need.
+  private static readonly MONK_SPECIAL_HIT_RE =
+    /^You (flying kick|roundkick|eagle strike|tiger claw|kick) (.+?) for (\d+)\s+points? of damage/i
+  private static readonly MONK_SPECIAL_MISS_RE =
+    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw|kick)\b/i
+  private static readonly MONK_SKILL_NAMES: Record<string, string> = {
+    'flying kick':   'Flying Kick',
+    'roundkick':     'Round Kick',
+    'eagle strike':  'Eagle Strike',
+    'tiger claw':    'Tiger Claw',
+    'kick':          'Kick',
+  }
+  // Window after a monk special attack line in which any further monk special
+  // lines against the same target are considered part of the same Wu round.
+  private static readonly WU_ROUND_WINDOW_MS = 300
 
   // Matches the EQ system message printed on every zone transition.
   private static readonly ZONE_ENTER_RE = /^You have entered ([^.]+)\.$/i
@@ -218,6 +242,53 @@ export class LogReader {
 
   stop(): void {
     this.stopped = true
+    if (this.wuTimer) clearTimeout(this.wuTimer)
+  }
+
+  /** Classifies a line as a monk special attack (hit or miss), or null if it's not one. */
+  private classifyMonkSpecial(content: string): { skill: string; hit: boolean; damage: number; target?: string } | null {
+    const hm = LogReader.MONK_SPECIAL_HIT_RE.exec(content)
+    if (hm) {
+      return { skill: LogReader.MONK_SKILL_NAMES[hm[1].toLowerCase()], hit: true, damage: parseInt(hm[3], 10), target: hm[2] }
+    }
+    const mm = LogReader.MONK_SPECIAL_MISS_RE.exec(content)
+    if (mm) {
+      return { skill: LogReader.MONK_SKILL_NAMES[mm[1].toLowerCase()], hit: false, damage: 0 }
+    }
+    return null
+  }
+
+  /** Buffers a monk special attack and (re)arms the flush timer for the current Wu round. */
+  private trackWuRound(hit: { skill: string; hit: boolean; damage: number; target?: string }): void {
+    if (hit.target) this.wuTarget = hit.target
+    this.wuBuffer.push(hit)
+    if (this.wuTimer) clearTimeout(this.wuTimer)
+    this.wuTimer = setTimeout(() => this.flushWuRound(), LogReader.WU_ROUND_WINDOW_MS)
+  }
+
+  /** Emits WU_PROC if the buffered round contains more than one landed monk special hit. */
+  private flushWuRound(): void {
+    const buffer = this.wuBuffer
+    this.wuBuffer = []
+    this.wuTimer = null
+
+    const hits = buffer.filter(b => b.hit)
+    if (hits.length < 2) return  // a single Flying Kick (or any lone special) is not a proc
+
+    let mainIdx = hits.findIndex(h => h.skill === 'Flying Kick')
+    if (mainIdx === -1) {
+      mainIdx = hits.reduce((best, h, i, arr) => (h.damage > arr[best].damage ? i : best), 0)
+    }
+    const mainHit = hits[mainIdx]
+    const extraHits = hits.filter((_, i) => i !== mainIdx)
+    const roundTotalDamage = hits.reduce((sum, h) => sum + h.damage, 0)
+
+    this.emit({ type: EvType.WU_PROC, ts: performance.now(), data: {
+      target: this.wuTarget || this.currentTarget,
+      mainHit: { skill: mainHit.skill, damage: mainHit.damage },
+      extraHits: extraHits.map(h => ({ skill: h.skill, damage: h.damage })),
+      roundTotalDamage,
+    } })
   }
 
   private processLine(line: string): void {
@@ -299,6 +370,8 @@ export class LogReader {
       }
       // Flying kick
       if (this.flyingKickRe.some(r => r.test(content))) {
+        const monk = this.classifyMonkSpecial(content)
+        if (monk) this.trackWuRound(monk)
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
         return
@@ -565,6 +638,8 @@ export class LogReader {
     // ── Flying kick ──────────────────────────────────────────
     if (this.flyingKickRe.some(r => r.test(content))) {
       this.ensureCombat(now)
+      const monk = this.classifyMonkSpecial(content)
+      if (monk) this.trackWuRound(monk)
       const damage = parseDamage(content)
       if (damage > 0)
         this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })

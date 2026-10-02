@@ -620,6 +620,63 @@ function handleLogSelected(p: string): void {
   win?.webContents.send(IPC.LOG_SELECTED, p)
 }
 
+// ── Leaderboard upload (shared by the live-fight path and the retry queue) ──
+
+const MAX_UPLOAD_ATTEMPTS = 20
+const UPLOAD_RETRY_INTERVAL_MS = 5 * 60 * 1000   // 5 minutes
+const UPLOAD_RETRY_INITIAL_DELAY_MS = 30 * 1000  // let network/DB settle after launch
+
+/**
+ * Attempt to upload one record. `attempted` tells the caller whether a real
+ * network request was made (vs. skipped for opt-out / missing key / not on
+ * the allowlist) — only genuinely attempted uploads should be marked
+ * uploaded/pending, since the other skip reasons won't resolve by retrying.
+ */
+async function attemptLeaderboardUpload(record: EncounterRecord): Promise<{ ok: boolean; rank?: number; attempted: boolean }> {
+  if (Config.LEADERBOARD_OPT_OUT) {
+    leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (user opted out)`)
+    return { ok: false, attempted: false }
+  }
+  if (!record.characterName) {
+    leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (no character name on record)`)
+    return { ok: false, attempted: false }
+  }
+  if (!__LEADERBOARD_WORKER_URL__ || !__LEADERBOARD_API_KEY__) {
+    leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (build is missing worker URL/API key)`)
+    return { ok: false, attempted: false }
+  }
+  if (!LeaderboardManager.isOnlineEligible(record.mobName)) {
+    leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (not on allowlist)`)
+    return { ok: false, attempted: false }
+  }
+  const result = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
+  leaderboardManager.log(`[Leaderboard] Upload ${result.ok ? 'OK' : 'FAILED'} for "${record.mobName}" (v${record.appVersion}, char "${record.characterName}"` +
+    `${result.rank ? `, rank #${result.rank}` : ''})`)
+  if (result.ok) {
+    leaderboardManager.markUploaded(record.id)
+  } else {
+    leaderboardManager.markUploadFailed(record.id)
+  }
+  return { ok: result.ok, rank: result.rank, attempted: true }
+}
+
+/** Sweep local records for anything still owed an upload attempt (previous
+ *  attempts hit a network/HTTP error) and retry them one at a time. */
+async function retryPendingUploads(): Promise<void> {
+  const pending = leaderboardManager.getPendingUploads(MAX_UPLOAD_ATTEMPTS)
+  for (const record of pending) {
+    const result = await attemptLeaderboardUpload(record)
+    if (result.ok && result.rank && result.rank <= 3) {
+      win?.webContents.send(IPC.LEADERBOARD_RANK, { mobName: record.mobName, rank: result.rank })
+    }
+  }
+}
+
+function startLeaderboardRetryLoop(): void {
+  setTimeout(() => { retryPendingUploads() }, UPLOAD_RETRY_INITIAL_DELAY_MS)
+  setInterval(() => { retryPendingUploads() }, UPLOAD_RETRY_INTERVAL_MS)
+}
+
 // ── IPC handlers ──────────────────────────────────────────────
 
 function setupIPC(): void {
@@ -986,23 +1043,13 @@ function setupIPC(): void {
     if (leaderboardWin && !leaderboardWin.isDestroyed()) {
       leaderboardWin.webContents.send(IPC.LEADERBOARD_DATA, leaderboardManager.getAll())
     }
-    // Upload automatically when a character is identified and mob is on the allowlist.
-    // Worker URL and API key are embedded at build time — no user configuration required.
-    if (Config.LEADERBOARD_OPT_OUT) {
-      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (user opted out)`)
-    } else if (!Config.LEADERBOARD_CHARACTER_NAME) {
+    if (!Config.LEADERBOARD_CHARACTER_NAME) {
       leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (no character name identified)`)
-    } else if (!__LEADERBOARD_WORKER_URL__ || !__LEADERBOARD_API_KEY__) {
-      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (build is missing worker URL/API key)`)
-    } else if (!LeaderboardManager.isOnlineEligible(record.mobName)) {
-      leaderboardManager.log(`[Leaderboard] Skipping upload for "${record.mobName}" (not on allowlist)`)
-    } else {
-      const result = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
-      leaderboardManager.log(`[Leaderboard] Upload ${result.ok ? 'OK' : 'FAILED'} for "${record.mobName}" (v${record.appVersion}, char "${record.characterName}"` +
-        `${result.rank ? `, rank #${result.rank}` : ''})`)
-      if (result.ok && result.rank && result.rank <= 3) {
-        win?.webContents.send(IPC.LEADERBOARD_RANK, { mobName: record.mobName, rank: result.rank })
-      }
+      return
+    }
+    const result = await attemptLeaderboardUpload(record)
+    if (result.ok && result.rank && result.rank <= 3) {
+      win?.webContents.send(IPC.LEADERBOARD_RANK, { mobName: record.mobName, rank: result.rank })
     }
   })
 
@@ -1011,9 +1058,9 @@ function setupIPC(): void {
   // Manual re-upload of an already-recorded local fight, triggered by the
   // "Upload" button in the leaderboard window. Unlike the automatic upload
   // path above, this is an explicit per-record user action, so it bypasses
-  // the live "character identified" / opt-out gates (which exist to guard
-  // automatic uploads, not a deliberate click) and uses the record's own
-  // stored characterName rather than whatever character is live right now.
+  // the opt-out / character-identified gates (which exist to guard automatic
+  // uploads, not a deliberate click) and uses the record's own stored
+  // characterName rather than whatever character is live right now.
   // Returns the real result so the UI can show success/failure instead of
   // optimistically assuming the upload worked.
   ipcMain.handle(IPC.LEADERBOARD_UPLOAD_MANUAL, async (_e, id: string): Promise<{ ok: boolean; rank?: number; error?: string }> => {
@@ -1028,7 +1075,12 @@ function setupIPC(): void {
     const result = await leaderboardManager.upload(record, __LEADERBOARD_WORKER_URL__, __LEADERBOARD_API_KEY__)
     leaderboardManager.log(`[Leaderboard] Manual upload ${result.ok ? 'OK' : 'FAILED'} for "${record.mobName}" (char "${record.characterName}"` +
       `${result.rank ? `, rank #${result.rank}` : ''})`)
-    return result.ok ? { ok: true, rank: result.rank } : { ok: false, error: 'Upload failed — see leaderboard-upload.log' }
+    if (result.ok) {
+      leaderboardManager.markUploaded(record.id)
+      return { ok: true, rank: result.rank }
+    }
+    leaderboardManager.markUploadFailed(record.id)
+    return { ok: false, error: 'Upload failed — see leaderboard-upload.log' }
   })
 
   ipcMain.on(IPC.LEADERBOARD_OPEN, () => createLeaderboardWindow())
@@ -1286,6 +1338,7 @@ app.whenReady().then(async () => {
   loadSettings()
   recomputeGoodWindow()
   leaderboardManager = new LeaderboardManager(configDir())
+  startLeaderboardRetryLoop()
   setupIPC()
   createWindow()
   startWeaveKeyMonitor()

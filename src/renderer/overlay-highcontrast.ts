@@ -140,6 +140,9 @@ export class HighContrastOverlay {
   private missFlash = 0
   private clipWarn = 0
   private dwRollFlash = 0     // DW roll failure: keystroke in window, no fist in log
+  private wuProcFlash = 0     // Technique of Master Wu proc indicator, by the target icon
+  private wuProcLabel = ''
+  private wuProcSub   = ''
   private dwPendingTs = 0    // timestamp when weave key landed in window; cleared by fist or timer
   private banners: Banner[] = []
   private bigBannerQueue: Banner[] = []
@@ -666,6 +669,15 @@ export class HighContrastOverlay {
         }
         break
       }
+      case EvType.WU_PROC: {
+        const roundTotalDamage = (ev.data?.roundTotalDamage as number) ?? 0
+        const extraHits = (ev.data?.extraHits as { skill: string; damage: number }[]) ?? []
+        this.wuProcFlash = 1
+        this.wuProcLabel = `Wu +${extraHits.length}`
+        this.wuProcSub   = roundTotalDamage.toLocaleString()
+        this.audio.playFileSound(`kungfu${1 + Math.floor(Math.random() * 3)}`, true)
+        break
+      }
     }
   }
 
@@ -969,6 +981,7 @@ export class HighContrastOverlay {
     this.missFlash   = Math.max(0, this.missFlash   - dt * 2)
     this.clipWarn    = Math.max(0, this.clipWarn    - dt * 2)
     this.dwRollFlash = Math.max(0, this.dwRollFlash - dt * 1.2)
+    this.wuProcFlash = Math.max(0, this.wuProcFlash - dt * 0.3)
     this.banners = this.banners.filter(b => !b.expired)
     if (this.bigBannerQueue.length && !this.banners.some(b => b.bigNumber !== undefined)) {
       const next = this.bigBannerQueue.shift()!
@@ -1007,6 +1020,7 @@ export class HighContrastOverlay {
     this.drawMissChip()
     this.drawClipWarn()
     this.drawDwRollFail()
+    this.drawWuProc()
     this.drawFooter()
     this.drawNoLogNotice()
     this.drawBanners()
@@ -1562,6 +1576,30 @@ export class HighContrastOverlay {
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
   }
 
+  private drawWuProc(): void {
+    if (this.wuProcFlash <= 0) return
+    const ctx = this.ctx
+    const [hzx, hzy] = this.hzCenter()
+    // Fade in fast, hold, then fade out — avoids an abrupt linear-decay pop-in.
+    const a = Math.min(1, this.wuProcFlash * 2.5)
+    const chipW = 92, chipH = 32
+    const chipX = hzx - 16 - chipW
+    const chipY = hzy - chipH / 2
+    ctx.fillStyle = `rgba(40,30,0,${(a * 0.6).toFixed(2)})`
+    ctx.fillRect(chipX, chipY, chipW, chipH)
+    ctx.strokeStyle = `rgba(255,215,0,${(a * 0.8).toFixed(2)})`
+    ctx.lineWidth = 1.5
+    ctx.strokeRect(chipX, chipY, chipW, chipH)
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'
+    ctx.font = '700 13px "Archivo", sans-serif'
+    ctx.fillStyle = `rgba(255,215,0,${a.toFixed(2)})`
+    ctx.fillText(this.wuProcLabel, hzx - 24, hzy - 8)
+    ctx.font = '700 12px "JetBrains Mono", monospace'
+    ctx.fillStyle = `rgba(255,235,120,${a.toFixed(2)})`
+    ctx.fillText(this.wuProcSub, hzx - 24, hzy + 8)
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+  }
+
   private drawDwRollFail(): void {
     if (this.dwRollFlash <= 0) return
     const ctx = this.ctx
@@ -1601,7 +1639,10 @@ export class HighContrastOverlay {
     this.drawInnerflameBar(h - 30, 3)
     this.drawWhirlwindBar(h - 33, 3)
 
-    // WEAVES
+    // WEAVES, AC, NET DPS centered/left across the footer; WEAVE DPS anchored right.
+    ctx.textAlign = 'left'
+
+    // WEAVES — flush against the left edge
     ctx.font = '600 9px "Archivo", sans-serif'
     ctx.fillStyle = HC.textDim
     ctx.fillText('WEAVES', 10, h - 18)
@@ -1609,34 +1650,33 @@ export class HighContrastOverlay {
     ctx.fillStyle = HC.text
     ctx.fillText(`${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, 10, h - 5)
 
-    // AC (between weaves and net dps)
+    ctx.textAlign = 'center'
+
+    // AC
     const targetAc = lookupMobAc(this.currentTarget)
     const acVal = targetAc === 'ambiguous' ? '--*' : targetAc !== undefined ? `${targetAc}` : '--'
-    ctx.textAlign = 'center'
     ctx.font = '600 9px "Archivo", sans-serif'
     ctx.fillStyle = HC.textDim
-    ctx.fillText('AC', w * 0.32, h - 18)
+    ctx.fillText('AC', w * (5 / 16), h - 18)
     ctx.font = '800 15px "Archivo", sans-serif'
     ctx.fillStyle = HC.text
-    ctx.fillText(acVal, w * 0.32, h - 5)
+    ctx.fillText(acVal, w * (5 / 16), h - 5)
 
     // NET DPS
-    ctx.textAlign = 'center'
     ctx.font = '600 9px "Archivo", sans-serif'
     ctx.fillStyle = HC.textDim
-    ctx.fillText('NET DPS', w / 2, h - 18)
+    ctx.fillText('NET DPS', w * (9 / 16), h - 18)
     ctx.font = '800 15px "Archivo", sans-serif'
     ctx.fillStyle = HC.text
-    ctx.fillText(`${this.dpsDisplayTotal}`, w / 2, h - 5)
+    ctx.fillText(`${this.dpsDisplayTotal}`, w * (9 / 16), h - 5)
 
     // WEAVE DPS — orange
-    ctx.textAlign = 'right'
     ctx.font = '600 9px "Archivo", sans-serif'
     ctx.fillStyle = HC.textDim
-    ctx.fillText('WEAVE', w - 10, h - 18)
+    ctx.fillText('WEAVE', w * (7 / 8), h - 18)
     ctx.font = '800 15px "Archivo", sans-serif'
     ctx.fillStyle = HC.weaveDps
-    ctx.fillText(`+${this.dpsDisplayFist}`, w - 10, h - 5)
+    ctx.fillText(`+${this.dpsDisplayFist}`, w * (7 / 8), h - 5)
     ctx.textAlign = 'left'
   }
 

@@ -54,4 +54,14 @@ export interface EncounterRecord {
    *  is max(15, t) so the first 15 s are normalised to a 15-second window,
    *  removing the initial spike. Empty array if no damage was logged. */
   dpsSamples: number[]
+
+  // ── Upload retry tracking (main process only; absent until a real upload
+  // attempt is made) ────────────────────────────────────────────
+  /** 'pending' after a genuine (network/HTTP) upload failure — eligible for
+   *  background retry. 'uploaded' once a POST has succeeded. Undefined means
+   *  no upload was ever attempted (opted out, no character, not on the
+   *  allowlist, etc.) — such records are intentionally never auto-retried. */
+  uploadStatus?: 'pending' | 'uploaded'
+  uploadAttempts?: number
+  lastUploadAttempt?: number
 }

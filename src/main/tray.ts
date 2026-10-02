@@ -28,22 +28,42 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
   const tray = new Tray(icon)
   tray.setToolTip('Basketweaver')
 
-  function rebuild() {
-    try {
-      tray.popUpContextMenu(buildMenu())
-    } catch (err) {
-      console.error('[Basketweaver] Tray menu error:', err)
-    }
+  // Ask the renderer for its current combat state and wait for the reply before
+  // popping up the menu, so "Status: IN COMBAT / IDLE" reflects reality instead of
+  // a default value baked into the menu before the (async) reply could ever arrive.
+  // A short timeout bounds the wait in case the renderer is unresponsive.
+  function requestStatus(): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (win.isDestroyed()) { resolve(false); return }
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        ipcMain.removeListener(IPC.STATUS_REPLY, onReply)
+        resolve(false)
+      }, 250)
+      const onReply = (_e: Electron.IpcMainEvent, data: { inCombat: boolean }) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(data.inCombat)
+      }
+      ipcMain.once(IPC.STATUS_REPLY, onReply)
+      win.webContents.send(IPC.REQUEST_STATUS)
+    })
   }
 
-  function buildMenu(): Menu {
-    // Dynamic status (polled from renderer)
-    let inCombat = false
-    if (!win.isDestroyed()) win.webContents.send(IPC.REQUEST_STATUS)
-    ipcMain.once(IPC.STATUS_REPLY, (_e, data: { inCombat: boolean }) => {
-      inCombat = data.inCombat
+  function rebuild() {
+    requestStatus().then(inCombat => {
+      try {
+        tray.popUpContextMenu(buildMenu(inCombat))
+      } catch (err) {
+        console.error('[Basketweaver] Tray menu error:', err)
+      }
     })
+  }
 
+  function buildMenu(inCombat: boolean): Menu {
     const cfg = Config
 
     // ── Mainhand delay submenu ────────────────────────────
