@@ -132,6 +132,23 @@ export const Config = {
 
   // ── Runtime toggle states (tracked in main process) ──────────
   BUFF_SOUND_ENABLED: true,
+
+  // ── Debuff alerts — each controls both the overlay banner and its sound.
+  // "off" disables the alert entirely; otherwise the banner shows and the
+  // named trigger plays. Enrage has two trigger choices: the enraged.mp3
+  // voice line, or the original synthesized alarm beeps.
+  ROOT_ALERT_MODE:   'voice' as 'off' | 'voice',
+  TASH_ALERT_MODE:   'voice' as 'off' | 'voice',
+  SLOW_ALERT_MODE:   'voice' as 'off' | 'voice',
+  SNARE_ALERT_MODE:  'voice' as 'off' | 'voice',
+  ENRAGE_ALERT_MODE: 'beep' as 'off' | 'voice' | 'beep',
+  // Minimum ms between repeats of each debuff alert's sound. Resets when
+  // the target dies or combat ends, so the next fight's first alert always plays.
+  ROOT_AUDIO_DEBOUNCE_MS:   3000,
+  TASH_AUDIO_DEBOUNCE_MS:   3000,
+  SLOW_AUDIO_DEBOUNCE_MS:   3000,
+  SNARE_AUDIO_DEBOUNCE_MS:  3000,
+  ENRAGE_AUDIO_DEBOUNCE_MS: 3000,
   AUDIO_ENABLED:      true,
   WINDOW_PINNED:      true,
 

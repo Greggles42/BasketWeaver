@@ -44,6 +44,10 @@ const HC = {
 
 const now = () => performance.now()
 
+// Audio debounce keys for the debuff alert sounds — cleared on mob death /
+// combat end so the next encounter's first alert always plays.
+const DEBUFF_ALERT_SOUND_NAMES = ['rooted', 'tashed', 'slowed', 'snared', 'enrage', 'enraged']
+
 class Banner {
   static FADE_IN = 300; static FADE_OUT = 500
   text: string; color: string; duration: number; born = now()
@@ -202,6 +206,16 @@ export class HighContrastOverlay {
   logSelected = false
   private lastLogActivityTs = 0
   private currentTarget = ''
+  private lastEnrageAlertMob = ''
+  private lastEnrageAlertTs  = 0
+  private lastRootAlertMob = ''
+  private lastRootAlertTs  = 0
+  private lastTashAlertMob = ''
+  private lastTashAlertTs  = 0
+  private lastSlowAlertMob = ''
+  private lastSlowAlertTs  = 0
+  private lastSnareAlertMob = ''
+  private lastSnareAlertTs  = 0
   private topCrits:      HitRecord[] = []
   private topHugeRounds: HitRecord[] = []
   // Post-combat glide: keep weave windows scrolling for 3 s after mob dies
@@ -333,6 +347,7 @@ export class HighContrastOverlay {
         this.lastCombatActivity = ts
         break
       case EvType.MOB_DIED: {
+        this.audio.resetDebounce(DEBUFF_ALERT_SOUND_NAMES)
         if (this.cfg.ROGUE_MODE_ENABLED) {
           if (this.rogueInCombat) {
             this.finishRogueFight((ev.data?.mobName as string) ?? '')
@@ -356,6 +371,7 @@ export class HighContrastOverlay {
         break
       }
       case EvType.COMBAT_END:
+        this.audio.resetDebounce(DEBUFF_ALERT_SOUND_NAMES)
         if (this.cfg.ROGUE_MODE_ENABLED) {
           if (this.rogueInCombat) {
             this.rogueInCombat = false
@@ -679,6 +695,92 @@ export class HighContrastOverlay {
         // cue only fires once the round clears the configured damage floor.
         if (roundTotalDamage >= this.cfg.WU_DAMAGE_THRESHOLD && Math.random() * 100 < this.cfg.WU_PROC_CHANCE) {
           this.audio.playRandomKungfu()
+        }
+        break
+      }
+      case EvType.MOB_ENRAGED: {
+        if (this.cfg.ENRAGE_ALERT_MODE === 'off') break
+        const mobName = (ev.data?.mobName as string) ?? ''
+        const key = mobName.toLowerCase()
+        const isCurrentTarget = key === this.currentTarget.toLowerCase()
+        // Hybrid mode runs two log readers over the same file, which can emit
+        // this event twice for the same line — suppress an immediate repeat
+        // for the same mob so the warning doesn't double-fire.
+        const duplicate = key === this.lastEnrageAlertMob && now() - this.lastEnrageAlertTs < 1000
+        if (isCurrentTarget && !duplicate) {
+          this.lastEnrageAlertMob = key
+          this.lastEnrageAlertTs  = now()
+          this.banners.push(new Banner('⚠ ENRAGED', '#ff4444', 4000))
+          if (this.cfg.ENRAGE_ALERT_MODE === 'voice') this.audio.playFileSoundDebounced('enraged', this.cfg.ENRAGE_AUDIO_DEBOUNCE_MS, true)
+          else if (this.cfg.ENRAGE_ALERT_MODE === 'beep') this.audio.playForceDebounced('enrage', this.cfg.ENRAGE_AUDIO_DEBOUNCE_MS)
+        }
+        break
+      }
+      case EvType.MOB_ROOTED: {
+        if (this.cfg.ROOT_ALERT_MODE === 'off') break
+        const mobName = (ev.data?.mobName as string) ?? ''
+        const key = mobName.toLowerCase()
+        const isCurrentTarget = key === this.currentTarget.toLowerCase()
+        // Hybrid mode runs two log readers over the same file, which can emit
+        // this event twice for the same line — suppress an immediate repeat
+        // for the same mob so the banner doesn't double-fire.
+        const duplicate = key === this.lastRootAlertMob && now() - this.lastRootAlertTs < 1000
+        if (isCurrentTarget && !duplicate) {
+          this.lastRootAlertMob = key
+          this.lastRootAlertTs  = now()
+          this.banners.push(new Banner('🌿 ROOTED', '#8bc34a', 4000))
+          this.audio.playFileSoundDebounced('rooted', this.cfg.ROOT_AUDIO_DEBOUNCE_MS, true)
+        }
+        break
+      }
+      case EvType.MOB_TASHED: {
+        if (this.cfg.TASH_ALERT_MODE === 'off') break
+        const mobName = (ev.data?.mobName as string) ?? ''
+        const key = mobName.toLowerCase()
+        const isCurrentTarget = key === this.currentTarget.toLowerCase()
+        // Hybrid mode runs two log readers over the same file, which can emit
+        // this event twice for the same line — suppress an immediate repeat
+        // for the same mob so the banner doesn't double-fire.
+        const duplicate = key === this.lastTashAlertMob && now() - this.lastTashAlertTs < 1000
+        if (isCurrentTarget && !duplicate) {
+          this.lastTashAlertMob = key
+          this.lastTashAlertTs  = now()
+          this.banners.push(new Banner('🔮 TASHED', '#b388ff', 4000))
+          this.audio.playFileSoundDebounced('tashed', this.cfg.TASH_AUDIO_DEBOUNCE_MS, true)
+        }
+        break
+      }
+      case EvType.MOB_SLOWED: {
+        if (this.cfg.SLOW_ALERT_MODE === 'off') break
+        const mobName = (ev.data?.mobName as string) ?? ''
+        const key = mobName.toLowerCase()
+        const isCurrentTarget = key === this.currentTarget.toLowerCase()
+        // Hybrid mode runs two log readers over the same file, which can emit
+        // this event twice for the same line — suppress an immediate repeat
+        // for the same mob so the banner doesn't double-fire.
+        const duplicate = key === this.lastSlowAlertMob && now() - this.lastSlowAlertTs < 1000
+        if (isCurrentTarget && !duplicate) {
+          this.lastSlowAlertMob = key
+          this.lastSlowAlertTs  = now()
+          this.banners.push(new Banner('🐌 SLOWED', '#42a5f5', 4000))
+          this.audio.playFileSoundDebounced('slowed', this.cfg.SLOW_AUDIO_DEBOUNCE_MS, true)
+        }
+        break
+      }
+      case EvType.MOB_SNARED: {
+        if (this.cfg.SNARE_ALERT_MODE === 'off') break
+        const mobName = (ev.data?.mobName as string) ?? ''
+        const key = mobName.toLowerCase()
+        const isCurrentTarget = key === this.currentTarget.toLowerCase()
+        // Hybrid mode runs two log readers over the same file, which can emit
+        // this event twice for the same line — suppress an immediate repeat
+        // for the same mob so the banner doesn't double-fire.
+        const duplicate = key === this.lastSnareAlertMob && now() - this.lastSnareAlertTs < 1000
+        if (isCurrentTarget && !duplicate) {
+          this.lastSnareAlertMob = key
+          this.lastSnareAlertTs  = now()
+          this.banners.push(new Banner('🕸 SNARED', '#26a69a', 4000))
+          this.audio.playFileSoundDebounced('snared', this.cfg.SNARE_AUDIO_DEBOUNCE_MS, true)
         }
         break
       }

@@ -167,6 +167,32 @@ function loadSettings(): void {
       if (typeof saved.WU_PROC_CHANCE        === 'number')  Config.WU_PROC_CHANCE        = saved.WU_PROC_CHANCE
       if (typeof saved.WU_DAMAGE_THRESHOLD   === 'number')  Config.WU_DAMAGE_THRESHOLD   = saved.WU_DAMAGE_THRESHOLD
       if (typeof saved.BUFF_SOUND_ENABLED         === 'boolean') Config.BUFF_SOUND_ENABLED         = saved.BUFF_SOUND_ENABLED
+      if (saved.ROOT_ALERT_MODE === 'off' || saved.ROOT_ALERT_MODE === 'voice') Config.ROOT_ALERT_MODE = saved.ROOT_ALERT_MODE
+      else if (saved.ROOT_ALERT_MODE === 'on') Config.ROOT_ALERT_MODE = 'voice'  // migrate old value
+      if (saved.TASH_ALERT_MODE === 'off' || saved.TASH_ALERT_MODE === 'voice') Config.TASH_ALERT_MODE = saved.TASH_ALERT_MODE
+      else if (saved.TASH_ALERT_MODE === 'on') Config.TASH_ALERT_MODE = 'voice'  // migrate old value
+      if (saved.SLOW_ALERT_MODE === 'off' || saved.SLOW_ALERT_MODE === 'voice') Config.SLOW_ALERT_MODE = saved.SLOW_ALERT_MODE
+      else if (saved.SLOW_ALERT_MODE === 'on') Config.SLOW_ALERT_MODE = 'voice'  // migrate old value
+      if (saved.SNARE_ALERT_MODE === 'off' || saved.SNARE_ALERT_MODE === 'voice') Config.SNARE_ALERT_MODE = saved.SNARE_ALERT_MODE
+      else if (saved.SNARE_ALERT_MODE === 'on') Config.SNARE_ALERT_MODE = 'voice'  // migrate old value
+      if (saved.ENRAGE_ALERT_MODE === 'off' || saved.ENRAGE_ALERT_MODE === 'voice' || saved.ENRAGE_ALERT_MODE === 'beep') {
+        Config.ENRAGE_ALERT_MODE = saved.ENRAGE_ALERT_MODE
+      } else if (typeof saved.ENRAGE_SOUND_ENABLED === 'boolean') {
+        Config.ENRAGE_ALERT_MODE = saved.ENRAGE_SOUND_ENABLED ? 'beep' : 'off'  // migrate old boolean setting
+      }
+      if (typeof saved.ROOT_AUDIO_DEBOUNCE_MS   === 'number') Config.ROOT_AUDIO_DEBOUNCE_MS   = saved.ROOT_AUDIO_DEBOUNCE_MS
+      if (typeof saved.TASH_AUDIO_DEBOUNCE_MS   === 'number') Config.TASH_AUDIO_DEBOUNCE_MS   = saved.TASH_AUDIO_DEBOUNCE_MS
+      if (typeof saved.SLOW_AUDIO_DEBOUNCE_MS   === 'number') Config.SLOW_AUDIO_DEBOUNCE_MS   = saved.SLOW_AUDIO_DEBOUNCE_MS
+      if (typeof saved.SNARE_AUDIO_DEBOUNCE_MS  === 'number') Config.SNARE_AUDIO_DEBOUNCE_MS  = saved.SNARE_AUDIO_DEBOUNCE_MS
+      if (typeof saved.ENRAGE_AUDIO_DEBOUNCE_MS === 'number') Config.ENRAGE_AUDIO_DEBOUNCE_MS = saved.ENRAGE_AUDIO_DEBOUNCE_MS
+      else if (typeof saved.DEBUFF_AUDIO_DEBOUNCE_MS === 'number') {
+        // migrate old shared-debounce setting to all five per-debuff fields
+        Config.ROOT_AUDIO_DEBOUNCE_MS   = saved.DEBUFF_AUDIO_DEBOUNCE_MS
+        Config.TASH_AUDIO_DEBOUNCE_MS   = saved.DEBUFF_AUDIO_DEBOUNCE_MS
+        Config.SLOW_AUDIO_DEBOUNCE_MS   = saved.DEBUFF_AUDIO_DEBOUNCE_MS
+        Config.SNARE_AUDIO_DEBOUNCE_MS  = saved.DEBUFF_AUDIO_DEBOUNCE_MS
+        Config.ENRAGE_AUDIO_DEBOUNCE_MS = saved.DEBUFF_AUDIO_DEBOUNCE_MS
+      }
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
       if (saved.ALWAYS_ON_TOP_MODE === 'standard' || saved.ALWAYS_ON_TOP_MODE === 'elevated' || saved.ALWAYS_ON_TOP_MODE === 'aggressive') {
@@ -215,6 +241,16 @@ export function saveSettings(): void {
       WU_PROC_CHANCE:        Config.WU_PROC_CHANCE,
       WU_DAMAGE_THRESHOLD:   Config.WU_DAMAGE_THRESHOLD,
       BUFF_SOUND_ENABLED:        Config.BUFF_SOUND_ENABLED,
+      ROOT_ALERT_MODE:           Config.ROOT_ALERT_MODE,
+      TASH_ALERT_MODE:           Config.TASH_ALERT_MODE,
+      SLOW_ALERT_MODE:           Config.SLOW_ALERT_MODE,
+      SNARE_ALERT_MODE:          Config.SNARE_ALERT_MODE,
+      ENRAGE_ALERT_MODE:         Config.ENRAGE_ALERT_MODE,
+      ROOT_AUDIO_DEBOUNCE_MS:    Config.ROOT_AUDIO_DEBOUNCE_MS,
+      TASH_AUDIO_DEBOUNCE_MS:    Config.TASH_AUDIO_DEBOUNCE_MS,
+      SLOW_AUDIO_DEBOUNCE_MS:    Config.SLOW_AUDIO_DEBOUNCE_MS,
+      SNARE_AUDIO_DEBOUNCE_MS:   Config.SNARE_AUDIO_DEBOUNCE_MS,
+      ENRAGE_AUDIO_DEBOUNCE_MS:  Config.ENRAGE_AUDIO_DEBOUNCE_MS,
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
       ALWAYS_ON_TOP_MODE:        Config.ALWAYS_ON_TOP_MODE,
@@ -795,6 +831,16 @@ function setupIPC(): void {
     POSITIVE_AUDIO_IN_WINDOW:     Config.POSITIVE_AUDIO_IN_WINDOW,
     FIST_SOUND_ON_MISS:       Config.FIST_SOUND_ON_MISS,
     BUFF_SOUND_ENABLED:       Config.BUFF_SOUND_ENABLED,
+    ROOT_ALERT_MODE:          Config.ROOT_ALERT_MODE,
+    TASH_ALERT_MODE:          Config.TASH_ALERT_MODE,
+    SLOW_ALERT_MODE:          Config.SLOW_ALERT_MODE,
+    SNARE_ALERT_MODE:         Config.SNARE_ALERT_MODE,
+    ENRAGE_ALERT_MODE:        Config.ENRAGE_ALERT_MODE,
+    ROOT_AUDIO_DEBOUNCE_MS:   Config.ROOT_AUDIO_DEBOUNCE_MS,
+    TASH_AUDIO_DEBOUNCE_MS:   Config.TASH_AUDIO_DEBOUNCE_MS,
+    SLOW_AUDIO_DEBOUNCE_MS:   Config.SLOW_AUDIO_DEBOUNCE_MS,
+    SNARE_AUDIO_DEBOUNCE_MS:  Config.SNARE_AUDIO_DEBOUNCE_MS,
+    ENRAGE_AUDIO_DEBOUNCE_MS: Config.ENRAGE_AUDIO_DEBOUNCE_MS,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
     WINDOW_PINNED:            Config.WINDOW_PINNED,
     ALWAYS_ON_TOP_MODE:       Config.ALWAYS_ON_TOP_MODE,
@@ -938,6 +984,36 @@ function setupIPC(): void {
       case 'POSITIVE_AUDIO_IN_WINDOW':
         Config.POSITIVE_AUDIO_IN_WINDOW = value as boolean
         win?.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, value)
+        break
+
+      case 'ROOT_ALERT_MODE':
+      case 'TASH_ALERT_MODE':
+      case 'SLOW_ALERT_MODE':
+      case 'SNARE_ALERT_MODE':
+      case 'ENRAGE_ALERT_MODE':
+        (Config as any)[key] = value
+        win?.webContents.send(IPC.SET_DEBUFF_ALERTS, {
+          root:   Config.ROOT_ALERT_MODE,
+          tash:   Config.TASH_ALERT_MODE,
+          slow:   Config.SLOW_ALERT_MODE,
+          snare:  Config.SNARE_ALERT_MODE,
+          enrage: Config.ENRAGE_ALERT_MODE,
+        })
+        break
+
+      case 'ROOT_AUDIO_DEBOUNCE_MS':
+      case 'TASH_AUDIO_DEBOUNCE_MS':
+      case 'SLOW_AUDIO_DEBOUNCE_MS':
+      case 'SNARE_AUDIO_DEBOUNCE_MS':
+      case 'ENRAGE_AUDIO_DEBOUNCE_MS':
+        (Config as any)[key] = value
+        win?.webContents.send(IPC.SET_DEBUFF_AUDIO_DEBOUNCE, {
+          root:   Config.ROOT_AUDIO_DEBOUNCE_MS,
+          tash:   Config.TASH_AUDIO_DEBOUNCE_MS,
+          slow:   Config.SLOW_AUDIO_DEBOUNCE_MS,
+          snare:  Config.SNARE_AUDIO_DEBOUNCE_MS,
+          enrage: Config.ENRAGE_AUDIO_DEBOUNCE_MS,
+        })
         break
 
       case 'PUNCH_INTERVAL':
@@ -1415,6 +1491,20 @@ app.whenReady().then(async () => {
     if (Config.SHOW_ALL_CRITS)           win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
     if (Config.POSITIVE_AUDIO_IN_WINDOW) win!.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, true)
     if (Config.KEYSTROKE_GRADING)        win!.webContents.send(IPC.SET_KEYSTROKE_GRADING, true)
+    win!.webContents.send(IPC.SET_DEBUFF_ALERTS, {
+      root:   Config.ROOT_ALERT_MODE,
+      tash:   Config.TASH_ALERT_MODE,
+      slow:   Config.SLOW_ALERT_MODE,
+      snare:  Config.SNARE_ALERT_MODE,
+      enrage: Config.ENRAGE_ALERT_MODE,
+    })
+    win!.webContents.send(IPC.SET_DEBUFF_AUDIO_DEBOUNCE, {
+      root:   Config.ROOT_AUDIO_DEBOUNCE_MS,
+      tash:   Config.TASH_AUDIO_DEBOUNCE_MS,
+      slow:   Config.SLOW_AUDIO_DEBOUNCE_MS,
+      snare:  Config.SNARE_AUDIO_DEBOUNCE_MS,
+      enrage: Config.ENRAGE_AUDIO_DEBOUNCE_MS,
+    })
     if (Config.INFERRED_DW_CHECKS)       win!.webContents.send(IPC.SET_INFERRED_DW_CHECKS, true)
 
     if (Config.TRACKING_SOURCE === 'hybrid') {

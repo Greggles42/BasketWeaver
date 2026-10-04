@@ -642,6 +642,56 @@
       </div>
     </div>
 
+    <!-- ── Debuff Tracking ──────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Debuff Tracking</div>
+
+      <div class="row" data-tip="Banner + sound when your current target is rooted/immobilized.">
+        <label for="rootAlertMode">Root</label>
+        <select id="rootAlertMode">
+          <option value="voice">Voiced</option>
+          <option value="off">Off</option>
+        </select>
+        <input type="number" id="rootAudioDebounceMs" min="0" max="30000" step="250" style="width:70px" title="Minimum ms between repeats of this sound. Resets when the target dies or combat ends." />
+      </div>
+      <div class="row" data-tip="Banner + sound when your current target lands a Tash-line resist debuff.">
+        <label for="tashAlertMode">Tash</label>
+        <select id="tashAlertMode">
+          <option value="voice">Voiced</option>
+          <option value="off">Off</option>
+        </select>
+        <input type="number" id="tashAudioDebounceMs" min="0" max="30000" step="250" style="width:70px" title="Minimum ms between repeats of this sound. Resets when the target dies or combat ends." />
+      </div>
+      <div class="row" data-tip="Banner + sound when your current target is slowed.">
+        <label for="slowAlertMode">Slow</label>
+        <select id="slowAlertMode">
+          <option value="voice">Voiced</option>
+          <option value="off">Off</option>
+        </select>
+        <input type="number" id="slowAudioDebounceMs" min="0" max="30000" step="250" style="width:70px" title="Minimum ms between repeats of this sound. Resets when the target dies or combat ends." />
+      </div>
+      <div class="row" data-tip="Banner + sound when your current target is snared.">
+        <label for="snareAlertMode">Snare</label>
+        <select id="snareAlertMode">
+          <option value="voice">Voiced</option>
+          <option value="off">Off</option>
+        </select>
+        <input type="number" id="snareAudioDebounceMs" min="0" max="30000" step="250" style="width:70px" title="Minimum ms between repeats of this sound. Resets when the target dies or combat ends." />
+      </div>
+      <div class="row" data-tip="Banner + sound when your current target becomes enraged. Voiced plays a spoken callout; Alarm plays the original beep warning.">
+        <label for="enrageAlertMode">Enraged</label>
+        <select id="enrageAlertMode">
+          <option value="voice">Voiced</option>
+          <option value="beep">Alarm</option>
+          <option value="off">Off</option>
+        </select>
+        <input type="number" id="enrageAudioDebounceMs" min="0" max="30000" step="250" style="width:70px" title="Minimum ms between repeats of this sound. Resets when the target dies or combat ends." />
+      </div>
+      <div class="row" style="margin-top:2px">
+        <span class="hint">Debounce = minimum ms between repeats of each alert's sound (0=off). Resets on target death / combat end.</span>
+      </div>
+    </div>
+
     <!-- ── Leaderboard ──────────────────────────────────── -->
     <div class="section">
       <div class="section-title">Leaderboard</div>

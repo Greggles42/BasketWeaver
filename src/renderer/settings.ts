@@ -215,6 +215,27 @@ function setupToggle(id: string, key: string, currentVal: boolean): void {
   })
 }
 
+/** Wire a <select> to send key/value over settingsAPI. */
+function setupSelect(id: string, key: string, currentVal: string): void {
+  const sel = document.getElementById(id) as HTMLSelectElement | null
+  if (!sel) return
+  sel.value = currentVal
+  sel.addEventListener('change', () => {
+    window.settingsAPI.setSetting(key, sel.value)
+  })
+}
+
+/** Wire a debounce-ms number input to send key/value over settingsAPI. */
+function setupDebounceInput(id: string, key: string, currentVal: unknown): void {
+  const el = document.getElementById(id) as HTMLInputElement | null
+  if (!el) return
+  el.value = String((currentVal as number) ?? 3000)
+  el.addEventListener('change', () => {
+    const v = parseInt(el.value, 10)
+    if (!isNaN(v) && v >= 0) window.settingsAPI.setSetting(key, v)
+  })
+}
+
 /**
  * Wire up the "Ignored Characters" section: while the active character is on
  * this list, the overlay window will not be kept always-on-top.
@@ -755,6 +776,17 @@ async function init(): Promise<void> {
   // ── Boolean toggles ──────────────────────────────────────────
   setupToggle('audioEnabled',       'AUDIO_ENABLED',       s.AUDIO_ENABLED      as boolean)
   setupToggle('buffSoundEnabled',   'BUFF_SOUND_ENABLED',  s.BUFF_SOUND_ENABLED as boolean)
+  setupSelect('rootAlertMode',   'ROOT_ALERT_MODE',   (s.ROOT_ALERT_MODE   as string) ?? 'voice')
+  setupSelect('tashAlertMode',   'TASH_ALERT_MODE',   (s.TASH_ALERT_MODE   as string) ?? 'voice')
+  setupSelect('slowAlertMode',   'SLOW_ALERT_MODE',   (s.SLOW_ALERT_MODE   as string) ?? 'voice')
+  setupSelect('snareAlertMode',  'SNARE_ALERT_MODE',  (s.SNARE_ALERT_MODE  as string) ?? 'voice')
+  setupSelect('enrageAlertMode', 'ENRAGE_ALERT_MODE', (s.ENRAGE_ALERT_MODE as string) ?? 'beep')
+
+  setupDebounceInput('rootAudioDebounceMs',   'ROOT_AUDIO_DEBOUNCE_MS',   s.ROOT_AUDIO_DEBOUNCE_MS)
+  setupDebounceInput('tashAudioDebounceMs',   'TASH_AUDIO_DEBOUNCE_MS',   s.TASH_AUDIO_DEBOUNCE_MS)
+  setupDebounceInput('slowAudioDebounceMs',   'SLOW_AUDIO_DEBOUNCE_MS',   s.SLOW_AUDIO_DEBOUNCE_MS)
+  setupDebounceInput('snareAudioDebounceMs',  'SNARE_AUDIO_DEBOUNCE_MS',  s.SNARE_AUDIO_DEBOUNCE_MS)
+  setupDebounceInput('enrageAudioDebounceMs', 'ENRAGE_AUDIO_DEBOUNCE_MS', s.ENRAGE_AUDIO_DEBOUNCE_MS)
   setupToggle('fistMissSound',      'FIST_SOUND_ON_MISS',  s.FIST_SOUND_ON_MISS as boolean)
   setupToggle('dynamicWeaving',     'DYNAMIC_WEAVING',     s.DYNAMIC_WEAVING    as boolean)
   setupToggle('offhandTimer',       'SHOW_OFFHAND_TIMER',  s.SHOW_OFFHAND_TIMER as boolean)

@@ -70,6 +70,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetPositiveAudioInWindow: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, (_e, enabled: boolean) => cb(enabled)),
 
+  onSetDebuffAlerts: (cb: (modes: { root: 'off' | 'voice'; tash: 'off' | 'voice'; slow: 'off' | 'voice'; snare: 'off' | 'voice'; enrage: 'off' | 'voice' | 'beep' }) => void) =>
+    ipcRenderer.on(IPC.SET_DEBUFF_ALERTS, (_e, modes) => cb(modes)),
+
+  onSetDebuffAudioDebounce: (cb: (ms: { root: number; tash: number; slow: number; snare: number; enrage: number }) => void) =>
+    ipcRenderer.on(IPC.SET_DEBUFF_AUDIO_DEBOUNCE, (_e, ms) => cb(ms)),
+
   onSetWeaveWindowMs: (cb: (ms: number) => void) =>
     ipcRenderer.on(IPC.SET_WEAVE_WINDOW_MS, (_e, ms: number) => cb(ms)),
 

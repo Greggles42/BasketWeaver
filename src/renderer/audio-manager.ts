@@ -314,6 +314,25 @@ export class AudioManager {
     return this.makeBuffer(out)
   }
 
+  /** Urgent two-tone alarm for a target enraging — alternates a high/low pair
+   *  twice so it reads distinctly as a warning rather than a proc/buff chime. */
+  private makeEnrage(): AudioBuffer {
+    const vol = this.cfg.FX_VOLUME
+    const notes: Array<[number, number]> = [
+      [880.0, 0.12], [587.33, 0.12], [880.0, 0.12], [587.33, 0.16],
+    ]
+    const chunks = notes.map(([freq, dur]) => {
+      const chunk = this.sine(freq, dur, vol * 0.8)
+      this.applyEnvelope(chunk, 0.004, 0.03)
+      return chunk
+    })
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0)
+    const out = new Float32Array(totalLen)
+    let offset = 0
+    for (const chunk of chunks) { out.set(chunk, offset); offset += chunk.length }
+    return this.makeBuffer(out)
+  }
+
   private makeCombatEnd(): AudioBuffer {
     const sr  = this.cfg.SAMPLE_RATE
     const vol = this.cfg.FX_VOLUME
@@ -351,6 +370,7 @@ export class AudioManager {
         case 'error':        this.buffers.set(name, this.makeError());      break
         case 'dw_ok':        this.buffers.set(name, this.makeDwOk());      break
         case 'fanfare':      this.buffers.set(name, this.makeFanfare());   break
+        case 'enrage':       this.buffers.set(name, this.makeEnrage());    break
         default: throw new Error(`Unknown sound: ${name}`)
       }
     }
@@ -362,7 +382,7 @@ export class AudioManager {
   /** Pre-generate all sound buffers so the first call has no latency. */
   preload(): void {
     for (const name of ['tick', 'perfect', 'good', 'miss',
-                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error', 'dw_ok', 'fanfare']) {
+                        'combat_start', 'crush', 'punch', 'whiff', 'combat_end', 'out_of_range', 'error', 'dw_ok', 'fanfare', 'enrage']) {
       try { this.getBuffer(name) } catch {}
     }
   }
@@ -402,6 +422,41 @@ export class AudioManager {
     this.tempMuted = false
     this.play(name)
     this.tempMuted = was
+  }
+
+  /** Play a synthesized sound bypassing the temp-mute, but only if at least
+   *  debounceMs has passed since the last time this name played. Used for
+   *  alerts that could otherwise spam (e.g. the enrage alarm). */
+  playForceDebounced(name: string, debounceMs: number): void {
+    if (!this.enabled) return
+    if (debounceMs > 0) {
+      const last = this.lastPlayTime.get(name) ?? 0
+      const nowTs = performance.now()
+      if (nowTs - last < debounceMs) return
+      this.lastPlayTime.set(name, nowTs)
+    }
+    this.playForce(name)
+  }
+
+  /** Play a preloaded file buffer, but only if at least debounceMs has
+   *  passed since the last time this name played. Used for alerts that
+   *  could otherwise spam (e.g. the debuff voice lines). */
+  playFileSoundDebounced(name: string, debounceMs: number, bypassBuffGate = false): void {
+    if (!this.enabled) return
+    if (debounceMs > 0) {
+      const last = this.lastPlayTime.get(name) ?? 0
+      const nowTs = performance.now()
+      if (nowTs - last < debounceMs) return
+      this.lastPlayTime.set(name, nowTs)
+    }
+    this.playFileSound(name, bypassBuffGate)
+  }
+
+  /** Clear debounce timers for the given sound names — call when combat
+   *  ends or the target dies so the next encounter's first alert isn't
+   *  suppressed by a debounce window left over from the previous fight. */
+  resetDebounce(names: string[]): void {
+    for (const n of names) this.lastPlayTime.delete(n)
   }
 
   private lastKungfuIndex = -1

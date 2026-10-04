@@ -26,6 +26,12 @@ export enum EvType {
   BACKSTAB_ATTACK    = 'BACKSTAB_ATTACK',    // data: { damage: number, hit: boolean, target?: string }
   ZONE_CHANGED       = 'ZONE_CHANGED',       // data: { zone: string } — from "You have entered X."
   WU_PROC            = 'WU_PROC',            // data: { target, mainHit: {skill,damage}, extraHits: {skill,damage}[], roundTotalDamage }
+  MOB_ENRAGED        = 'MOB_ENRAGED',        // data: { mobName: string } — "X has become ENRAGED."
+  MOB_UNENRAGED      = 'MOB_UNENRAGED',      // data: { mobName: string } — "X is no longer enraged."
+  MOB_ROOTED         = 'MOB_ROOTED',         // data: { mobName: string } — target landed a root/immobilize emote
+  MOB_TASHED         = 'MOB_TASHED',         // data: { mobName: string } — "X glances nervously about." (Tash line)
+  MOB_SLOWED         = 'MOB_SLOWED',         // data: { mobName: string } — target landed a slow-effect emote
+  MOB_SNARED         = 'MOB_SNARED',         // data: { mobName: string } — target landed a snare-effect emote
 }
 
 export interface GameEvent {
@@ -91,4 +97,6 @@ export const IPC = {
   ZEAL_STATUS_GET:     'zeal-status-get',       // settings renderer → main: request ZealStatus snapshot
   ZEAL_LOG_OPEN:       'zeal-log-open',         // settings renderer → main: open zeal-reader.log in default editor
   CHARACTER_DETECTED:  'character-detected',    // main → renderer/settings: string (auto-detected char name)
+  SET_DEBUFF_ALERTS: 'set-debuff-alerts',   // main → renderer: { root, tash, slow, snare: 'off'|'on'; enrage: 'off'|'voice'|'beep' }
+  SET_DEBUFF_AUDIO_DEBOUNCE: 'set-debuff-audio-debounce',   // main → renderer: { root, tash, slow, snare, enrage } ms
 } as const

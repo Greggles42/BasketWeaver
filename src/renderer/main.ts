@@ -32,6 +32,8 @@ declare global {
       sendTopRecords:         (crits: HitRecord[], hugeRounds: HitRecord[]) => void
       onSetShowAllCrits:             (cb: (enabled: boolean) => void) => void
       onSetPositiveAudioInWindow:    (cb: (enabled: boolean) => void) => void
+      onSetDebuffAlerts:             (cb: (modes: { root: 'off' | 'voice'; tash: 'off' | 'voice'; slow: 'off' | 'voice'; snare: 'off' | 'voice'; enrage: 'off' | 'voice' | 'beep' }) => void) => void
+      onSetDebuffAudioDebounce:      (cb: (ms: { root: number; tash: number; slow: number; snare: number; enrage: number }) => void) => void
       onSetKeystrokeGrading:         (cb: (enabled: boolean) => void) => void
       onSetWeaveWindowMs:            (cb: (ms: number) => void) => void
       onSetDwRollFailDelayMs:        (cb: (ms: number) => void) => void
@@ -137,6 +139,11 @@ audio.loadFile('hit_tick', './sounds/Hit tick.wav')
 audio.loadFile('kungfu1',  './sounds/kungfu1.wav')
 audio.loadFile('kungfu2',  './sounds/kungfu2.wav')
 audio.loadFile('kungfu3',  './sounds/kungfu3.wav')
+audio.loadFile('rooted',   './sounds/Rooted.mp3')
+audio.loadFile('tashed',   './sounds/tashed.mp3')
+audio.loadFile('slowed',   './sounds/Slowed.mp3')
+audio.loadFile('snared',   './sounds/snared.mp3')
+audio.loadFile('enraged',  './sounds/enraged.mp3')
 
 window.electronAPI.onClearBuffs(() => {
   overlay.avatarActive   = false
@@ -186,6 +193,22 @@ window.electronAPI.onSetKeystrokeGrading((enabled) => {
 
 window.electronAPI.onSetPositiveAudioInWindow((enabled) => {
   Config.POSITIVE_AUDIO_IN_WINDOW = enabled
+})
+
+window.electronAPI.onSetDebuffAlerts((modes) => {
+  Config.ROOT_ALERT_MODE   = modes.root
+  Config.TASH_ALERT_MODE   = modes.tash
+  Config.SLOW_ALERT_MODE   = modes.slow
+  Config.SNARE_ALERT_MODE  = modes.snare
+  Config.ENRAGE_ALERT_MODE = modes.enrage
+})
+
+window.electronAPI.onSetDebuffAudioDebounce((ms) => {
+  Config.ROOT_AUDIO_DEBOUNCE_MS   = ms.root
+  Config.TASH_AUDIO_DEBOUNCE_MS   = ms.tash
+  Config.SLOW_AUDIO_DEBOUNCE_MS   = ms.slow
+  Config.SNARE_AUDIO_DEBOUNCE_MS  = ms.snare
+  Config.ENRAGE_AUDIO_DEBOUNCE_MS = ms.enrage
 })
 
 window.electronAPI.onSetWeaveWindowMs((ms) => {

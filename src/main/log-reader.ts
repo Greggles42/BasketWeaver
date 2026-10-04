@@ -72,6 +72,7 @@ export class LogReader {
   private wuBuffer: Array<{ skill: string; hit: boolean; damage: number; target?: string }> = []
   private wuTimer: ReturnType<typeof setTimeout> | null = null
   private wuTarget = ''
+  private wuRoundStart = 0
 
   // Extracts target name from "You crush/punch/strike/hit X for N points"
   private static readonly TARGET_RE = /^You (?:crush|slash|pierce|punch|strike|bash|hit) (.+?) for \d+/i
@@ -107,9 +108,201 @@ export class LogReader {
   // Window after a monk special attack line in which any further monk special
   // lines against the same target are considered part of the same Wu round.
   private static readonly WU_ROUND_WINDOW_MS = 300
+  // Hard cap on a round's total span from its first hit. A Wu round's attacks
+  // all land within ~1s of each other; without this cap, monk specials firing
+  // faster than WU_ROUND_WINDOW_MS apart would keep rearming the timer forever
+  // and swallow the start of the *next* potential proc into this round.
+  private static readonly WU_ROUND_MAX_MS = 1000
 
   // Matches the EQ system message printed on every zone transition.
   private static readonly ZONE_ENTER_RE = /^You have entered ([^.]+)\.$/i
+
+  // Mob enrage state messages — not player-sourced, so tracked unconditionally
+  // (like zone changes) regardless of reader mode.
+  private static readonly ENRAGE_START_RE = /^(.+?) has become ENRAGED\.?\s*$/i
+  private static readonly ENRAGE_END_RE   = /^(.+?) is no longer enraged\.?\s*$/i
+
+  // Root/immobilize landed-on-target emotes. Not player-sourced, so tracked
+  // unconditionally (like zone changes and enrage) regardless of reader mode.
+  // Covers every root-family spell's emote text (Ensnaring Roots, Immobilize,
+  // Net, Barbed Chains, etc.) — see spell emote table for the full spell list.
+  private static readonly ROOT_RE = new RegExp(
+    '^(.+?) (?:' + [
+      'is entwined by roots',
+      'adheres to the ground',
+      'turns into a tree',
+      'sinks into the ground',
+      'becomes entwined in roots',
+      "'s image shimmers",
+      'is trapped within a whirling wind',
+      'stumbles',
+      'is stuck to the ground as they begin to regenerate',
+      'is encased in meteor dust',
+      'is wrapped in chains',
+      'is bound, unable to move',
+      'is entrapped by roots',
+      'is entangled by roots',
+      'is entangled by a net',
+      'is entombed by elemental ice',
+      'is crushed to the ground by a massive boulder',
+      'is enveloped in a cloud of noxious spores',
+      'is caught in a shackle',
+      "'s feet are entangled by worms",
+      'is entombed in the earth',
+      'becomes entangled by wormspore tentacles',
+      'is caught in a web of flame',
+      'has been struck by valor',
+      'has been struck back',
+      'is entrapped by the Rathe',
+      'sneezes violently',
+      'sinks into dark sand',
+      "'s legs collapse",
+      "'s body begins to quiver",
+      'is covered in dark sand',
+    ].join('|') + ')[.!]?\\s*$', 'i')
+
+  // Tash line (resist debuff) landed-on-target emote.
+  private static readonly TASH_RE = /^(.+?) glances nervously about\.?\s*$/i
+
+  // Slow-effect landed-on-target emotes. Note "is wrapped in chains" is shared
+  // with a root spell (Barbed Chains / Web of Chain) — ROOT_RE is checked first
+  // so that ambiguous case is reported as a root, matching real game ambiguity.
+  private static readonly SLOW_RE = new RegExp(
+    '^(.+?) (?:' + [
+      'slows down',
+      'yawns',
+      'is bound by strands of solid music',
+      'is surrounded by chains of music',
+      'is bound by chords of music',
+      'is encased in water',
+      "'s body begins to rot",
+      'is slowed by the freezing blast',
+      "'s veins have been filled with deadly poison",
+      "'s wounds begin to heal",
+      'looks dazed',
+      'is struck by an enormous comet',
+      'has been crippled by a deadly strike',
+      "'s skin begins to melt into black decay",
+      'is wrapped in chains',
+      'has fallen to the will of the crusader',
+      'looks lethargic',
+      'is wracked by the chill of unlife',
+      'falls into a state of torpor',
+      'has been deafened',
+      'is bound by silver strands of music',
+      "'s muscles lock",
+      'is slowed by the embracing earth',
+      'is crushed by a wall of water',
+      'is slowed by the mist of the seas',
+      'looks sad',
+      'is slowed by the Bane of Thule',
+      'is drenched in green slime',
+      'is entrapped by living shadows',
+      "'s knees buckle",
+      'has been numbed with cold',
+      'is encased in a static pulse',
+      'staggers around shivering',
+      'has been struck by a huge frozen arrow',
+      "'s motions slow as a plague of insects chews at their skin",
+      'is hindered by a shackle of bone',
+      'is hindered by a shackle of spirit',
+      'feels lethargic',
+      'is wracked by the vengeance of Sha',
+      'is doused in fungal fluids',
+      'chokes on poison gas',
+      'is stricken by the curse of Xerkizh the Creator',
+      'loses their fighting edge',
+      'has been slowed',
+      'is slashed by shards of ice',
+      'is surrounded by an icy mist',
+      "'s rhythm slows",
+      'begins to move very slowly',
+      'is surrounded by spirits of the air',
+      'has been judged by the elements',
+      'has been poisoned',
+      'feels very sleepy',
+      'is pierced by glass',
+      'screams in unbearable terror',
+      "'s body is covered in a brown mist",
+      'falls into a state of stoicism',
+      'is surrounded by raging water',
+      "'s mind and body slow",
+      'trembles in agony',
+      'is wrapped in the curse of inevitability',
+      'looks panicked and gasps for breath',
+      'is covered in thin ice',
+      'is covered in thick ice',
+    ].join('|') + ')[.!]?\\s*$', 'i')
+
+  // Snare-effect landed-on-target emotes. Several of these emote strings are
+  // also used by slow spells (e.g. "'s knees buckle.", "looks lethargic.") —
+  // SLOW_RE is checked first, so an ambiguous line reports as SLOWED, matching
+  // real game ambiguity (the text alone can't distinguish the two spells).
+  private static readonly SNARE_RE = new RegExp(
+    '^(.+?) (?:' + [
+      'has been ensnared',
+      'is surrounded by darkness',
+      'is engulfed by darkness',
+      'is bound by strands of force',
+      'is surrounded by chains of music',
+      'has been poisoned',
+      'is encased in water',
+      "'s body burns as the acid hits them",
+      'is engulfed by inescapable darkness',
+      'is covered in oil',
+      'is covered in putrid webbing',
+      'takes a deep slice to the leg',
+      'has been covered in duboes',
+      'has been plagued',
+      'pores are filled with puss',
+      'has been overcome by a foul stench',
+      'is wrapped in chains',
+      'has been cursed by the spirits of the shrine',
+      'screams as poison burns their veins',
+      "'s knees buckle",
+      'looks lethargic',
+      'is engulfed in a blinding rage',
+      'cries out as they are assaulted by a storm of Locusts',
+      'falls into a state of torpor',
+      'is engulfed in devouring darkness',
+      'is shackled to the ground',
+      'is bound by strands of solid music',
+      'is bound by silver strands of music',
+      'is dragged down by dark vines',
+      'is covered in fungus',
+      "'s muscles lock",
+      'is gripped by shadows of fear and terror',
+      'has been snared by vines of kelp',
+      'spasms violently',
+      'is covered in a poisoned web',
+      'is drenched in green slime',
+      'is entrapped by living shadows',
+      'staggers around shivering',
+      'grows pale',
+      'appears very pale',
+      'has been struck by a huge frozen arrow',
+      "'s body is pelted by spores",
+      "'s movements slow as their feet are covered in tangling weeds",
+      'is engulfed in an embracing darkness',
+      'is engulfed by a festering darkness',
+      'starts to sink as a pool of quicksand opens beneath them',
+      'is entangled in a barbed fishing net',
+      "'s legs are slammed by a large rock",
+      'is pelted by a cloud of gravel',
+      'is blasted by raw energy',
+      'is caught in a net of fungus',
+      'is pelted by a cloud of pebbles',
+      'is engulfed by horrific darkness',
+      'is covered in a plagued web',
+      'has been hobbled by the spirit of the swamp',
+      "'s body is gripped in unlife",
+      'falls into a state of stoicism',
+      'is surrounded by raging water',
+      'has been cursed by the souls of the dead',
+      'has been frozen in fear',
+      "'s body is assaulted by a black plague",
+      'is covered in oozing pus',
+    ].join('|') + ')[.!]?\\s*$', 'i')
 
   private crushHitRe:    RegExp[]
   private crushMissRe:   RegExp[]
@@ -272,11 +465,20 @@ export class LogReader {
   }
 
   /** Buffers a monk special attack and (re)arms the flush timer for the current Wu round. */
-  private trackWuRound(hit: { skill: string; hit: boolean; damage: number; target?: string }): void {
+  private trackWuRound(hit: { skill: string; hit: boolean; damage: number; target?: string }, now: number): void {
+    if (this.wuBuffer.length === 0) {
+      this.wuRoundStart = now
+    } else if (now - this.wuRoundStart >= LogReader.WU_ROUND_MAX_MS) {
+      // This round already ran its full 1s span — whatever's buffered is done;
+      // this hit belongs to a new (potential) round, not a carried-over one.
+      this.flushWuRound()
+      this.wuRoundStart = now
+    }
     if (hit.target) this.wuTarget = hit.target
     this.wuBuffer.push(hit)
     if (this.wuTimer) clearTimeout(this.wuTimer)
-    this.wuTimer = setTimeout(() => this.flushWuRound(), LogReader.WU_ROUND_WINDOW_MS)
+    const remaining = Math.max(0, LogReader.WU_ROUND_MAX_MS - (now - this.wuRoundStart))
+    this.wuTimer = setTimeout(() => this.flushWuRound(), Math.min(LogReader.WU_ROUND_WINDOW_MS, remaining))
   }
 
   /** Emits WU_PROC if the buffered round contains more than one monk special
@@ -329,6 +531,46 @@ export class LogReader {
       return
     }
 
+    // ── Mob enrage state — tracked in every mode, same as zone changes ──
+    const enrageStart = LogReader.ENRAGE_START_RE.exec(content)
+    if (enrageStart) {
+      this.emit({ type: EvType.MOB_ENRAGED, ts: now, data: { mobName: enrageStart[1].trim() } })
+      return
+    }
+    const enrageEnd = LogReader.ENRAGE_END_RE.exec(content)
+    if (enrageEnd) {
+      this.emit({ type: EvType.MOB_UNENRAGED, ts: now, data: { mobName: enrageEnd[1].trim() } })
+      return
+    }
+
+    // ── Root/immobilize landed-on-target — tracked in every mode, same as enrage ──
+    const rootMatch = LogReader.ROOT_RE.exec(content)
+    if (rootMatch) {
+      this.emit({ type: EvType.MOB_ROOTED, ts: now, data: { mobName: rootMatch[1].trim() } })
+      return
+    }
+
+    // ── Tash line landed-on-target — tracked in every mode, same as root ──
+    const tashMatch = LogReader.TASH_RE.exec(content)
+    if (tashMatch) {
+      this.emit({ type: EvType.MOB_TASHED, ts: now, data: { mobName: tashMatch[1].trim() } })
+      return
+    }
+
+    // ── Slow effect landed-on-target — tracked in every mode, same as root ──
+    const slowMatch = LogReader.SLOW_RE.exec(content)
+    if (slowMatch) {
+      this.emit({ type: EvType.MOB_SLOWED, ts: now, data: { mobName: slowMatch[1].trim() } })
+      return
+    }
+
+    // ── Snare effect landed-on-target — tracked in every mode, same as slow ──
+    const snareMatch = LogReader.SNARE_RE.exec(content)
+    if (snareMatch) {
+      this.emit({ type: EvType.MOB_SNARED, ts: now, data: { mobName: snareMatch[1].trim() } })
+      return
+    }
+
     // ── Weapon track — BW2H / BWOH work standalone in any channel ──
     // Checked before missOnly so it works in hybrid mode too.
     const m2h = /\bBW2H\s+(.+)/i.exec(content)
@@ -350,7 +592,7 @@ export class LogReader {
       // Wu round probe — checked first since generic "strike"/"claw" verbs would
       // otherwise be consumed by the fist-hit branch below before ever being seen.
       const monkDO = this.classifyMonkSpecial(content)
-      if (monkDO) this.trackWuRound(monkDO)
+      if (monkDO) this.trackWuRound(monkDO, now)
 
       // Ripostes → misc damage (player-sourced only)
       if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
@@ -571,7 +813,7 @@ export class LogReader {
     // "claw" verbs would otherwise be consumed by the fist-hit branch before
     // ever being seen here.
     const monk = this.classifyMonkSpecial(content)
-    if (monk) this.trackWuRound(monk)
+    if (monk) this.trackWuRound(monk, now)
 
     // ── Normal mainhand/offhand swing detection — suppressed entirely in Rogue Mode ──
     if (!this.cfg.ROGUE_MODE_ENABLED) {
