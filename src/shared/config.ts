@@ -384,8 +384,10 @@ export const Config = {
   // Riposte lines must be checked first — they can match crush/fist patterns
   // but are not normal swing-timer events and would corrupt interval tracking.
   RIPOSTE_PATTERNS:      ['^You riposte\\b'],
-  FIST_HIT_PATTERNS:     ['^You (?:punch|strike)\\b'],
-  FIST_MISS_PATTERNS:    ['^You try to (?:punch|strike)\\b', '^You attempt to (?:punch|strike)\\b'],
+  // "hit" is included because fire/water/air elemental illusions replace the
+  // H2H skill verb (punch/strike) with the race's generic "hit" text.
+  FIST_HIT_PATTERNS:     ['^You (?:punch|strike|hit)\\b'],
+  FIST_MISS_PATTERNS:    ['^You try to (?:punch|strike|hit)\\b', '^You attempt to (?:punch|strike|hit)\\b'],
   // Damage sources counted toward net DPS but not swing-timer events.
   // Kick variants: hits count as MISC_DAMAGE, misses are consumed silently (damage=0 → no emit).
   FLYING_KICK_PATTERNS:  [
@@ -420,18 +422,20 @@ export const Config = {
   // Avatar (any tier: Avatar / Primal Avatar / Ancient: Ferine Avatar)
   AVATAR_GAINED_PATTERNS: [
     'Your body screams with the power of an [Aa]vatar',
-    'Your body screams with the power of a feral [Aa]vatar',
+    'Your body screams with the power of a ferine [Aa]vatar',
   ],
   AVATAR_LOST_PATTERNS: [
     '^The Avatar departs\\.',
     '^The ferine Avatar departs\\.',
   ],
-  // Savagery (Beastlord discipline)
+  // Savagery (Beastlord discipline) / Ferocity (Planes of Power upgrade)
   SAVAGERY_GAINED_PATTERNS: [
     'Your lips curl into a feral snarl as you descend into savagery',
+    'Your lips curl into a feral snarl as you descend into ferocity',
   ],
   SAVAGERY_LOST_PATTERNS: [
     '^The savagery fades\\.',
+    '^The ferocity fades\\.',
   ],
   // Innerflame (Monk discipline)
   INNERFLAME_GAINED_PATTERNS: [

@@ -79,19 +79,21 @@ export class LogReader {
 
   // ── Technique of Master Wu detection ──────────────────────────
   // Most EQ servers print no skill name at all for these attacks — just a
-  // generic verb (kick/strike/claw), the same ambiguity called out in this
+  // generic verb (kick/strike/claw/hit), the same ambiguity called out in this
   // feature's original spec. "kick" covers Flying Kick, Round Kick, AND the
   // base Kick skill indistinguishably; "strike" and "claw" are Eagle Strike
-  // and Tiger Claw but also collide with normal fist/offhand verbs. A few
-  // literal multi-word names are kept as a fallback for servers that do
-  // print them. Because of this ambiguity, flushWuRound() additionally
-  // requires a kick-family hit to "anchor" the round (Wu always fires off a
-  // Flying Kick use) before counting it as a proc — see there for why that
-  // keeps an incidental "strike" from a normal swing from being misread.
+  // and Tiger Claw but also collide with normal fist/offhand verbs. "hit" is
+  // the same strike/claw ambiguity again under elemental illusions, which
+  // replace those verbs with the race's generic H2H text. A few literal
+  // multi-word names are kept as a fallback for servers that do print them.
+  // Because of this ambiguity, flushWuRound() additionally requires a
+  // kick-family hit to "anchor" the round (Wu always fires off a Flying Kick
+  // use) before counting it as a proc — see there for why that keeps an
+  // incidental "strike"/"hit" from a normal swing from being misread.
   private static readonly MONK_SPECIAL_HIT_RE =
-    /^You (flying kick|roundkick|eagle strike|tiger claw|kick|strike|claw) (.+?) for (\d+)\s+points? of damage/i
+    /^You (flying kick|roundkick|eagle strike|tiger claw|kick|strike|claw|hit) (.+?) for (\d+)\s+points? of damage/i
   private static readonly MONK_SPECIAL_MISS_RE =
-    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw|kick|strike|claw)\b/i
+    /^You (?:try to|attempt to) (flying kick|roundkick|eagle strike|tiger claw|kick|strike|claw|hit)\b/i
   private static readonly MONK_SKILL_NAMES: Record<string, string> = {
     'flying kick':   'Flying Kick',
     'roundkick':     'Round Kick',
@@ -100,6 +102,7 @@ export class LogReader {
     'kick':          'Kick',
     'strike':        'Strike',
     'claw':          'Claw',
+    'hit':           'Strike',
   }
   // Skills whose presence in a round "anchors" it as a genuine Wu proc — Wu
   // always triggers off a Flying Kick use, so require at least one kick-family
@@ -337,10 +340,16 @@ export class LogReader {
   private noBandolier:     boolean
   private damageOnly:      boolean
 
+  // Note: crush/slash/pierce mainhand swings keep their weapon-skill verb even
+  // under elemental illusions (confirmed from live logs) — only the character's
+  // own H2H attacks (fist/bonus attacks, handled by FIST_HIT_PATTERNS) fall back
+  // to the generic "hit" verb there, so "hit" is intentionally NOT included for
+  // these three. It's kept for punch, where the mainhand *is* H2H and would
+  // otherwise go unrecognized entirely while illusioned.
   private static readonly verbPatterns: Record<string, { hit: string[]; miss: string[] }> = {
-    crush:  { hit: ['^You crush\\b',  '^You hit\\b'],  miss: ['^You try to crush\\b',  '^You attempt to crush\\b',  '^You try to hit\\b', '^You attempt to hit\\b']  },
-    slash:  { hit: ['^You slash\\b',  '^You hit\\b'],  miss: ['^You try to slash\\b',  '^You attempt to slash\\b',  '^You try to hit\\b', '^You attempt to hit\\b']   },
-    pierce: { hit: ['^You pierce\\b', '^You hit\\b'],  miss: ['^You try to pierce\\b', '^You attempt to pierce\\b', '^You try to hit\\b', '^You attempt to hit\\b']  },
+    crush:  { hit: ['^You crush\\b'],  miss: ['^You try to crush\\b',  '^You attempt to crush\\b']  },
+    slash:  { hit: ['^You slash\\b'],  miss: ['^You try to slash\\b',  '^You attempt to slash\\b']   },
+    pierce: { hit: ['^You pierce\\b'], miss: ['^You try to pierce\\b', '^You attempt to pierce\\b']  },
     punch:  { hit: ['^You punch\\b', '^You strike\\b', '^You hit\\b'],
               miss: ['^You try to punch\\b', '^You attempt to punch\\b',
                      '^You try to strike\\b', '^You attempt to strike\\b',

@@ -1258,7 +1258,7 @@ export class HighContrastOverlay {
       ctx.fillRect(buffX, 8, 32, 16)
       ctx.fillStyle = '#fff'
       ctx.textAlign = 'center'
-      ctx.fillText('SAV', buffX + 16, 20)
+      ctx.fillText('Fero', buffX + 16, 20)
       ctx.textAlign = 'left'
       buffX += 36
     }

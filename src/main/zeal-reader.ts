@@ -393,10 +393,14 @@ export class ZealReader {
         this.currentTarget = target
         this.lastAttackTs  = now
 
+        // "hit" is the generic verb elemental illusions (fire/water/air) substitute
+        // for H2H skill text. When the mainhand is itself H2H (punch build), an
+        // illusioned "hit" line is the mainhand swing; otherwise (crush/slash/pierce
+        // mainhand) it's the character's own H2H fist/bonus attack, same as punch/strike.
         const mainhandVerb = this.cfg.MAINHAND_ATTACK_TYPE
         const isMainhand = verb === mainhandVerb ||
-          (mainhandVerb === 'punch' && (verb === 'punch' || verb === 'strike'))
-        const isFist = (verb === 'punch' || verb === 'strike') && !isMainhand
+          (mainhandVerb === 'punch' && (verb === 'punch' || verb === 'strike' || verb === 'hit'))
+        const isFist = (verb === 'punch' || verb === 'strike' || verb === 'hit') && !isMainhand
 
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
@@ -429,7 +433,7 @@ export class ZealReader {
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage, hit: true, line: text } })
         } else {
-          // hit (proc), slash, pierce, bash, or non-mainhand verb → misc damage
+          // non-mainhand slash/pierce/bash, or an actual item proc → misc damage
           if (damage > 0)
             this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
         }

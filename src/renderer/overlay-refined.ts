@@ -1342,11 +1342,11 @@ export class RefinedOverlay {
       buffX += bw + 4
     }
     if (this.savageryActive) {
-      const bw = ctx.measureText('SAV').width + 10
+      const bw = ctx.measureText('Fero').width + 10
       ctx.fillStyle = this.rgba('#f97316', 0.18)
       this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()
       ctx.fillStyle = '#f97316'
-      ctx.fillText('SAV', buffX + 5, 12)
+      ctx.fillText('Fero', buffX + 5, 12)
       buffX += bw + 4
     }
     if (this.innerflameUntil > 0 && now() < this.innerflameUntil) {
