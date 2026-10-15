@@ -419,10 +419,11 @@ export const Config = {
   // Mob-death patterns — trigger grade screen + end-combat sound
   MOB_DEATH_PATTERNS: [] as string[],   // handled in code, not regex
   // ── Buff tracking patterns ────────────────────────────────────
-  // Avatar (any tier: Avatar / Primal Avatar / Ancient: Ferine Avatar)
+  // Avatar (any tier: Avatar / Primal Avatar / Ancient: Ferine Avatar / Ancient: Feral Avatar)
   AVATAR_GAINED_PATTERNS: [
     'Your body screams with the power of an [Aa]vatar',
     'Your body screams with the power of a ferine [Aa]vatar',
+    'Your body screams with the power of a feral [Aa]vatar',
   ],
   AVATAR_LOST_PATTERNS: [
     '^The Avatar departs\\.',
