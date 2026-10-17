@@ -35,6 +35,7 @@ export interface GradeResult {
   avgReactionMs: number | null  // ms from mainhand crush to first fist attempt, per round
   outOfRangeMs: number  // ms accumulated out-of-range during the fight
   engagedMs: number     // ms actually in melee range (fightDuration - outOfRangeMs)
+  bestOneSecondDamage: number  // highest total damage dealt in any rolling 1s window
 }
 
 const GRADE_THRESHOLDS: Array<[number, string]> = [
@@ -372,6 +373,27 @@ export class RhythmEngine {
   }
 
   /**
+   * Highest total damage dealt within any rolling `windowMs` window of the
+   * fight — i.e. best burst damage. Computed via a sliding-window sum over
+   * the raw (unbucketed) damage log, so it isn't diluted by second-boundary
+   * bucketing the way getDpsSamples() is.
+   */
+  getBestWindowDamage(windowMs = 1000): number {
+    if (this.damageLog.length === 0) return 0
+    const log = [...this.damageLog].sort((a, b) => a[0] - b[0])
+    let best = 0, sum = 0, left = 0
+    for (let right = 0; right < log.length; right++) {
+      sum += log[right][1]
+      while (log[left][0] < log[right][0] - windowMs) {
+        sum -= log[left][1]
+        left++
+      }
+      if (sum > best) best = sum
+    }
+    return best
+  }
+
+  /**
    * Score a weapon-swap attempt (mouse click or SPACE).
    * Returns ['HIT', pts] | [null, 0]
    */
@@ -543,7 +565,8 @@ export class RhythmEngine {
       weaveAttempts: this.fistAttemptCount, weaveLanded: this.fistAttackCount,
       totalFistDamage: this.totalFistDamage, fightDuration, addedDps, totalDps,
       totalDamage: this.totalMeleeDamage, avgReactionMs,
-      keystrokeGrading: useKeystroke, outOfRangeMs, engagedMs }
+      keystrokeGrading: useKeystroke, outOfRangeMs, engagedMs,
+      bestOneSecondDamage: this.getBestWindowDamage(1000) }
   }
 
   // ── Internal ─────────────────────────────────────────────────

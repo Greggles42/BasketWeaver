@@ -879,11 +879,21 @@ async function init(): Promise<void> {
 
   // ── Rogue Mode ───────────────────────────────────────────────
   setupToggle('rogueModeEnabled', 'ROGUE_MODE_ENABLED', s.ROGUE_MODE_ENABLED as boolean)
+  setupToggle('rogueMaxHitTrackingEnabled', 'ROGUE_MAX_HIT_TRACKING_ENABLED', s.ROGUE_MAX_HIT_TRACKING_ENABLED as boolean)
   const rogueBackstabSetNameEl = document.getElementById('rogueBackstabSetName') as HTMLInputElement | null
   if (rogueBackstabSetNameEl) {
     rogueBackstabSetNameEl.value = (s.ROGUE_BACKSTAB_SET_NAME as string) ?? 'backstab'
     rogueBackstabSetNameEl.addEventListener('change', () => {
       window.settingsAPI.setSetting('ROGUE_BACKSTAB_SET_NAME', rogueBackstabSetNameEl.value.trim())
+    })
+  }
+  const rogueBackstabWindowEl = document.getElementById('rogueBackstabWindowMs') as HTMLInputElement | null
+  if (rogueBackstabWindowEl) {
+    rogueBackstabWindowEl.value = String(s.ROGUE_BACKSTAB_WINDOW_MS ?? 300)
+    rogueBackstabWindowEl.addEventListener('change', () => {
+      const v = Math.min(800, Math.max(100, parseInt(rogueBackstabWindowEl.value, 10) || 300))
+      rogueBackstabWindowEl.value = String(v)
+      window.settingsAPI.setSetting('ROGUE_BACKSTAB_WINDOW_MS', v)
     })
   }
 

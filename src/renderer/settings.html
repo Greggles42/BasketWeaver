@@ -730,10 +730,15 @@
       </div>
       <div class="checkbox-grid">
         <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking) <span style="color:#e0a855;font-size:10px;font-weight:600">(Alpha)</span></label>
+        <label data-tip="Flags a backstab as a new max hit when it's the hardest one landed this session with the currently-equipped weapon, and shows a banner for it. Tracked per weapon name, reset on app restart."><input type="checkbox" id="rogueMaxHitTrackingEnabled" /> Track Max Hit Per Weapon</label>
       </div>
       <div class="row" style="margin-top:6px" data-tip="Bandolier set name (or substring) that identifies your backstab weapon set — must match what you named it via /bandolier. Used to prompt weapon swaps and to know when you've swapped in/out.">
         <label for="rogueBackstabSetName">Backstab Set Name</label>
         <input type="text" id="rogueBackstabSetName" placeholder="backstab" style="flex:1" />
+      </div>
+      <div class="row" style="margin-top:6px" data-tip="Width of the red backstab weave-window box drawn around the target marker — how wide the 'use it now' timing window appears.">
+        <label for="rogueBackstabWindowMs">Backstab Weave Window <span class="hint">(ms)</span></label>
+        <input type="number" id="rogueBackstabWindowMs" min="100" max="800" step="25" style="width:80px" />
       </div>
     </div>
 

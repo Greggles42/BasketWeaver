@@ -98,7 +98,7 @@ function render(): void {
   statusText.textContent = `${rows.length} record${rows.length !== 1 ? 's' : ''} (${allRecords.length} total)`
 
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="19" class="empty">No records match the current filters.</td></tr>'
+    tbody.innerHTML = '<tr><td colspan="20" class="empty">No records match the current filters.</td></tr>'
     return
   }
 
@@ -139,6 +139,7 @@ function render(): void {
       <td>${r.totalRounds}</td>
       <td>${(r.pctInGreen * 100).toFixed(0)}%</td>
       <td>${escHtml(r.characterName || '—')}</td>
+      <td>${escHtml(r.characterClass || '—')}</td>
       <td>${fmtDate(r.timestamp)}</td>
       <td><button class="upload-btn ${uploadClass}" data-upload="${escHtml(r.id)}"${uploadTitle}>${uploadLabel}</button></td>
     </tr>`

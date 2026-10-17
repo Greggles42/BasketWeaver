@@ -409,7 +409,15 @@ export class ZealReader {
         }
 
         if (isMainhand) {
-          if (this.cfg.ROGUE_MODE_ENABLED) return
+          if (this.cfg.ROGUE_MODE_ENABLED) {
+            // Standard melee swing — counts toward net DPS same as a spell
+            // proc; no weave/swing-timer state applies in Rogue Mode. Harmless
+            // in hybrid mode, where forwardZealEvent suppresses MISC_DAMAGE
+            // from Zeal and the damageOnly log reader is the authoritative source.
+            this.lastCrushHitTs = now
+            if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+            return
+          }
           this.lastCrushHitTs = now
           if (this.cfg.WEAVE_BANDOLIER_ACTIVE) {
             this.emit({ type: EvType.FIST_ATTACK, ts: now,
@@ -419,7 +427,11 @@ export class ZealReader {
               data: { damage, hit: true, line: text, target } })
           }
         } else if (isFist) {
-          if (this.cfg.ROGUE_MODE_ENABLED) return
+          if (this.cfg.ROGUE_MODE_ENABLED) {
+            this.lastFistHitTs = now
+            if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+            return
+          }
           this.lastFistHitTs = now
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage, hit: true, line: text } })

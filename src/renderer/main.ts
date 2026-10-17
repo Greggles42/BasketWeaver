@@ -24,7 +24,7 @@ declare global {
       onTogglePin:              (cb: () => void) => void
       onClearBuffs:             (cb: () => void) => void
       onToggleBuffSound:        (cb: () => void) => void
-      onToggleRogueMode:        (cb: () => void) => void
+      onToggleRogueMode:        (cb: (enabled: boolean) => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       onSetVolumes:           (cb: (master: number, proc: number, epic: number, wu: number, debounceMs: number) => void) => void
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number, wuChance: number, wuDamageThreshold: number) => void) => void
@@ -36,6 +36,7 @@ declare global {
       onSetDebuffAudioDebounce:      (cb: (ms: { root: number; tash: number; slow: number; snare: number; enrage: number }) => void) => void
       onSetKeystrokeGrading:         (cb: (enabled: boolean) => void) => void
       onSetWeaveWindowMs:            (cb: (ms: number) => void) => void
+      onSetRogueBackstabWindowMs:    (cb: (ms: number) => void) => void
       onSetDwRollFailDelayMs:        (cb: (ms: number) => void) => void
       onSetInferredDwChecks:         (cb: (enabled: boolean) => void) => void
       onSetPunchInterval:            (cb: (interval: number) => void) => void
@@ -154,7 +155,10 @@ window.electronAPI.onToggleBuffSound(() => {
   audio.buffSoundEnabled = !audio.buffSoundEnabled
 })
 
-window.electronAPI.onToggleRogueMode(() => overlay.resetRogueMode())
+window.electronAPI.onToggleRogueMode((enabled) => {
+  Config.ROGUE_MODE_ENABLED = enabled
+  overlay.resetRogueMode()
+})
 
 window.electronAPI.onTogglePin(() => {
   overlay.pinned = !overlay.pinned
@@ -213,6 +217,10 @@ window.electronAPI.onSetDebuffAudioDebounce((ms) => {
 
 window.electronAPI.onSetWeaveWindowMs((ms) => {
   Config.WEAVE_WINDOW_MS = ms
+})
+
+window.electronAPI.onSetRogueBackstabWindowMs((ms) => {
+  Config.ROGUE_BACKSTAB_WINDOW_MS = ms
 })
 
 window.electronAPI.onSetDwRollFailDelayMs((ms) => {

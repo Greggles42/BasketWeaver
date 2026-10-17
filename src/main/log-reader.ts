@@ -618,9 +618,10 @@ export class LogReader {
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'backstab' } })
         return
       }
-      // Mainhand crush hit (may be DW offhand) — suppressed in Rogue Mode
+      // Mainhand crush hit (may be DW offhand) — counts as standard melee
+      // damage toward Rogue net DPS (source tag is irrelevant to the overlay
+      // in Rogue Mode; it sums every non-backstab source into net DPS).
       if (this.crushHitRe.some(r => r.test(content))) {
-        if (this.cfg.ROGUE_MODE_ENABLED) return
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
         const damage = parseDamage(content)
         if (bandolierWeave || (this.offhandCrushPending && now < this.offhandCrushExpiry)) {
@@ -635,16 +636,14 @@ export class LogReader {
         }
         return
       }
-      // Fist hit — suppressed in Rogue Mode
+      // Fist hit — standard melee damage (dual-wield offhand swing)
       if (this.fistHitRe.some(r => r.test(content))) {
-        if (this.cfg.ROGUE_MODE_ENABLED) return
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
         return
       }
-      // Non-punch bandolier weave hit — suppressed in Rogue Mode
+      // Non-punch bandolier weave hit — standard melee damage
       if (this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveHitRe.test(content)) {
-        if (this.cfg.ROGUE_MODE_ENABLED) return
         const damage = parseDamage(content)
         if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'fist' } })
         return
@@ -823,6 +822,23 @@ export class LogReader {
     // ever being seen here.
     const monk = this.classifyMonkSpecial(content)
     if (monk) this.trackWuRound(monk, now)
+
+    // ── Standard melee swing (Rogue Mode) — no weave/swing-timer state, just
+    // count the damage toward net DPS via MISC_DAMAGE, same bucket as spell procs. ──
+    if (this.cfg.ROGUE_MODE_ENABLED) {
+      if (this.crushHitRe.some(r => r.test(content)) || this.fistHitRe.some(r => r.test(content))) {
+        this.ensureCombat(now)
+        const tm = LogReader.TARGET_RE.exec(content)
+        if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+        return
+      }
+      if (this.crushMissRe.some(r => r.test(content)) || this.fistMissRe.some(r => r.test(content))) {
+        this.ensureCombat(now)
+        return
+      }
+    }
 
     // ── Normal mainhand/offhand swing detection — suppressed entirely in Rogue Mode ──
     if (!this.cfg.ROGUE_MODE_ENABLED) {

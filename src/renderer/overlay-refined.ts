@@ -41,6 +41,8 @@ const PAL = {
   hitFlash:     '#ffe678',
   weaveFill:    'rgba(90,235,150,',   // append "<a>)"
   weaveStroke:  'rgba(160,255,200,',
+  backstabFill:   'rgba(220,40,40,',   // append "<a>)" — rogue-mode backstab weave window
+  backstabStroke: 'rgba(255,90,70,',
   swingBar:     'rgba(255,140,30,',
   combat:       '#ff7d3b',
   result:       '#ffd700',
@@ -53,6 +55,21 @@ const PAL = {
 }
 
 const now = () => performance.now()
+
+/** Highest total damage within any rolling `windowMs` window of a
+ *  [elapsedMs, damage] log — used for the Rogue Mode "best burst" stat
+ *  (mirrors RhythmEngine.getBestWindowDamage for the monk-mode equivalent). */
+function bestWindowDamage(log: Array<[number, number]>, windowMs = 1000): number {
+  if (log.length === 0) return 0
+  const sorted = [...log].sort((a, b) => a[0] - b[0])
+  let best = 0, sum = 0, left = 0
+  for (let right = 0; right < sorted.length; right++) {
+    sum += sorted[right][1]
+    while (sorted[left][0] < sorted[right][0] - windowMs) { sum -= sorted[left][1]; left++ }
+    if (sum > best) best = sum
+  }
+  return best
+}
 
 // Audio debounce keys for the debuff alert sounds — cleared on mob death /
 // combat end so the next encounter's first alert always plays.
@@ -112,6 +129,7 @@ interface RogueSummaryResult {
   backstabDps: number
   hits: number
   misses: number
+  bestOneSecondDamage: number
 }
 
 class RogueSummaryScreen {
@@ -177,6 +195,15 @@ export class RefinedOverlay {
   private rogueBackstabHits = 0
   private rogueBackstabMisses = 0
   private rogueSummaryScreen: RogueSummaryScreen | null = null
+  /** [elapsedMs since rogueFightStartTs, damage] pairs, for the best-1s-burst stat. */
+  private rogueDamageLog: Array<[number, number]> = []
+  /** Timestamp (performance.now()) of the last landed backstab — used to detect
+   *  a double backstab (two landed hits in quick succession) and to attribute a
+   *  CRIT_HIT to a backstab rather than a standard swing. */
+  private lastBackstabHitTs = 0
+  /** Highest single backstab hit recorded this session, per weapon name.
+   *  Session-scoped (not persisted) — resets on app restart, not per-fight. */
+  private rogueBackstabMaxByWeapon: Map<string, number> = new Map()
   private dpsDisplayTotal   = 0
   private dpsDisplayFist    = 0
   private dpsLastUpdate     = 0
@@ -337,6 +364,7 @@ export class RefinedOverlay {
             this.rogueBackstabDamageTotal = 0
             this.rogueBackstabHits = 0
             this.rogueBackstabMisses = 0
+            this.rogueDamageLog = []
             this.backstab.onCombatStart()
             this.audio.play('combat_start')
             this.rogueSummaryScreen = null
@@ -507,6 +535,7 @@ export class RefinedOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         if (this.cfg.ROGUE_MODE_ENABLED) {
           this.rogueDamageTotal += damage
+          if (damage > 0) this.rogueDamageLog.push([now() - this.rogueFightStartTs, damage])
         } else {
           this.rhythm.onMiscDamage(damage)
         }
@@ -525,11 +554,13 @@ export class RefinedOverlay {
             this.rogueBackstabDamageTotal = 0
             this.rogueBackstabHits = 0
             this.rogueBackstabMisses = 0
+            this.rogueDamageLog = []
             this.backstab.onCombatStart()
           }
           this.lastCombatActivity = lgNow
           this.rogueDamageTotal += damage
           if (source === 'backstab') this.rogueBackstabDamageTotal += damage
+          if (damage > 0) this.rogueDamageLog.push([lgNow - this.rogueFightStartTs, damage])
           break
         }
         this.rhythm.onReturnInRange(lgNow)
@@ -564,6 +595,7 @@ export class RefinedOverlay {
           this.rogueBackstabDamageTotal = 0
           this.rogueBackstabHits = 0
           this.rogueBackstabMisses = 0
+          this.rogueDamageLog = []
           this.backstab.onCombatStart()
         }
         this.backstab.onBackstabAttack(bsNow)
@@ -573,7 +605,29 @@ export class RefinedOverlay {
           if (damage > 0) {
             this.rogueDamageTotal += damage
             this.rogueBackstabDamageTotal += damage
+            this.rogueDamageLog.push([bsNow - this.rogueFightStartTs, damage])
+
+            // Max-hit tracking: was this the hardest backstab landed this
+            // session with the currently-equipped weapon? User-togglable in Settings.
+            if (this.cfg.ROGUE_MAX_HIT_TRACKING_ENABLED) {
+              const weaponKey = this.lastKnownMainhand || 'Unknown'
+              const prevMax = this.rogueBackstabMaxByWeapon.get(weaponKey) ?? 0
+              if (damage >= prevMax) {
+                this.rogueBackstabMaxByWeapon.set(weaponKey, damage)
+                this.banners.push(new Banner('MAX HIT', '#ffd700', 2500, damage.toLocaleString()))
+              }
+            }
           }
+          // Double backstab: two landed hits close enough together that they can
+          // only be the same instantaneous proc, not two separate cooldown cycles.
+          // Reuses the Technique of Master Wu proc indicator by the target icon
+          // (visual only — no audio cue for this one).
+          if (this.lastBackstabHitTs > 0 && bsNow - this.lastBackstabHitTs < 200) {
+            this.wuProcFlash = 1
+            this.wuProcLabel = 'Double Backstab'
+            this.wuProcSub   = damage.toLocaleString()
+          }
+          this.lastBackstabHitTs = bsNow
           this.hitFlash = 1
           const [hzx, hzy] = this.hzCenter()
           this.spawnParticles(hzx, hzy)
@@ -722,13 +776,18 @@ export class RefinedOverlay {
         const damage = (ev.data?.damage as number) ?? 0
         const target = (ev.data?.target as string) || this.currentTarget
         const big = damage > this.cfg.CRIT_DAMAGE_THRESHOLD
+        // A crit notification line immediately follows the backstab damage
+        // line in the log, so a crit arriving right after a landed backstab
+        // is that backstab critting — distinguish it from a standard-swing crit.
+        const isBackstabCrit = this.cfg.ROGUE_MODE_ENABLED &&
+          this.lastBackstabHitTs > 0 && now() - this.lastBackstabHitTs < 400
         if (big) {
           this.audio.playFileSound('epic', true)
           this.banners.push(new Banner('Monster Crit', '#ff4444', 3000, damage.toLocaleString()))
           this.recordHit(this.topCrits, damage, target)
         } else if (this.cfg.SHOW_ALL_CRITS) {
           this.audio.playFileSound('hit_tick', true)
-          this.banners.push(new Banner('Crit', '#ffffff', 2000, damage.toLocaleString()))
+          this.banners.push(new Banner('Crit', isBackstabCrit ? '#ff4444' : '#ffffff', 2000, damage.toLocaleString()))
         }
         break
       }
@@ -884,6 +943,7 @@ export class RefinedOverlay {
     this.rogueBackstabDamageTotal = 0
     this.rogueBackstabHits = 0
     this.rogueBackstabMisses = 0
+    this.rogueDamageLog = []
     this.rogueSummaryScreen = null
     this.backstab = new BackstabTimer(this.cfg.ROGUE_SWAP_WARN_MS)
   }
@@ -901,6 +961,7 @@ export class RefinedOverlay {
       backstabDps: this.rogueBackstabDamageTotal / seconds,
       hits:        this.rogueBackstabHits,
       misses:      this.rogueBackstabMisses,
+      bestOneSecondDamage: bestWindowDamage(this.rogueDamageLog, 1000),
     })
   }
 
@@ -953,6 +1014,7 @@ export class RefinedOverlay {
       id:                       crypto.randomUUID(),
       timestamp:                Date.now(),
       characterName:            this.cfg.LEADERBOARD_CHARACTER_NAME,
+      characterClass:           this.cfg.ROGUE_MODE_ENABLED ? 'Rogue' : 'Monk',
       serverName:               'Project Quarm',
       appVersion:               '',   // stamped authoritatively by the main process
       weapons: {
@@ -1162,9 +1224,15 @@ export class RefinedOverlay {
     if (this.rogueSummaryScreen?.expired) this.rogueSummaryScreen = null
 
     // DPS
-    if (!this.cfg.ROGUE_MODE_ENABLED && t - this.dpsLastUpdate >= 250) {
-      this.dpsDisplayTotal   = Math.trunc(this.rhythm.liveTotalDps)
-      this.dpsDisplayFist    = Math.trunc(this.rhythm.liveDps)
+    if (t - this.dpsLastUpdate >= 250) {
+      if (this.cfg.ROGUE_MODE_ENABLED) {
+        const elapsed = this.rogueInCombat ? Math.max(0.001, (t - this.rogueFightStartTs) / 1000) : 0
+        this.dpsDisplayTotal = elapsed > 0 ? Math.trunc(this.rogueDamageTotal / elapsed) : 0
+        this.dpsDisplayFist  = elapsed > 0 ? Math.trunc(this.rogueBackstabDamageTotal / elapsed) : 0
+      } else {
+        this.dpsDisplayTotal = Math.trunc(this.rhythm.liveTotalDps)
+        this.dpsDisplayFist  = Math.trunc(this.rhythm.liveDps)
+      }
       this.dpsLastUpdate = t
     }
   }
@@ -1317,9 +1385,9 @@ export class RefinedOverlay {
     const nameW = ctx.measureText(this.charName || '—').width
     const pillX = Math.max(58, Math.ceil(nameW) + 18)
 
-    const phase = this.rhythm.inCombat
+    const phase = this.inCombat
       ? (this.fistOnlyMode ? 'WAITING' : 'COMBAT')
-      : this.gradeScreen ? 'RESULT' : 'IDLE'
+      : (this.gradeScreen || this.rogueSummaryScreen) ? 'RESULT' : 'IDLE'
     const color = phase === 'COMBAT' ? PAL.combat
       : phase === 'WAITING'  ? '#38bdf8'
       : phase === 'RESULT' ? PAL.result : PAL.idle
@@ -1330,8 +1398,20 @@ export class RefinedOverlay {
     ctx.fillStyle = color
     ctx.fillText(phase, pillX + 6, 12)
 
+    // Rogue Mode indicator — sits right after the phase pill, before buff icons
+    let afterPhaseX = pillX + pw + 5
+    if (this.cfg.ROGUE_MODE_ENABLED) {
+      const rogLabel = 'ROG'
+      const rw = ctx.measureText(rogLabel).width + 10
+      ctx.fillStyle = this.rgba('#ff4d4d', 0.18)
+      this.roundRect(afterPhaseX, 5, rw, 14, 7); ctx.fill()
+      ctx.fillStyle = '#ff4d4d'
+      ctx.fillText(rogLabel, afterPhaseX + 5, 12)
+      afterPhaseX += rw + 4
+    }
+
     // Buff indicators (Avatar, Savagery)
-    let buffX = pillX + pw + 5
+    let buffX = afterPhaseX
     ctx.font = '600 9px "JetBrains Mono", monospace'
     if (this.avatarActive) {
       const bw = ctx.measureText('AVT').width + 10
@@ -1412,16 +1492,25 @@ export class RefinedOverlay {
 
     const fy = h - FOOTER_H / 2
 
-    // Four categories centered in four equal columns, evenly spaced across
-    // the footer: WEAVES, AC, NET DPS, WEAVED DPS.
+    // Four categories centered in four equal columns, evenly spaced across the footer.
     const targetAc = lookupMobAc(this.currentTarget)
     const acVal = targetAc === 'ambiguous' ? '--*' : targetAc !== undefined ? `${targetAc}` : '--'
 
-    this.drawFooterStatAt(10, fy, 'WEAVES',
-      `${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, PAL.text)
-    this.drawFooterStat(w * (5 / 16), fy, 'AC', acVal, PAL.text)
-    this.drawFooterStat(w * (9 / 16), fy, 'NET DPS', `${this.dpsDisplayTotal}`, PAL.text)
-    this.drawFooterStat(w * (7 / 8), fy, 'WEAVED DPS', `+${this.dpsDisplayFist}`, PAL.weaveText)
+    if (this.cfg.ROGUE_MODE_ENABLED) {
+      // BACKSTABS, AC, NET DPS, BACKSTAB DPS
+      const attempts = this.rogueBackstabHits + this.rogueBackstabMisses
+      this.drawFooterStatAt(10, fy, 'BACKSTABS', `${this.rogueBackstabHits}/${attempts}`, PAL.text)
+      this.drawFooterStat(w * (5 / 16), fy, 'AC', acVal, PAL.text)
+      this.drawFooterStat(w * (9 / 16), fy, 'NET DPS', `${this.dpsDisplayTotal}`, PAL.text)
+      this.drawFooterStat(w * (7 / 8), fy, 'BACKSTAB DPS', `${this.dpsDisplayFist}`, PAL.hitZone)
+    } else {
+      // WEAVES, AC, NET DPS, WEAVED DPS
+      this.drawFooterStatAt(10, fy, 'WEAVES',
+        `${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`, PAL.text)
+      this.drawFooterStat(w * (5 / 16), fy, 'AC', acVal, PAL.text)
+      this.drawFooterStat(w * (9 / 16), fy, 'NET DPS', `${this.dpsDisplayTotal}`, PAL.text)
+      this.drawFooterStat(w * (7 / 8), fy, 'WEAVED DPS', `+${this.dpsDisplayFist}`, PAL.weaveText)
+    }
 
     ctx.textAlign = 'left'
   }
@@ -1867,6 +1956,7 @@ export class RefinedOverlay {
     ctx.font = '500 10px "JetBrains Mono", monospace'
     const r = (g as any).avgReactionMs
     ctx.fillText(`${r != null ? Math.round(r) : '—'} ms avg reaction`, 96, h / 2 + 26)
+    ctx.fillText(`best 1s burst: ${Math.round((g as any).bestOneSecondDamage ?? 0).toLocaleString()} dmg`, 96, h / 2 + 40)
 
     ctx.font = '500 9px "JetBrains Mono", monospace'
     ctx.fillStyle = this.rgba(PAL.textDim, a)
@@ -1876,6 +1966,16 @@ export class RefinedOverlay {
   }
 
   // ── Rogue Mode ─────────────────────────────────────────────
+  /** Projects a timestamp onto the highway scaled to the full (haste-adjusted)
+   *  backstab cooldown, so the whole cooldown is visible crossing the track —
+   *  independent of mainhand's PUNCH_INTERVAL-based speed/projectAt. */
+  private rogueProjectAt(targetTime: number, t: number, speed: number): [number, number] {
+    const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
+    if (this.cfg.ORIENTATION === 'horizontal')
+      return [Math.trunc(this.hzX + vo + (targetTime - t) * speed), this.highwayY + this.highwayH / 2]
+    return [this.hzX, Math.trunc(this.hzY + vo - (targetTime - t) * speed)]
+  }
+
   private drawRogueTrack(): void {
     const ctx = this.ctx
     const w = this.canvas.width
@@ -1883,36 +1983,65 @@ export class RefinedOverlay {
     ctx.fillStyle = PAL.highway; ctx.fillRect(0, hy, w, hh)
 
     const bs = this.backstab
-    const pct = bs.progressPct
     const ready = bs.state === 'ready'
+    const t = now()
+    const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    // Scale the whole highway to the current (haste-adjusted) cooldown length,
+    // so the next backstab's timing is visible across the full track, not just
+    // a short lookahead — the window then keeps scrolling past the marker at
+    // this same speed once it opens.
+    const speed = this.runway / Math.max(1, bs.cooldownMsValue)
 
-    // Progress bar
-    const barY = hy + hh * 0.55
-    const barH = Math.max(6, hh * 0.22)
-    ctx.fillStyle = 'rgba(255,255,255,0.06)'
-    ctx.fillRect(8, barY, w - 16, barH)
-    const fillW = Math.max(0, (w - 16) * pct)
-    ctx.fillStyle = ready ? PAL.hitZone : `${PAL.weaveFill}0.85)`
-    ctx.fillRect(8, barY, fillW, barH)
-    if (ready) {
-      const pulse = (1 + Math.sin(now() / 220)) / 2
-      ctx.fillStyle = `rgba(255,200,40,${(0.15 + pulse * 0.25).toFixed(2)})`
-      ctx.fillRect(8, barY - 2, w - 16, barH + 4)
+    ctx.save()
+    ctx.beginPath()
+    if (!vert) ctx.rect(5, hy, w - 10, hh)
+    else        ctx.rect(0, hy + 1, w, hh - 2)
+    ctx.clip()
+
+    if (bs.state === 'cooldown' || bs.state === 'ready') {
+      const readyAt = bs.readyAtMs
+      const boxEnd  = readyAt + windowMs
+      const [sx, sy] = this.rogueProjectAt(readyAt, t, speed)
+      const [ex, ey] = this.rogueProjectAt(boxEnd, t, speed)
+      if (!vert) {
+        const bw = Math.max(3, ex - sx)
+        ctx.fillStyle   = `${PAL.backstabFill}0.85)`
+        ctx.fillRect(sx, hy + 14, bw, hh - 28)
+        ctx.strokeStyle = `${PAL.backstabStroke}1.0)`
+        ctx.lineWidth = 1.25
+        ctx.strokeRect(sx + 0.5, hy + 14.5, bw - 1, hh - 29)
+        ctx.fillStyle = `${PAL.swingBar}0.9)`
+        ctx.fillRect(sx - 1.5, hy - 4, 4, hh + 8)
+      } else {
+        const bh = Math.max(3, sy - ey)
+        ctx.fillStyle   = `${PAL.backstabFill}0.85)`
+        ctx.fillRect(6, ey, w - 12, bh)
+        ctx.strokeStyle = `${PAL.backstabStroke}1.0)`
+        ctx.lineWidth = 1.25
+        ctx.strokeRect(6.5, ey + 0.5, w - 13, bh - 1)
+        ctx.fillStyle = `${PAL.swingBar}0.9)`
+        ctx.fillRect(6 - 4, sy - 1.5, w - 12 + 8, 4)
+      }
     }
+    ctx.restore()
 
-    // Countdown / status text
+    // Stationary yellow target marker, same look as mainhand swing tracking
+    this.drawHitZone()
+
+    // Countdown / status text — kept small so it doesn't fight the track visuals
     const seconds = bs.remainingMs / 1000
     const label = ready ? 'BACKSTAB READY' : seconds.toFixed(1) + 's'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.font = ready ? '700 20px "Space Grotesk", sans-serif' : '700 26px "Space Grotesk", sans-serif'
+    ctx.font = ready ? '700 14px "Space Grotesk", sans-serif' : '700 16px "Space Grotesk", sans-serif'
     ctx.fillStyle = ready ? PAL.hitZone : PAL.text
-    ctx.fillText(label, w / 2, hy + hh * 0.28)
+    ctx.fillText(label, w / 2, hy + 10)
 
     if (bs.isReadyButNotSwapped) {
       ctx.font = '600 10px "JetBrains Mono", monospace'
       ctx.fillStyle = PAL.weaveText
-      ctx.fillText('swap to backstab weapon', w / 2, hy + hh * 0.28 + 20)
+      ctx.fillText('swap to backstab weapon', w / 2, hy + hh - 10)
     }
     ctx.textAlign = 'left'
   }
@@ -1940,7 +2069,8 @@ export class RefinedOverlay {
 
     ctx.font = '500 10px "JetBrains Mono", monospace'
     ctx.fillStyle = this.rgba(PAL.textDim, a)
-    ctx.fillText(`${r.hits}/${r.hits + r.misses} backstabs landed`, 16, h / 2 + 34)
+    ctx.fillText(`${r.hits} backstabs landed`, 16, h / 2 + 34)
+    ctx.fillText(`best 1s burst: ${Math.round(r.bestOneSecondDamage).toLocaleString()} dmg`, 16, h / 2 + 48)
   }
 
   // ── Tiny utils ──────────────────────────────────────────────

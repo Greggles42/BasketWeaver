@@ -47,8 +47,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleBuffSound: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_BUFF_SOUND, () => cb()),
 
-  onToggleRogueMode: (cb: () => void) =>
-    ipcRenderer.on(IPC.TOGGLE_ROGUE_MODE, () => cb()),
+  onToggleRogueMode: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.TOGGLE_ROGUE_MODE, (_e, enabled: boolean) => cb(enabled)),
 
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
@@ -78,6 +78,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   onSetWeaveWindowMs: (cb: (ms: number) => void) =>
     ipcRenderer.on(IPC.SET_WEAVE_WINDOW_MS, (_e, ms: number) => cb(ms)),
+
+  onSetRogueBackstabWindowMs: (cb: (ms: number) => void) =>
+    ipcRenderer.on(IPC.SET_ROGUE_BACKSTAB_WINDOW_MS, (_e, ms: number) => cb(ms)),
 
   onSetDwRollFailDelayMs: (cb: (ms: number) => void) =>
     ipcRenderer.on(IPC.SET_DW_ROLL_FAIL_DELAY_MS, (_e, ms: number) => cb(ms)),

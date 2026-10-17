@@ -115,6 +115,7 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         click:   () => {
           Config.BUFF_SOUND_ENABLED = !Config.BUFF_SOUND_ENABLED
           win.webContents.send(IPC.TOGGLE_BUFF_SOUND)
+          onSave()
         },
       },
       { label: 'Reset Window Position', click: () => onResetPosition() },
@@ -125,6 +126,7 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         click:   () => {
           Config.WINDOW_PINNED = !Config.WINDOW_PINNED
           win.webContents.send(IPC.TOGGLE_PIN)
+          onSave()
         },
       },
       {
@@ -133,7 +135,7 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
         checked: Config.ROGUE_MODE_ENABLED,
         click:   () => {
           Config.ROGUE_MODE_ENABLED = !Config.ROGUE_MODE_ENABLED
-          win.webContents.send(IPC.TOGGLE_ROGUE_MODE)
+          win.webContents.send(IPC.TOGGLE_ROGUE_MODE, Config.ROGUE_MODE_ENABLED)
           onSave()
         },
       },
@@ -173,8 +175,12 @@ export function createTray(win: BrowserWindow, onQuit: () => void, onSave: () =>
       {
         label:   'Audio',
         type:    'checkbox',
-        checked: true,
-        click:   () => win.webContents.send(IPC.TOGGLE_AUDIO),
+        checked: Config.AUDIO_ENABLED,
+        click:   () => {
+          Config.AUDIO_ENABLED = !Config.AUDIO_ENABLED
+          win.webContents.send(IPC.TOGGLE_AUDIO)
+          onSave()
+        },
       },
       { type: 'separator' },
       { label: 'Leaderboard...', click: onOpenLeaderboard },

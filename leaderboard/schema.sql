@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS records (
   id               TEXT     PRIMARY KEY,
   character_name   TEXT     NOT NULL,
+  character_class  TEXT     NOT NULL DEFAULT '',
   server_name      TEXT     NOT NULL DEFAULT '',
   mob_name         TEXT     NOT NULL,
   grade            TEXT     NOT NULL DEFAULT 'F',
@@ -41,3 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_ts      ON records(timestamp DESC);
 -- Migration: run once on existing databases to add app_version column
 -- (records.ts also runs this automatically on cold start, so this is just for reference)
 -- ALTER TABLE records ADD COLUMN IF NOT EXISTS app_version TEXT NOT NULL DEFAULT '';
+
+-- Migration: run once on existing databases to add character_class column
+-- (records.ts also runs this automatically on cold start, so this is just for reference)
+-- ALTER TABLE records ADD COLUMN IF NOT EXISTS character_class TEXT NOT NULL DEFAULT '';

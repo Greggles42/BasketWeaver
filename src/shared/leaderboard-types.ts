@@ -28,6 +28,7 @@ export interface EncounterRecord {
   id: string                   // crypto.randomUUID() — dedup key
   timestamp: number            // Date.now() when fight ended
   characterName: string        // from Zeal pipe or config
+  characterClass: string       // 'Monk' or 'Rogue' — derived from ROGUE_MODE_ENABLED
   serverName: string           // user-configured EQ server name
   appVersion: string           // Basketweaver version that produced this record (stamped by main process)
 

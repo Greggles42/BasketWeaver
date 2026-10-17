@@ -207,6 +207,8 @@ function loadSettings(): void {
       }
       if (typeof saved.ROGUE_MODE_ENABLED      === 'boolean') Config.ROGUE_MODE_ENABLED      = saved.ROGUE_MODE_ENABLED
       if (typeof saved.ROGUE_BACKSTAB_SET_NAME === 'string')  Config.ROGUE_BACKSTAB_SET_NAME = saved.ROGUE_BACKSTAB_SET_NAME
+      if (typeof saved.ROGUE_BACKSTAB_WINDOW_MS === 'number') Config.ROGUE_BACKSTAB_WINDOW_MS = Math.min(800, Math.max(100, saved.ROGUE_BACKSTAB_WINDOW_MS))
+      if (typeof saved.ROGUE_MAX_HIT_TRACKING_ENABLED === 'boolean') Config.ROGUE_MAX_HIT_TRACKING_ENABLED = saved.ROGUE_MAX_HIT_TRACKING_ENABLED
       if (typeof saved.WEAVE_KEY_CODE     === 'number') Config.WEAVE_KEY_CODE     = saved.WEAVE_KEY_CODE
       if (typeof saved.WEAVE_KEY_DISPLAY  === 'string') Config.WEAVE_KEY_DISPLAY  = saved.WEAVE_KEY_DISPLAY
       if (typeof saved.WEAVE_KEY2_CODE    === 'number') Config.WEAVE_KEY2_CODE    = saved.WEAVE_KEY2_CODE
@@ -260,6 +262,8 @@ export function saveSettings(): void {
       IGNORED_CHARACTERS:         Config.IGNORED_CHARACTERS,
       ROGUE_MODE_ENABLED:         Config.ROGUE_MODE_ENABLED,
       ROGUE_BACKSTAB_SET_NAME:    Config.ROGUE_BACKSTAB_SET_NAME,
+      ROGUE_BACKSTAB_WINDOW_MS:   Config.ROGUE_BACKSTAB_WINDOW_MS,
+      ROGUE_MAX_HIT_TRACKING_ENABLED: Config.ROGUE_MAX_HIT_TRACKING_ENABLED,
       MAINHAND_ATTACK_TYPE:       Config.MAINHAND_ATTACK_TYPE,
       AUTO_DETECT_LOG:            Config.AUTO_DETECT_LOG,
       WEAVE_KEY_CODE:             Config.WEAVE_KEY_CODE,
@@ -270,6 +274,37 @@ export function saveSettings(): void {
     if (pos) { data.windowX = pos[0]; data.windowY = pos[1] }
     fs.writeFileSync(SETTINGS_FILE(), JSON.stringify(data), 'utf8')
   } catch {}
+  updateUserTasks()
+}
+
+/** Rebuilds the Windows taskbar/Start Menu Jump List. Jump List "Tasks" have no
+ *  native checkbox/checked-state rendering (unlike the tray's Menu/MenuItem),
+ *  so toggle items fake it with a "[x]"/"[ ]" prefix — this must be re-run any
+ *  time one of those Config values changes so the prefix stays accurate. */
+function updateUserTasks(): void {
+  if (process.platform !== 'win32' || !app.isPackaged) return
+  const task = (args: string, title: string, description: string): Electron.Task => ({
+    program:     process.execPath,
+    arguments:   args,
+    iconPath:    process.execPath,
+    iconIndex:   0,
+    title,
+    description,
+  })
+  const check = (on: boolean) => on ? '[x]' : '[ ]'
+  app.setUserTasks([
+    task('--open-settings',         'Settings…',             'Open Basketweaver settings'),
+    task('--select-log',            'Select Log File…',      'Choose the EQ log file to track'),
+    task('--reset-track',           'Reset Track',           'Reset the current fight track'),
+    task('--clear-buffs',           'Clear Buffs (AVT/SAV)', 'Clear Avatar/Savagery buff indicators'),
+    task('--toggle-buff-sound',     `${check(Config.BUFF_SOUND_ENABLED)} Buff Notification Sounds`, 'Toggle buff notification sounds'),
+    task('--reset-window-position', 'Reset Window Position', 'Move the overlay back to its default position'),
+    task('--toggle-window-pin',     `${check(Config.WINDOW_PINNED)} Freeze Window Position`, 'Toggle locking the overlay window position'),
+    task('--toggle-rogue-mode',     `${check(Config.ROGUE_MODE_ENABLED)} Rogue Mode (Backstab Tracking) [Alpha]`, 'Toggle Rogue Mode backstab tracking'),
+    task('--toggle-audio',          `${check(Config.AUDIO_ENABLED)} Audio`, 'Toggle overlay audio'),
+    task('--open-leaderboard',      'Leaderboard...',        'Open the Basketweaver leaderboard'),
+    task('--quit',                  'Quit Basketweaver',     'Quit Basketweaver'),
+  ])
 }
 
 export function setOverlayStyle(style: 'refined' | 'highcontrast'): void {
@@ -850,6 +885,8 @@ function setupIPC(): void {
     IGNORED_CHARACTERS:         Config.IGNORED_CHARACTERS,
     ROGUE_MODE_ENABLED:         Config.ROGUE_MODE_ENABLED,
     ROGUE_BACKSTAB_SET_NAME:    Config.ROGUE_BACKSTAB_SET_NAME,
+    ROGUE_BACKSTAB_WINDOW_MS:   Config.ROGUE_BACKSTAB_WINDOW_MS,
+    ROGUE_MAX_HIT_TRACKING_ENABLED: Config.ROGUE_MAX_HIT_TRACKING_ENABLED,
     OFFHAND_CRUSH_ENABLED:        Config.OFFHAND_CRUSH_ENABLED,
     WEAVE_BANDOLIER_OFF_DELAY_MS: Config.WEAVE_BANDOLIER_OFF_DELAY_MS,
     AUDIO_DEBOUNCE_MS:            Config.AUDIO_DEBOUNCE_MS,
@@ -1026,6 +1063,13 @@ function setupIPC(): void {
         win?.webContents.send(IPC.SET_WEAVE_WINDOW_MS, value)
         break
 
+      case 'ROGUE_BACKSTAB_WINDOW_MS': {
+        const ms = Math.min(800, Math.max(100, value as number))
+        Config.ROGUE_BACKSTAB_WINDOW_MS = ms
+        win?.webContents.send(IPC.SET_ROGUE_BACKSTAB_WINDOW_MS, ms)
+        break
+      }
+
       case 'DW_ROLL_FAIL_DELAY_MS':
         Config.DW_ROLL_FAIL_DELAY_MS = value as number
         win?.webContents.send(IPC.SET_DW_ROLL_FAIL_DELAY_MS, value)
@@ -1076,7 +1120,7 @@ function setupIPC(): void {
       case 'ROGUE_MODE_ENABLED':
         if (Config.ROGUE_MODE_ENABLED !== value) {
           Config.ROGUE_MODE_ENABLED = value as boolean
-          win?.webContents.send(IPC.TOGGLE_ROGUE_MODE)
+          win?.webContents.send(IPC.TOGGLE_ROGUE_MODE, Config.ROGUE_MODE_ENABLED)
         }
         break
 
@@ -1241,10 +1285,25 @@ function setupAutoUpdater(): void {
   // Only run in packaged builds — not during dev
   if (!app.isPackaged) return
 
+  // Errors from checkForUpdates() only ever reached console.error, which is
+  // invisible in a packaged GUI app — there's no way to tell a silent check
+  // failure (network, GitHub API, malformed feed) apart from "no update yet"
+  // without this. Written to %APPDATA%\Basketweaver\updater.log.
+  const logPath = path.join(configDir(), 'updater.log')
+  const logUpdate = (msg: string) => {
+    try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`) } catch {}
+  }
+
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
 
+  logUpdate(`checking for updates — current version ${app.getVersion()}`)
+
+  autoUpdater.on('checking-for-update', () => logUpdate('checking-for-update'))
+  autoUpdater.on('update-not-available', (info) => logUpdate(`update-not-available (latest=${info.version})`))
+
   autoUpdater.on('update-available', (info) => {
+    logUpdate(`update-available: ${info.version}`)
     const current = app.getVersion()
     const next    = info.version
     dialog.showMessageBox({
@@ -1263,6 +1322,7 @@ function setupAutoUpdater(): void {
   })
 
   autoUpdater.on('update-downloaded', () => {
+    logUpdate('update-downloaded')
     dialog.showMessageBox({
       type:    'info',
       title:   'Update Ready',
@@ -1278,11 +1338,13 @@ function setupAutoUpdater(): void {
   })
 
   autoUpdater.on('error', (err) => {
+    logUpdate(`error: ${err.message}`)
     console.error('[Updater] Error:', err.message)
   })
 
   // Check silently — no dialog if already up to date
   autoUpdater.checkForUpdates().catch(err => {
+    logUpdate(`checkForUpdates() rejected: ${err.message}`)
     console.error('[Updater] Check failed:', err.message)
   })
 }
@@ -1421,11 +1483,44 @@ if (!gotLock) {
   app.quit()
 } else {
   app.on('second-instance', (_e, argv) => {
-    if (argv.includes('--open-settings')) createSettingsWindow()
+    if (argv.includes('--open-settings'))           createSettingsWindow()
+    if (argv.includes('--open-leaderboard'))         createLeaderboardWindow()
+    if (argv.includes('--select-log'))               pickLogFile().then(p => { if (p) handleLogSelected(p) })
+    if (argv.includes('--reset-track'))              win?.webContents.send(IPC.RESET_TRACK)
+    if (argv.includes('--clear-buffs'))              win?.webContents.send(IPC.CLEAR_BUFFS)
+    if (argv.includes('--reset-window-position'))    resetWindowPosition()
+    if (argv.includes('--toggle-buff-sound')) {
+      Config.BUFF_SOUND_ENABLED = !Config.BUFF_SOUND_ENABLED
+      win?.webContents.send(IPC.TOGGLE_BUFF_SOUND)
+      saveSettings()
+    }
+    if (argv.includes('--toggle-window-pin')) {
+      Config.WINDOW_PINNED = !Config.WINDOW_PINNED
+      win?.webContents.send(IPC.TOGGLE_PIN)
+      saveSettings()
+    }
+    if (argv.includes('--toggle-rogue-mode')) {
+      Config.ROGUE_MODE_ENABLED = !Config.ROGUE_MODE_ENABLED
+      win?.webContents.send(IPC.TOGGLE_ROGUE_MODE, Config.ROGUE_MODE_ENABLED)
+      saveSettings()
+    }
+    if (argv.includes('--toggle-audio')) {
+      Config.AUDIO_ENABLED = !Config.AUDIO_ENABLED
+      win?.webContents.send(IPC.TOGGLE_AUDIO)
+      saveSettings()
+    }
+    if (argv.includes('--quit'))                     app.quit()
   })
 }
 
 app.whenReady().then(async () => {
+  // A jump-list click spawns a brand new process; if it loses the single-instance
+  // lock above, app.quit() was already requested but that's async — this process
+  // keeps running JS until the event loop processes the quit. Without this guard,
+  // whenReady() still resolves in the meantime and this duplicate instance would
+  // briefly create its own window/tray/global input hook (uiohook), which is what
+  // caused the input sluggishness: two competing global keyboard/mouse hooks.
+  if (!gotLock) return
   loadSettings()
   recomputeGoodWindow()
   leaderboardManager = new LeaderboardManager(configDir())
@@ -1434,18 +1529,11 @@ app.whenReady().then(async () => {
   createWindow()
   startWeaveKeyMonitor()
 
-  // Add Settings to the Windows taskbar right-click Jump List (packaged only —
-  // in dev mode process.execPath is the bare Electron binary, not the app)
-  if (process.platform === 'win32' && app.isPackaged) {
-    app.setUserTasks([{
-      program:     process.execPath,
-      arguments:   '--open-settings',
-      iconPath:    process.execPath,
-      iconIndex:   0,
-      title:       'Settings',
-      description: 'Open Basketweaver settings',
-    }])
-  }
+  // Add quick-access items to the Windows taskbar/Start Menu right-click Jump
+  // List (packaged only — in dev mode process.execPath is the bare Electron
+  // binary, not the app). Re-run after any toggle changes so the checkbox-style
+  // [x]/[ ] prefixes stay in sync — Jump List tasks have no native checkmark.
+  updateUserTasks()
 
   // Create tray
   createTray(win!, () => app.quit(), saveSettings, async () => {
@@ -1468,6 +1556,11 @@ app.whenReady().then(async () => {
       name:  Config.OFFHAND_WEAPON_NAME,
     })
     win!.webContents.send(IPC.SET_BASE_WEAPON_DELAY, Config.BASE_WEAPON_DELAY)
+    win!.webContents.send(IPC.SET_ROGUE_BACKSTAB_WINDOW_MS, Config.ROGUE_BACKSTAB_WINDOW_MS)
+    // The renderer's Config starts at the ROGUE_MODE_ENABLED default (false) —
+    // it only ever learns otherwise via this TOGGLE_ROGUE_MODE sync, so a fresh
+    // window load with Rogue Mode persisted ON needs it pushed explicitly here.
+    win!.webContents.send(IPC.TOGGLE_ROGUE_MODE, Config.ROGUE_MODE_ENABLED)
     if (!Config.DYNAMIC_WEAVING)    win!.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
     if (!Config.SHOW_OFFHAND_TIMER) win!.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
 

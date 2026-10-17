@@ -282,6 +282,7 @@
           <td><button class="btn-delete" onclick="deleteRecord('${escHtml(r.id)}')">Delete</button></td>
           <td class="id-cell" title="${escHtml(r.id)}">${escHtml(r.id)}</td>
           <td>${escHtml(r.character_name || '—')}</td>
+          <td>${escHtml(r.character_class || '—')}</td>
           <td>${escHtml(r.server_name || '—')}</td>
           <td>${escHtml(r.mob_name)}</td>
           <td>${escHtml(r.grade)}</td>
@@ -300,7 +301,7 @@
       content.innerHTML = `<table>
         <thead><tr>
           <th></th>
-          <th>ID</th><th>Character</th><th>Server</th><th>Mob</th><th>Grade</th>
+          <th>ID</th><th>Character</th><th>Class</th><th>Server</th><th>Mob</th><th>Grade</th>
           <th>Total DPS</th><th>Weave DPS</th>
           <th>Mainhand</th><th>Offhand</th><th>ATK</th><th>Haste%</th>
           <th>Discs</th><th>Engaged</th><th>Date</th>

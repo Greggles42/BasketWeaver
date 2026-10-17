@@ -373,6 +373,7 @@
           <td>${fmtDur(r.engaged_ms ?? 0)}</td>
           <td>${fmtDur(r.fight_duration ?? 0)}</td>
           <td>${escHtml(r.character_name || '—')}</td>
+          <td>${escHtml(r.character_class || '—')}</td>
           <td>${fmtDate(r.timestamp)}</td>
           <td>${escHtml(r.app_version || '—')}</td>
         </tr>`
@@ -384,7 +385,7 @@
           <th>Mainhand</th><th>Offhand</th><th>ATK</th><th>Haste%</th>
           <th>Disc</th><th>Buffs</th>
           <th>Engaged</th><th>Duration</th>
-          <th>Character</th><th>Date</th><th>Version</th>
+          <th>Character</th><th>Class</th><th>Date</th><th>Version</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`

@@ -85,6 +85,15 @@ export class BackstabTimer {
     }
   }
 
+  /** Fixed timestamp (performance.now() scale) the current/last cooldown completes at.
+   *  Stays constant once the cooldown finishes (state flips to 'ready') so the track
+   *  can keep projecting the window scrolling past the target marker over time. */
+  get readyAtMs(): number { return this.readyAt }
+
+  /** Current haste-scaled cooldown duration, in ms — used to scale the full-track
+   *  scroll speed so the whole 10s (haste-adjusted) cooldown fits across the highway. */
+  get cooldownMsValue(): number { return this.cooldownMs }
+
   get remainingMs(): number {
     if (this.state === 'ready') return 0
     if (this.state !== 'cooldown') return 0

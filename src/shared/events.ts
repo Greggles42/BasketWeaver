@@ -83,6 +83,7 @@ export const IPC = {
   SET_POSITIVE_AUDIO_IN_WINDOW: 'set-positive-audio-in-window',
   SET_KEYSTROKE_GRADING:        'set-keystroke-grading',
   SET_WEAVE_WINDOW_MS:          'set-weave-window-ms',
+  SET_ROGUE_BACKSTAB_WINDOW_MS: 'set-rogue-backstab-window-ms',
   SET_DW_ROLL_FAIL_DELAY_MS:   'set-dw-roll-fail-delay-ms',
   SET_INFERRED_DW_CHECKS:      'set-inferred-dw-checks',
   SET_PUNCH_INTERVAL:           'set-punch-interval',
