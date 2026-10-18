@@ -519,7 +519,29 @@ export class HighContrastOverlay {
           }
           this.lastCombatActivity = lgNow
           this.rogueDamageTotal += damage
-          if (source === 'backstab') this.rogueBackstabDamageTotal += damage
+          if (source === 'backstab') {
+            this.rogueBackstabDamageTotal += damage
+            // Hybrid mode's authoritative backstab-landed signal — BACKSTAB_ATTACK(hit:true)
+            // never fires here, so the hit count and cooldown reset happen off this event too.
+            this.rogueBackstabHits++
+            this.backstab.onBackstabAttack(lgNow)
+            if (damage > 0 && this.cfg.ROGUE_MAX_HIT_TRACKING_ENABLED) {
+              const weaponKey = this.lastKnownMainhand || 'Unknown'
+              const prevMax = this.rogueBackstabMaxByWeapon.get(weaponKey) ?? 0
+              if (damage >= prevMax) {
+                this.rogueBackstabMaxByWeapon.set(weaponKey, damage)
+                this.banners.push(new Banner('MAX HIT', '#ffee00', 2500, damage.toLocaleString()))
+              }
+            }
+            if (this.lastBackstabHitTs > 0 && lgNow - this.lastBackstabHitTs < 200) {
+              this.wuProcFlash = 1
+              this.wuProcLabel = 'Double Backstab'
+              this.wuProcSub   = damage.toLocaleString()
+            }
+            this.lastBackstabHitTs = lgNow
+            this.hitFlash = 1
+            this.audio.play('punch')
+          }
           if (damage > 0) this.rogueDamageLog.push([lgNow - this.rogueFightStartTs, damage])
           break
         }
@@ -1839,7 +1861,7 @@ export class HighContrastOverlay {
     ctx.font = '800 15px "Archivo", sans-serif'
     ctx.fillStyle = HC.text
     const leftVal = rogue
-      ? `${this.rogueBackstabHits}/${this.rogueBackstabHits + this.rogueBackstabMisses}`
+      ? `${this.rogueBackstabHits}`
       : `${this.rhythm.inCombat ? this.rhythm.roundsWithWeave : 0}`
     ctx.fillText(leftVal, 10, h - 5)
 

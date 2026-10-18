@@ -559,7 +559,34 @@ export class RefinedOverlay {
           }
           this.lastCombatActivity = lgNow
           this.rogueDamageTotal += damage
-          if (source === 'backstab') this.rogueBackstabDamageTotal += damage
+          if (source === 'backstab') {
+            this.rogueBackstabDamageTotal += damage
+            // This is the hybrid-mode path's authoritative backstab-landed signal (see
+            // log-reader's damageOnly comment) — BACKSTAB_ATTACK(hit:true) never fires
+            // here, so the hit count and cooldown reset must happen off this event too.
+            this.rogueBackstabHits++
+            this.backstab.onBackstabAttack(lgNow)
+            if (damage > 0) {
+              if (this.cfg.ROGUE_MAX_HIT_TRACKING_ENABLED) {
+                const weaponKey = this.lastKnownMainhand || 'Unknown'
+                const prevMax = this.rogueBackstabMaxByWeapon.get(weaponKey) ?? 0
+                if (damage >= prevMax) {
+                  this.rogueBackstabMaxByWeapon.set(weaponKey, damage)
+                  this.banners.push(new Banner('MAX HIT', '#ffd700', 2500, damage.toLocaleString()))
+                }
+              }
+            }
+            if (this.lastBackstabHitTs > 0 && lgNow - this.lastBackstabHitTs < 200) {
+              this.wuProcFlash = 1
+              this.wuProcLabel = 'Double Backstab'
+              this.wuProcSub   = damage.toLocaleString()
+            }
+            this.lastBackstabHitTs = lgNow
+            this.hitFlash = 1
+            const [hzx, hzy] = this.hzCenter()
+            this.spawnParticles(hzx, hzy)
+            this.audio.play('punch')
+          }
           if (damage > 0) this.rogueDamageLog.push([lgNow - this.rogueFightStartTs, damage])
           break
         }
@@ -1498,8 +1525,7 @@ export class RefinedOverlay {
 
     if (this.cfg.ROGUE_MODE_ENABLED) {
       // BACKSTABS, AC, NET DPS, BACKSTAB DPS
-      const attempts = this.rogueBackstabHits + this.rogueBackstabMisses
-      this.drawFooterStatAt(10, fy, 'BACKSTABS', `${this.rogueBackstabHits}/${attempts}`, PAL.text)
+      this.drawFooterStatAt(10, fy, 'BACKSTABS', `${this.rogueBackstabHits}`, PAL.text)
       this.drawFooterStat(w * (5 / 16), fy, 'AC', acVal, PAL.text)
       this.drawFooterStat(w * (9 / 16), fy, 'NET DPS', `${this.dpsDisplayTotal}`, PAL.text)
       this.drawFooterStat(w * (7 / 8), fy, 'BACKSTAB DPS', `${this.dpsDisplayFist}`, PAL.hitZone)
