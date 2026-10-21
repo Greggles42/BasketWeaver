@@ -22,6 +22,7 @@ declare global {
         eqProcessFound: boolean; lastPipeError: string | null; scanError: string | null
       }>
       openZealLog(): Promise<string | null>
+      triggerAction(action: string): void
     }
   }
 }
@@ -490,6 +491,23 @@ async function init(): Promise<void> {
     })
   }
 
+  // ── Quick Actions — mirror tray one-shot actions ──────────────
+  function wireQuickAction(id: string, action: string, confirmedLabel = 'Done'): void {
+    const btn = document.getElementById(id) as HTMLButtonElement | null
+    if (!btn) return
+    btn.addEventListener('click', () => {
+      window.settingsAPI.triggerAction(action)
+      const original = btn.textContent
+      btn.textContent = confirmedLabel
+      setTimeout(() => { btn.textContent = original }, 1200)
+    })
+  }
+  wireQuickAction('btnSelectLog',            'select-log')
+  wireQuickAction('btnResetTrack',           'reset-track',           'Reset')
+  wireQuickAction('btnClearBuffs',           'clear-buffs',           'Cleared')
+  wireQuickAction('btnResetWindowPosition',  'reset-window-position', 'Done')
+  wireQuickAction('btnOpenLeaderboard',      'open-leaderboard',      'Opened')
+
   async function refreshZealStatus(): Promise<void> {
     if (!zealStatusRow || !zealStatusDot || !zealStatusText || zealStatusRow.style.display === 'none') return
     const status = await window.settingsAPI.getZealStatus()
@@ -856,6 +874,7 @@ async function init(): Promise<void> {
   setupToggle('showAllCrits',          'SHOW_ALL_CRITS',             s.SHOW_ALL_CRITS             as boolean)
   setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
   setupToggle('autoDetectLog',         'AUTO_DETECT_LOG',            s.AUTO_DETECT_LOG            as boolean)
+  setupToggle('tripleAttackDetection', 'TRIPLE_ATTACK_DETECTION_ENABLED', s.TRIPLE_ATTACK_DETECTION_ENABLED as boolean)
 
   // ── Leaderboard settings ─────────────────────────────────────
   const lbCharName = document.getElementById('lbCharName') as HTMLInputElement | null

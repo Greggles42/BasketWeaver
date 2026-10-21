@@ -39,6 +39,15 @@ function parseDamage(content: string): number {
   return m ? parseInt(m[1], 10) : 0
 }
 
+/** SAVAGERY_GAINED_PATTERNS/SAVAGERY_LOST_PATTERNS cover two emote wordings
+ *  ("descend into savagery" / "descend into ferocity", and their matching
+ *  fade lines) for what the overlay tracks as one internal buff flag — this
+ *  reports which wording actually landed so the UI can label it correctly
+ *  instead of always showing "Ferocity" regardless of which one fired. */
+function savageryVariant(content: string): 'savagery' | 'ferocity' {
+  return /savagery/i.test(content) ? 'savagery' : 'ferocity'
+}
+
 export type EventCallback = (ev: GameEvent) => void
 
 export class LogReader {
@@ -110,12 +119,17 @@ export class LogReader {
   private static readonly WU_ANCHOR_SKILLS = new Set(['Flying Kick', 'Round Kick', 'Kick'])
   // Window after a monk special attack line in which any further monk special
   // lines against the same target are considered part of the same Wu round.
-  private static readonly WU_ROUND_WINDOW_MS = 300
-  // Hard cap on a round's total span from its first hit. A Wu round's attacks
-  // all land within ~1s of each other; without this cap, monk specials firing
-  // faster than WU_ROUND_WINDOW_MS apart would keep rearming the timer forever
-  // and swallow the start of the *next* potential proc into this round.
-  private static readonly WU_ROUND_MAX_MS = 1000
+  // A genuine Wu-chained bonus attack resolves in the same combat round as its
+  // triggering kick — near-instantly, not up to a full second later. The old
+  // 300/1000ms values were loose enough to also catch an unrelated Eagle
+  // Strike/Tiger Claw used moments later as part of normal rotation and credit
+  // it as a Wu proc, which is why Wu was firing far too often.
+  private static readonly WU_ROUND_WINDOW_MS = 150
+  // Hard cap on a round's total span from its first hit; without this cap,
+  // monk specials firing faster than WU_ROUND_WINDOW_MS apart would keep
+  // rearming the timer forever and swallow the start of the *next* potential
+  // proc into this round.
+  private static readonly WU_ROUND_MAX_MS = 150
 
   // Matches the EQ system message printed on every zone transition.
   private static readonly ZONE_ENTER_RE = /^You have entered ([^.]+)\.$/i
@@ -460,8 +474,13 @@ export class LogReader {
     if (this.wuTimer) clearTimeout(this.wuTimer)
   }
 
-  /** Classifies a line as a monk special attack (hit or miss), or null if it's not one. */
+  /** Classifies a line as a monk special attack (hit or miss), or null if it's not one.
+   *  Crush-verb lines (mainhand and, when OFFHAND_CRUSH_ENABLED, offhand swings) are never
+   *  Wu-relevant — Wu's own bonus attack is always a kick or a bare "strike", never a crush
+   *  hit — so they're rejected up front rather than relying on MONK_SPECIAL_HIT_RE/
+   *  MONK_SPECIAL_MISS_RE simply not listing "crush" as one of their verb alternatives. */
   private classifyMonkSpecial(content: string): { skill: string; hit: boolean; damage: number; target?: string } | null {
+    if (this.crushHitRe.some(r => r.test(content)) || this.crushMissRe.some(r => r.test(content))) return null
     const hm = LogReader.MONK_SPECIAL_HIT_RE.exec(content)
     if (hm) {
       return { skill: LogReader.MONK_SKILL_NAMES[hm[1].toLowerCase()], hit: true, damage: parseInt(hm[3], 10), target: hm[2] }
@@ -478,7 +497,7 @@ export class LogReader {
     if (this.wuBuffer.length === 0) {
       this.wuRoundStart = now
     } else if (now - this.wuRoundStart >= LogReader.WU_ROUND_MAX_MS) {
-      // This round already ran its full 1s span — whatever's buffered is done;
+      // This round already ran its full span — whatever's buffered is done;
       // this hit belongs to a new (potential) round, not a carried-over one.
       this.flushWuRound()
       this.wuRoundStart = now
@@ -490,10 +509,10 @@ export class LogReader {
     this.wuTimer = setTimeout(() => this.flushWuRound(), Math.min(LogReader.WU_ROUND_WINDOW_MS, remaining))
   }
 
-  /** Emits WU_PROC if the buffered round contains more than one monk special
-   *  attempt — hit OR miss. The proc is the extra *attempt*, not the damage;
-   *  a Wu-triggered swing that whiffs is still a Wu proc, so misses count
-   *  toward the attempt total even though they don't add to the damage total. */
+  /** Emits WU_PROC only when at least two monk special attacks in the round
+   *  actually landed — a kick followed only by a whiff (its own or an extra
+   *  attempt's) isn't shown as a proc, even though the whiff still counts
+   *  toward target-matching/round bookkeeping above. */
   private flushWuRound(): void {
     const buffer = this.wuBuffer
     this.wuBuffer = []
@@ -508,19 +527,34 @@ export class LogReader {
     const anchorIdx = buffer.findIndex(h => LogReader.WU_ANCHOR_SKILLS.has(h.skill))
     if (anchorIdx === -1) return
 
+    // A genuine Wu-chained bonus attack always lands on the same mob the
+    // anchoring kick hit — drop any buffered attempt against a different
+    // target. Misses carry no target (MONK_SPECIAL_MISS_RE doesn't capture
+    // one), so they're kept rather than penalized for missing information.
+    const anchorTarget = buffer[anchorIdx].target
+    const round = anchorTarget
+      ? buffer.filter(h => !h.target || h.target === anchorTarget)
+      : buffer
+    if (round.length < 2) return
+
+    // Require at least two of the round's attempts to have actually landed —
+    // a kick that whiffs, or an extra attempt that whiffs, shouldn't surface
+    // the banner on its own.
+    if (round.filter(h => h.hit).length < 2) return
+
     // Prefer a landed kick-family hit as the "main" attack for display purposes;
     // fall back to the anchor attempt itself if the triggering kick whiffed.
-    let mainIdx = buffer.findIndex(h => h.hit && LogReader.WU_ANCHOR_SKILLS.has(h.skill))
-    if (mainIdx === -1) mainIdx = anchorIdx
-    for (let i = 0; i < buffer.length; i++) {
-      if (buffer[i].hit && LogReader.WU_ANCHOR_SKILLS.has(buffer[i].skill) && buffer[i].damage > buffer[mainIdx].damage) mainIdx = i
+    let mainIdx = round.findIndex(h => h.hit && LogReader.WU_ANCHOR_SKILLS.has(h.skill))
+    if (mainIdx === -1) mainIdx = round.findIndex(h => LogReader.WU_ANCHOR_SKILLS.has(h.skill))
+    for (let i = 0; i < round.length; i++) {
+      if (round[i].hit && LogReader.WU_ANCHOR_SKILLS.has(round[i].skill) && round[i].damage > round[mainIdx].damage) mainIdx = i
     }
-    const mainHit = buffer[mainIdx]
-    const extraHits = buffer.filter((_, i) => i !== mainIdx)
-    const roundTotalDamage = buffer.reduce((sum, h) => sum + h.damage, 0)
+    const mainHit = round[mainIdx]
+    const extraHits = round.filter((_, i) => i !== mainIdx)
+    const roundTotalDamage = round.reduce((sum, h) => sum + h.damage, 0)
 
     this.emit({ type: EvType.WU_PROC, ts: performance.now(), data: {
-      target: this.wuTarget || this.currentTarget,
+      target: anchorTarget || this.wuTarget || this.currentTarget,
       mainHit: { skill: mainHit.skill, damage: mainHit.damage, hit: mainHit.hit },
       extraHits: extraHits.map(h => ({ skill: h.skill, damage: h.damage, hit: h.hit })),
       roundTotalDamage,
@@ -743,9 +777,9 @@ export class LogReader {
       } else if (this.avatarLostRe.some(r => r.test(content))) {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'avatar', active: false } })
       } else if (this.savageryGainedRe.some(r => r.test(content))) {
-        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true, variant: savageryVariant(content) } })
       } else if (this.savageryLostRe.some(r => r.test(content))) {
-        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false, variant: savageryVariant(content) } })
       } else if (this.innerflamGainedRe.some(r => r.test(content))) {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'innerflame', active: true } })
       } else if (this.innerflamLostRe.some(r => r.test(content))) {
@@ -1026,11 +1060,11 @@ export class LogReader {
 
     // ── Savagery buff tracking ──────────────────────────────────
     if (this.savageryGainedRe.some(r => r.test(content))) {
-      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true, variant: savageryVariant(content) } })
       return
     }
     if (this.savageryLostRe.some(r => r.test(content))) {
-      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false } })
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: false, variant: savageryVariant(content) } })
       return
     }
 

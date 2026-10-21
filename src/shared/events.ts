@@ -17,7 +17,7 @@ export enum EvType {
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
   WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
-  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame'|'whirlwind', active: boolean }
+  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame'|'whirlwind', active: boolean, variant?: 'savagery'|'ferocity' }
   CRIT_HIT        = 'CRIT_HIT',        // data: { damage: number }
   STATS_UPDATE    = 'STATS_UPDATE',    // data: { atkRating?: number, hastePct?: number }
   WEAPON_TRACK       = 'WEAPON_TRACK',       // data: { mainhand: string, offhand: string }
@@ -68,6 +68,7 @@ export const IPC = {
   CLEAR_BUFFS:            'clear-buffs',              // tray → renderer
   TOGGLE_BUFF_SOUND:      'toggle-buff-sound',        // tray → renderer
   TOGGLE_ROGUE_MODE:      'toggle-rogue-mode',        // tray/settings → renderer: Rogue Mode enabled/disabled
+  TOGGLE_TRIPLE_ATTACK_DETECTION: 'toggle-triple-attack-detection', // settings → renderer: Triple Attack detection enabled/disabled
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: { label: string, full: string }[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }

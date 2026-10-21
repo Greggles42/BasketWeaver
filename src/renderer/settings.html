@@ -421,6 +421,18 @@
 
   <div class="scroll-body">
 
+    <!-- ── Quick Actions ──────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Quick Actions</div>
+      <div class="row" style="flex-wrap:wrap;gap:8px;min-height:auto">
+        <button class="btn-learn-key" id="btnSelectLog" data-tip="Manually choose which EverQuest log file to track.">Select Log File…</button>
+        <button class="btn-learn-key" id="btnResetTrack" data-tip="Hard-reset the combat track — clears the current fight's timing/damage state.">Reset Track</button>
+        <button class="btn-learn-key" id="btnClearBuffs" data-tip="Clear the Avatar/Savagery buff-uptime tracking for the current fight.">Clear Buffs (AVT/SAV)</button>
+        <button class="btn-learn-key" id="btnResetWindowPosition" data-tip="Move the overlay window back to its default screen position.">Reset Window Position</button>
+        <button class="btn-learn-key" id="btnOpenLeaderboard" data-tip="Open the community leaderboard window.">Open Leaderboard…</button>
+      </div>
+    </div>
+
     <!-- ── Audio Volumes ─────────────────────────────── -->
     <div class="section">
       <div class="section-title">Audio Volumes</div>
@@ -446,6 +458,13 @@
       <div class="row" data-tip="Minimum milliseconds between the same sound playing again. Set to 0 to disable debouncing.">
         <label for="audioDebounceMs">Sound Debounce <span class="hint">(ms, 0=off)</span></label>
         <input type="number" id="audioDebounceMs" min="0" max="500" step="10" style="width:80px" />
+      </div>
+
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="Enable or disable all overlay sounds."><input type="checkbox" id="audioEnabled" /> Audio Enabled</label>
+        <label data-tip="Play a sound when a proc or buff activates."><input type="checkbox" id="buffSoundEnabled" /> Buff Sound Enabled</label>
+        <label data-tip="Play the fist/miss sound when a hand-to-hand attack misses."><input type="checkbox" id="fistMissSound" /> Fist Sound on Miss</label>
+        <label data-tip="Play a positive sound when you press your weave key within the timing window."><input type="checkbox" id="positiveAudioInWindow" /> Positive Feedback Audio in Weave Windows</label>
       </div>
     </div>
 
@@ -506,18 +525,59 @@
         <label>Diagnostic Log</label>
         <button class="btn-learn-key" id="btnOpenZealLog">Open Log File</button>
       </div>
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="Automatically switch to the most recently updated EQ log file in your log directory when multiple characters are active."><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
+      </div>
     </div>
 
-    <!-- ── Overlay Style ─────────────────────────────── -->
+    <!-- ── Monk / Weave Combat Detection ──────────────── -->
     <div class="section">
-      <div class="section-title">Overlay Style</div>
+      <div class="section-title">Monk / Weave Combat Detection</div>
+
+      <div class="checkbox-grid">
+        <label data-tip="Automatically adjusts the weave window timing based on your observed hit patterns."><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
+        <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
+        <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
+        <label data-tip="Monk: flag Triple Attack and Quadruple Attack procs with a small icon under the haste% readout when 3 or 4 mainhand crush hits land within 100ms of each other. Ripostes and offhand/dual-wield hits are excluded."><input type="checkbox" id="tripleAttackDetection" /> Triple/Quadruple Attack Detection</label>
+      </div>
+    </div>
+
+    <!-- ── Display ────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Display</div>
 
       <div class="row" data-tip="Visual style of the combat overlay window. Refined is cleaner; High Contrast uses bolder colors for visibility.">
-        <label>Style</label>
+        <label>Overlay Style</label>
         <div class="radio-group" id="overlayStyle">
           <label><input type="radio" name="style" value="refined" /> Refined</label>
           <label><input type="radio" name="style" value="highcontrast" /> High Contrast</label>
         </div>
+      </div>
+
+      <div class="row" data-tip="Vertical position of the target indicator on the overlay, expressed as a percentage of overlay height.">
+        <label for="targetPosition">Target Position</label>
+        <select id="targetPosition"></select>
+      </div>
+
+      <div class="row" data-tip="Transparency level of the overlay window. Lower values make the overlay more see-through.">
+        <label for="opacity">Opacity</label>
+        <input type="range" id="opacity" min="50" max="100" step="1" />
+        <span class="val" id="opacityVal">88</span>
+      </div>
+
+      <div class="row" data-tip="How the overlay competes with other always-on-top apps (GINA, Discord overlay, etc). Standard: default OS topmost. Elevated: requests a higher topmost band, less likely to be covered. Aggressive: elevated band plus periodically re-asserting topmost — can cause visible flicker if another app does the same.">
+        <label>Always-on-Top Mode</label>
+        <div class="radio-group" id="alwaysOnTopMode">
+          <label><input type="radio" name="aot" value="standard" /> Standard</label>
+          <label><input type="radio" name="aot" value="elevated" /> Elevated</label>
+          <label><input type="radio" name="aot" value="aggressive" /> Aggressive</label>
+        </div>
+      </div>
+
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="Lock the overlay window in place so it cannot be moved by dragging."><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
+        <label data-tip="Display a countdown swing timer for the offhand weapon on the overlay."><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
+        <label data-tip="Show every critical hit on the DPS track. When off, only the highest crit per round is shown."><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
       </div>
     </div>
 
@@ -592,52 +652,9 @@
         <label for="dwRollFailDelayMs">DW No-Roll Delay <span class="hint">(ms)</span></label>
         <input type="number" id="dwRollFailDelayMs" min="0" max="2000" step="50" style="width:80px" />
       </div>
-    </div>
 
-    <!-- ── Display ───────────────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Display</div>
-
-      <div class="row" data-tip="Vertical position of the target indicator on the overlay, expressed as a percentage of overlay height.">
-        <label for="targetPosition">Target Position</label>
-        <select id="targetPosition"></select>
-      </div>
-
-      <div class="row" data-tip="Transparency level of the overlay window. Lower values make the overlay more see-through.">
-        <label for="opacity">Opacity</label>
-        <input type="range" id="opacity" min="50" max="100" step="1" />
-        <span class="val" id="opacityVal">88</span>
-      </div>
-
-      <div class="row" data-tip="How the overlay competes with other always-on-top apps (GINA, Discord overlay, etc). Standard: default OS topmost. Elevated: requests a higher topmost band, less likely to be covered. Aggressive: elevated band plus periodically re-asserting topmost — can cause visible flicker if another app does the same.">
-        <label>Always-on-Top Mode</label>
-        <div class="radio-group" id="alwaysOnTopMode">
-          <label><input type="radio" name="aot" value="standard" /> Standard</label>
-          <label><input type="radio" name="aot" value="elevated" /> Elevated</label>
-          <label><input type="radio" name="aot" value="aggressive" /> Aggressive</label>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── Options ───────────────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Options</div>
-
-      <div class="checkbox-grid">
-        <label data-tip="Enable or disable all overlay sounds."><input type="checkbox" id="audioEnabled" /> Audio Enabled</label>
-        <label data-tip="Play a sound when a proc or buff activates."><input type="checkbox" id="buffSoundEnabled" /> Buff Sound Enabled</label>
-        <label data-tip="Play the fist/miss sound when a hand-to-hand attack misses."><input type="checkbox" id="fistMissSound" /> Fist Sound on Miss</label>
-        <label data-tip="Automatically adjusts the weave window timing based on your observed hit patterns."><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
-        <label data-tip="Display a countdown swing timer for the offhand weapon on the overlay."><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
-        <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
-        <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
-        <label data-tip="Lock the overlay window in place so it cannot be moved by dragging."><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
-        <label data-tip="Show every critical hit on the DPS track. When off, only the highest crit per round is shown."><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
-        <label data-tip="Play a positive sound when you press your weave key within the timing window."><input type="checkbox" id="positiveAudioInWindow" /> Positive Feedback Audio in Weave Windows</label>
-        <label data-tip="Automatically switch to the most recently updated EQ log file in your log directory when multiple characters are active."><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
-      </div>
-      <div class="row" style="margin-top:6px" data-tip="Milliseconds to wait after a bandolier swap before resuming weave key detection. Prevents false triggers during the swap animation.">
-        <label for="weaveBandolierOffDelay">Weave Off Delay (ms)</label>
+      <div class="row" data-tip="Milliseconds to wait after a bandolier swap before resuming weave key detection. Prevents false triggers during the swap animation.">
+        <label for="weaveBandolierOffDelay">Weave Off Delay <span class="hint">(ms)</span></label>
         <input type="number" id="weaveBandolierOffDelay" min="0" max="2000" step="50" style="width:80px" />
       </div>
     </div>

@@ -12688,5 +12688,8423 @@
     "name": "Chesnut",
     "hp": 32081,
     "ac": 181
+  },
+  {
+    "id": 205000,
+    "name": "Grimror_Plaguebringer",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 205123,
+    "name": "An_Underbulk_Crawler",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205008,
+    "name": "A_Diseased_Underbulk",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205092,
+    "name": "Guardian_of_Pestilence",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 205152,
+    "name": "#Ratboss_Trig",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 205093,
+    "name": "#Malinan_Grobbsby",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 205134,
+    "name": "#Rallius_Rattican",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 205053,
+    "name": "a_planarian_larvae",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 205031,
+    "name": "a_planarian_larva",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 205049,
+    "name": "a_tachnian_caterpillar",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 205079,
+    "name": "a_malarian_larva",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205145,
+    "name": "a_tsetsian_pupal",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205149,
+    "name": "a_scaevian_larva",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205137,
+    "name": "a_tsetsian_pupa",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205036,
+    "name": "a_malarian_larvae",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205027,
+    "name": "a_pestilent_rat",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 205025,
+    "name": "a_swamp_rat",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 205064,
+    "name": "a_feeble_rat",
+    "hp": 11400,
+    "ac": 200
+  },
+  {
+    "id": 205030,
+    "name": "a_diseased_rat",
+    "hp": 11400,
+    "ac": 200
+  },
+  {
+    "id": 205077,
+    "name": "a_wretched_pusling",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205153,
+    "name": "a_pusling_harbinger",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205099,
+    "name": "a_pestilence_pusling",
+    "hp": 15400,
+    "ac": 200
+  },
+  {
+    "id": 205102,
+    "name": "a_corrupted_pusling",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 205042,
+    "name": "a_foul_pusling",
+    "hp": 12100,
+    "ac": 200
+  },
+  {
+    "id": 205074,
+    "name": "a_diseased_malarian",
+    "hp": 16640,
+    "ac": 200
+  },
+  {
+    "id": 205073,
+    "name": "a_malarian_pest",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 205082,
+    "name": "a_malarian_gall",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 205104,
+    "name": "Knight_of_Pestilence",
+    "hp": 21000,
+    "ac": 200
+  },
+  {
+    "id": 205105,
+    "name": "a_pestilence_priest",
+    "hp": 20000,
+    "ac": 200
+  },
+  {
+    "id": 205006,
+    "name": "A_Lightcrawler_Defiler",
+    "hp": 15400,
+    "ac": 200
+  },
+  {
+    "id": 205016,
+    "name": "A_Diseased_Lightcrawler",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205122,
+    "name": "A_Lightcrawler_Pest",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205012,
+    "name": "An_Underbulk_Defiler",
+    "hp": 15400,
+    "ac": 200
+  },
+  {
+    "id": 205081,
+    "name": "a_firebone_caster",
+    "hp": 16640,
+    "ac": 200
+  },
+  {
+    "id": 205003,
+    "name": "a_tsetsian_fly",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 205108,
+    "name": "a_deathbone_magus",
+    "hp": 12300,
+    "ac": 200
+  },
+  {
+    "id": 205109,
+    "name": "Guardian_of_the_Crypt",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 205043,
+    "name": "a_rotting_pile_of_flesh",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205066,
+    "name": "a_festering_pile_of_goo",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205046,
+    "name": "a_pile_of_bile",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205033,
+    "name": "a_vetri_fly",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205038,
+    "name": "a_tachnian_fly",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 205111,
+    "name": "a_bubonian_defiler",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205114,
+    "name": "a_diseased_bubonian",
+    "hp": 11760,
+    "ac": 200
+  },
+  {
+    "id": 205142,
+    "name": "a_bubonian_relak",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205083,
+    "name": "a_bubonian_underling",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 205068,
+    "name": "an_arachnae_terranis",
+    "hp": 14000,
+    "ac": 200
+  },
+  {
+    "id": 205089,
+    "name": "an_arachnae_defiler",
+    "hp": 15000,
+    "ac": 200
+  },
+  {
+    "id": 205017,
+    "name": "an_arachnae_crawler",
+    "hp": 10880,
+    "ac": 200
+  },
+  {
+    "id": 205117,
+    "name": "an_arachling",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 206011,
+    "name": "Endurance_Var_Check",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 206010,
+    "name": "an_obsolete_model",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 206009,
+    "name": "an_obsolete_unit",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 206035,
+    "name": "an_archaic_model",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 206004,
+    "name": "a_rusted_model",
+    "hp": 9600,
+    "ac": 200
+  },
+  {
+    "id": 206019,
+    "name": "a_corroded_model",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206020,
+    "name": "a_scrounging_clockwork",
+    "hp": 12500,
+    "ac": 200
+  },
+  {
+    "id": 206005,
+    "name": "a_scrap_collector",
+    "hp": 12500,
+    "ac": 200
+  },
+  {
+    "id": 206036,
+    "name": "an_erratic_model",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206057,
+    "name": "#a_corroded_prototype",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206092,
+    "name": "Endurance_Room_Two",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 206093,
+    "name": "Endurance_Room_One",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 206094,
+    "name": "Endurance_Listener",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 206095,
+    "name": "Weapon_Listener",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 206047,
+    "name": "a_busted_power_carrier",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206039,
+    "name": "a_weathered_clockwork",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 206026,
+    "name": "a_clockwork_golem",
+    "hp": 21500,
+    "ac": 200
+  },
+  {
+    "id": 206022,
+    "name": "a_tin_soldier",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206028,
+    "name": "a_defective_clockwork",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206031,
+    "name": "a_metallic_slime",
+    "hp": 12000,
+    "ac": 2000
+  },
+  {
+    "id": 206040,
+    "name": "a_degrading_guardian",
+    "hp": 18000,
+    "ac": 200
+  },
+  {
+    "id": 206052,
+    "name": "#a_rust_covered_model",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206034,
+    "name": "an_etheric_pool",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 206197,
+    "name": "Weapon_Event_Master",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 206062,
+    "name": "Rusty_Tail",
+    "hp": 15,
+    "ac": 5
+  },
+  {
+    "id": 206038,
+    "name": "Giwin_Mirakon",
+    "hp": 23000,
+    "ac": 200
+  },
+  {
+    "id": 206033,
+    "name": "Nitram_Anizok",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 201345,
+    "name": "Shera_Banneth",
+    "hp": 5000,
+    "ac": 200
+  },
+  {
+    "id": 201291,
+    "name": "Aneya_Mallar",
+    "hp": 4800,
+    "ac": 200
+  },
+  {
+    "id": 201352,
+    "name": "Sister_Tomyn",
+    "hp": 4300,
+    "ac": 200
+  },
+  {
+    "id": 201354,
+    "name": "Kuraal_Nem_Azmih",
+    "hp": 4200,
+    "ac": 200
+  },
+  {
+    "id": 201293,
+    "name": "Rhionn_Leafsblade",
+    "hp": 4600,
+    "ac": 200
+  },
+  {
+    "id": 201003,
+    "name": "Sentry_of_Justice",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201297,
+    "name": "Moobik",
+    "hp": 4800,
+    "ac": 200
+  },
+  {
+    "id": 201290,
+    "name": "Mublok",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201416,
+    "name": "Norlta_Zamish",
+    "hp": 3900,
+    "ac": 200
+  },
+  {
+    "id": 201347,
+    "name": "Alkus_McNeeson",
+    "hp": 4500,
+    "ac": 200
+  },
+  {
+    "id": 201386,
+    "name": "Sheyna_D`Leen",
+    "hp": 4600,
+    "ac": 200
+  },
+  {
+    "id": 201196,
+    "name": "Trazin_D`Feyl",
+    "hp": 4600,
+    "ac": 200
+  },
+  {
+    "id": 201006,
+    "name": "a_festering_rat",
+    "hp": 4100,
+    "ac": 200
+  },
+  {
+    "id": 201000,
+    "name": "Sralm_Noramir",
+    "hp": 9500,
+    "ac": 200
+  },
+  {
+    "id": 201349,
+    "name": "Shaldyn_Thunderhoof",
+    "hp": 5000,
+    "ac": 200
+  },
+  {
+    "id": 201415,
+    "name": "Royal_Guardian_Finro",
+    "hp": 4600,
+    "ac": 200
+  },
+  {
+    "id": 201353,
+    "name": "Elzabetha_Ianthe",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201343,
+    "name": "Thrak_Riftwing",
+    "hp": 4200,
+    "ac": 200
+  },
+  {
+    "id": 201033,
+    "name": "__",
+    "hp": 1,
+    "ac": 200
+  },
+  {
+    "id": 201295,
+    "name": "Klaren_Dunn",
+    "hp": 4500,
+    "ac": 200
+  },
+  {
+    "id": 201348,
+    "name": "Zenoux",
+    "hp": 4000,
+    "ac": 200
+  },
+  {
+    "id": 201075,
+    "name": "Agent_of_The_Tribunal",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 201043,
+    "name": "Dreamthief",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 201042,
+    "name": "General_Vhan`Geltah",
+    "hp": 12000,
+    "ac": 200
+  },
+  {
+    "id": 201073,
+    "name": "Nghala_Sretch",
+    "hp": 12000,
+    "ac": 200
+  },
+  {
+    "id": 201071,
+    "name": "Xenioth_the_Endless",
+    "hp": 12000,
+    "ac": 200
+  },
+  {
+    "id": 201045,
+    "name": "Tetorau_Xi_Atraeth",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 201081,
+    "name": "#Mavuin",
+    "hp": 17760,
+    "ac": 200
+  },
+  {
+    "id": 201070,
+    "name": "The_Xel`Moar",
+    "hp": 12000,
+    "ac": 200
+  },
+  {
+    "id": 201072,
+    "name": "Talliz",
+    "hp": 13000,
+    "ac": 200
+  },
+  {
+    "id": 201069,
+    "name": "Kalliz",
+    "hp": 13000,
+    "ac": 200
+  },
+  {
+    "id": 201068,
+    "name": "Guardian_Zephyst",
+    "hp": 22800,
+    "ac": 200
+  },
+  {
+    "id": 201031,
+    "name": "a_punisher",
+    "hp": 10500,
+    "ac": 200
+  },
+  {
+    "id": 201027,
+    "name": "an_enforcer",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 201051,
+    "name": "a_pestilence_rat",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201388,
+    "name": "Warlord_Urgalth",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 201236,
+    "name": "Komazz",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201299,
+    "name": "Soothsayer_Greyal",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201366,
+    "name": "Iziyaneema",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201379,
+    "name": "Azomnius",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201239,
+    "name": "Kennar",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201364,
+    "name": "Brugga",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201331,
+    "name": "Adilan_Lemansa",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201389,
+    "name": "Advisor_Vyenz",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201390,
+    "name": "Nuryek",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201380,
+    "name": "Ine`Thar_Di`zok",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201381,
+    "name": "Zemlan_Blackfang",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201315,
+    "name": "Conjurer_Mrial",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201391,
+    "name": "Georr_Kul`Daar",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201392,
+    "name": "Grandmaster_Xhaan",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201314,
+    "name": "Ten`Aphiim",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201298,
+    "name": "Priest_of_Tumagal",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201317,
+    "name": "Councilor_Vaylaz",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201316,
+    "name": "Ral`Zehta",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201384,
+    "name": "Numeinastel",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 201248,
+    "name": "Huntmaster_Synl",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 201359,
+    "name": "Xaui_Xi_Ans_Vius",
+    "hp": 9200,
+    "ac": 200
+  },
+  {
+    "id": 201394,
+    "name": "Xin_Renthais_Ishan",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201360,
+    "name": "Zammar_of_Tial`Vok",
+    "hp": 11000,
+    "ac": 200
+  },
+  {
+    "id": 201251,
+    "name": "Karzyn_the_Dreadgazer",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201368,
+    "name": "Nerkila",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201395,
+    "name": "Habax_Blackfang",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201300,
+    "name": "Trainer_Wazzel",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201369,
+    "name": "Syenni",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201396,
+    "name": "Cormin_Desalis",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201371,
+    "name": "twisted_phantom",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201301,
+    "name": "Maen_Kul`Daar",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201258,
+    "name": "Oracle_Morgak",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 201259,
+    "name": "Treasurer_Ma`Quivo",
+    "hp": 8000,
+    "ac": 200
+  },
+  {
+    "id": 201367,
+    "name": "Tjey_Xeda",
+    "hp": 6600,
+    "ac": 200
+  },
+  {
+    "id": 201261,
+    "name": "Djaa_Xeda",
+    "hp": 6600,
+    "ac": 200
+  },
+  {
+    "id": 201313,
+    "name": "Isseith_Xerok",
+    "hp": 7000,
+    "ac": 200
+  },
+  {
+    "id": 201357,
+    "name": "Nemli",
+    "hp": 7000,
+    "ac": 200
+  },
+  {
+    "id": 201378,
+    "name": "Master_Vhezar",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201397,
+    "name": "Umplud",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201327,
+    "name": "Grum",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201398,
+    "name": "Commander_Ralinor",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201399,
+    "name": "Kantao_Darkwaters",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201326,
+    "name": "Welas_Hollander",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201218,
+    "name": "Halkr_Nighman",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201400,
+    "name": "Kuvan_Wolvesbane",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201304,
+    "name": "Drazl",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201401,
+    "name": "Tamsin",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201332,
+    "name": "Shadalis_Oathbinder",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201264,
+    "name": "Trisha_Pettals",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 201419,
+    "name": "Al`Corisalm",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201128,
+    "name": "servant_of_Del`Maque",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 201333,
+    "name": "Archpriest_Del`Maque",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201323,
+    "name": "Arch_Menoch_Vanim",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201268,
+    "name": "Saal_the_Keeper",
+    "hp": 9000,
+    "ac": 200
+  },
+  {
+    "id": 201402,
+    "name": "Zadyr_Moralin",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201133,
+    "name": "a_forgotten_spirit",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 201302,
+    "name": "Nentae_Weaver",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201307,
+    "name": "Evia_N`Cizai",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201363,
+    "name": "Kimry_Joolimel",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201308,
+    "name": "Druenna_Oakshade",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201229,
+    "name": "Eyan_Thunderseeker",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201303,
+    "name": "Parza",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201362,
+    "name": "Lasiya",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201361,
+    "name": "Jegard_Q`Nacat",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201226,
+    "name": "Librarian_Rushal",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201377,
+    "name": "Jhyric_Kan_Voth",
+    "hp": 7000,
+    "ac": 200
+  },
+  {
+    "id": 201404,
+    "name": "Gubkuk",
+    "hp": 7100,
+    "ac": 200
+  },
+  {
+    "id": 201372,
+    "name": "Mystic_Bamina",
+    "hp": 7500,
+    "ac": 200
+  },
+  {
+    "id": 201224,
+    "name": "Qallan_Shellhopper",
+    "hp": 7100,
+    "ac": 200
+  },
+  {
+    "id": 201405,
+    "name": "Alchemist_Jorrum",
+    "hp": 7000,
+    "ac": 200
+  },
+  {
+    "id": 201373,
+    "name": "Ranno_Zalpar",
+    "hp": 7800,
+    "ac": 200
+  },
+  {
+    "id": 201222,
+    "name": "Summoner_Teikk",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201406,
+    "name": "Halken_Zeparr",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201035,
+    "name": "Gaoler_of_Justice",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 201152,
+    "name": "Guardian_of_Justice",
+    "hp": 16100,
+    "ac": 200
+  },
+  {
+    "id": 201157,
+    "name": "an_eyeless_gnawer",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 201153,
+    "name": "a_ravaging_burrower",
+    "hp": 14000,
+    "ac": 200
+  },
+  {
+    "id": 201444,
+    "name": "a_dread_locust",
+    "hp": 16200,
+    "ac": 200
+  },
+  {
+    "id": 201162,
+    "name": "an_enervating_beetle",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 201270,
+    "name": "a_demented_locust",
+    "hp": 12200,
+    "ac": 200
+  },
+  {
+    "id": 201166,
+    "name": "a_dust_scarab",
+    "hp": 14900,
+    "ac": 200
+  },
+  {
+    "id": 201169,
+    "name": "a_shadow_crawler",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 201038,
+    "name": "a_mindless_tunneler",
+    "hp": 12240,
+    "ac": 200
+  },
+  {
+    "id": 201182,
+    "name": "a_grallok_drone",
+    "hp": 12600,
+    "ac": 200
+  },
+  {
+    "id": 201173,
+    "name": "a_grallok_protector",
+    "hp": 12500,
+    "ac": 200
+  },
+  {
+    "id": 201178,
+    "name": "a_grallok_mystic",
+    "hp": 12500,
+    "ac": 200
+  },
+  {
+    "id": 201174,
+    "name": "a_grallok_priest",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 201180,
+    "name": "a_grallok_defender",
+    "hp": 13000,
+    "ac": 200
+  },
+  {
+    "id": 201041,
+    "name": "a_grallok_seeker",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 201195,
+    "name": "A_violet_rose",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 201407,
+    "name": "Quillon",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201355,
+    "name": "Guardian_Ionew",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201330,
+    "name": "Ra`Silyas",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201059,
+    "name": "warrior_of_Nel`Ptan",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201408,
+    "name": "Trader_Sha`Deno",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201306,
+    "name": "Dremekal",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201356,
+    "name": "Yalaki",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201409,
+    "name": "Iyalinaoukh",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201281,
+    "name": "Zayenaekk",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201350,
+    "name": "Captain_Nyra",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201325,
+    "name": "Tamyna_Willowsong",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201055,
+    "name": "tormented_wraith",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201282,
+    "name": "Baxo_Numbalin",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201351,
+    "name": "Fubbel_Copperwheel",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201328,
+    "name": "Yventa_Va`Ssula",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201340,
+    "name": "Zakis_Var_Sl`tad",
+    "hp": 6000,
+    "ac": 200
+  },
+  {
+    "id": 201410,
+    "name": "Genni_Dulzane",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201339,
+    "name": "Golikan",
+    "hp": 4700,
+    "ac": 200
+  },
+  {
+    "id": 201210,
+    "name": "Dumann_the_Quick",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201411,
+    "name": "Vulur_Stonehold",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 201338,
+    "name": "High_Shaman_Dannal",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201337,
+    "name": "Wurgoz",
+    "hp": 5700,
+    "ac": 200
+  },
+  {
+    "id": 201387,
+    "name": "Bimlee_Mellswar",
+    "hp": 4200,
+    "ac": 200
+  },
+  {
+    "id": 202000,
+    "name": "InvisMan",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 202001,
+    "name": "Gram_Dunnar",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202002,
+    "name": "Nelin_Signus",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202003,
+    "name": "Official_Sevalis",
+    "hp": 1000,
+    "ac": 5
+  },
+  {
+    "id": 202004,
+    "name": "Official_Ellerawen",
+    "hp": 1000,
+    "ac": 5
+  },
+  {
+    "id": 202005,
+    "name": "Official_Wigoth",
+    "hp": 1000,
+    "ac": 5
+  },
+  {
+    "id": 202007,
+    "name": "Warder_Elwysaie",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202008,
+    "name": "Virtuoso_Ciadus",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202009,
+    "name": "Virtuoso_Zoama",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202010,
+    "name": "Assassin_Rysarieul",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202011,
+    "name": "Grandmaster_Chendra",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202012,
+    "name": "Warlord_Korehan",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202013,
+    "name": "Alexis_Dubbani",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202014,
+    "name": "Randi_Ellan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202015,
+    "name": "Gammle_Hecht",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202016,
+    "name": "Lohie_Cantare",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202017,
+    "name": "Curator_Merri",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202018,
+    "name": "Drelynn_Beaufax",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202019,
+    "name": "Renni_Stone",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202020,
+    "name": "Strat",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202021,
+    "name": "Holly_Longtail",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202022,
+    "name": "Talespinner_Trogmarz",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202023,
+    "name": "Researcher_Eldaro",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202024,
+    "name": "Chronicler_Bixbot",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202025,
+    "name": "Bookbrowser_Talika",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202026,
+    "name": "Loreseeker_Olgrim",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202027,
+    "name": "Guardian_Jerbabi",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202028,
+    "name": "Guardian_Voelath",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202029,
+    "name": "Guardian_Gwalec",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202030,
+    "name": "Guardian_Caynd",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202031,
+    "name": "Guardian_Aderrawyn",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202032,
+    "name": "Guardian_Rhilali",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202033,
+    "name": "Guardian_Jerilamos",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202034,
+    "name": "Guardian_Sinothmo",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202035,
+    "name": "Guardian_Shabado",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202036,
+    "name": "Guardian_Elaredon",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202037,
+    "name": "Bolcen_Tendag",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202038,
+    "name": "Zalil_Nyvin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202039,
+    "name": "Cadelid_Etord",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202040,
+    "name": "Acomar_Lothwol",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202041,
+    "name": "Sage_Xelrin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202042,
+    "name": "Onirelin_Gali",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202043,
+    "name": "Gwiraba_Gelrid",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202044,
+    "name": "Xasri_Virek",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202045,
+    "name": "Zauvudd_Gigoth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202046,
+    "name": "Sage_Gunyth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202047,
+    "name": "Tenada_Jeried",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202048,
+    "name": "Ethoach_Trokith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202049,
+    "name": "Leramas_Feston",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202050,
+    "name": "Winon_Glahar",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202051,
+    "name": "Sage_Balic",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202052,
+    "name": "Guardian_Helind",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202053,
+    "name": "Guardian_Erohach",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202054,
+    "name": "Cadelawin_Browan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202055,
+    "name": "Willamina",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202056,
+    "name": "Rilatlan_Olaek",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202057,
+    "name": "Trep_Thilcan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202058,
+    "name": "Agrakath_Theric",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202059,
+    "name": "Caonid_Girwil",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202298,
+    "name": "Raewyth_Velanor",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202299,
+    "name": "Tarerd_Gahar",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202300,
+    "name": "Tratlan_Jowyr",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202301,
+    "name": "Wicas_Adaolath",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202064,
+    "name": "Daeld_Atand",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202303,
+    "name": "Ramos_Jerwan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202304,
+    "name": "Horil_Imsin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202067,
+    "name": "Radie_Imsin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202068,
+    "name": "Yeril_Imsin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202069,
+    "name": "Audri_Deepfacet",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202306,
+    "name": "Kanio_Paerk",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202071,
+    "name": "Halena_Paerk",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202307,
+    "name": "Szrix_Hammertail",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202073,
+    "name": "Jahzo_Hammertail",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202074,
+    "name": "Zosran_Hammertail",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202075,
+    "name": "Kertak_Hammertail",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202076,
+    "name": "Ellis_Cloudchaser",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202077,
+    "name": "Telir_Na`Shalith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202078,
+    "name": "Loran_Thu`Leth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202079,
+    "name": "Serin_ODanos",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 202080,
+    "name": "Perago_Crotal",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202081,
+    "name": "Merabo_Sotath",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202082,
+    "name": "Sirekoth_Eshe",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202083,
+    "name": "Basur_TuQual",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202084,
+    "name": "Noirin_Khalen",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202085,
+    "name": "Bemli_Takoth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202086,
+    "name": "Dalin_Greskar",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202087,
+    "name": "Boiron_Ston",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202088,
+    "name": "Magnar_Quok",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202089,
+    "name": "Glena_Quok",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202090,
+    "name": "Vuli_Ironstove",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202091,
+    "name": "Tranus_Ironstove",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202092,
+    "name": "Culkin_Ironstove",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202093,
+    "name": "Savet_Ironstove",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202094,
+    "name": "Higwyn_Matrick",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202095,
+    "name": "Tratlan_Matrick",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202096,
+    "name": "Guardian_Vaehan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202097,
+    "name": "Guardian_Adiasean",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202098,
+    "name": "Guardian_Adew",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202099,
+    "name": "Guardian_Onaut",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202100,
+    "name": "Guardian_Jarenth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202101,
+    "name": "Guardian_Rirak",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202102,
+    "name": "Guardian_Cigosh",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202322,
+    "name": "Warlord_Gligoth",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202103,
+    "name": "Guardian_Frilikin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202104,
+    "name": "Guardian_Kedirakith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202105,
+    "name": "Guardian_Wedrijan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202106,
+    "name": "Guardian_Rhorin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202107,
+    "name": "Guardian_Jelab",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202108,
+    "name": "Guardian_Rhenwan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202109,
+    "name": "Guardian_Prau",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202110,
+    "name": "Guardian_Thaowyn",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202111,
+    "name": "Guardian_Asirav",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202112,
+    "name": "Guardian_Aboekor",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202113,
+    "name": "Guardian_Bomawyn",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202114,
+    "name": "Guardian_Norerd",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202115,
+    "name": "Guardian_Drendle",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202116,
+    "name": "Guardian_Frendad",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202117,
+    "name": "Guardian_Ulaurd",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202118,
+    "name": "Guardian_Daknot",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202119,
+    "name": "Guardian_Onay",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202120,
+    "name": "Soulbinder_Jera",
+    "hp": 14,
+    "ac": 5
+  },
+  {
+    "id": 202121,
+    "name": "Aid_Grimel",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202122,
+    "name": "Aid_Eino",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202123,
+    "name": "Aid_Fimli",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202124,
+    "name": "Aid_Garuuk",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202129,
+    "name": "Caden_Zharik",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202130,
+    "name": "Dogle_Pitt",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202131,
+    "name": "Amile_Pitt",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202132,
+    "name": "Kirem_Deepfacet",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202133,
+    "name": "Gligo_Muddypants",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202134,
+    "name": "Elisha_Dirtyshoes",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202135,
+    "name": "Bargol_Halith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202136,
+    "name": "Klen_Ironstove",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202137,
+    "name": "Peras_Glickon",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202138,
+    "name": "Darius_Gandril",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202139,
+    "name": "Jaren_Cloudchaser",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202141,
+    "name": "Severg_ODanos",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 202323,
+    "name": "Derin_ODanos",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202142,
+    "name": "Ciren_Darkbog",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202143,
+    "name": "Tallis_Paerk",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202144,
+    "name": "Sherin_Matrick",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202145,
+    "name": "Banker_Granger",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202146,
+    "name": "Banker_Ceridan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202147,
+    "name": "Wegal_Darkanvil",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202148,
+    "name": "Merin_Darkanvil",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202149,
+    "name": "Kaleras_Darkanvil",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202150,
+    "name": "Saria_Bromal",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202151,
+    "name": "Tabben_Bromal",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202152,
+    "name": "Wilacor_Goldenmead",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202153,
+    "name": "Ferin_Lightfoot",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202154,
+    "name": "Mirao_Frostpouch",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202311,
+    "name": "Grave_Lord_Vizurik",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202312,
+    "name": "Oracle_Balek",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202313,
+    "name": "Warlord_Skriek",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202166,
+    "name": "Maryalis_N`Ryt",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202167,
+    "name": "Wisdomseeker_Raulin",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202315,
+    "name": "Neverral_N`Ryt",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202169,
+    "name": "Pastseeker_Rhondarra",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202316,
+    "name": "Sir_Geravaldi",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202171,
+    "name": "Gravelady_Beddia",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202317,
+    "name": "Tomeskimmer_Joop",
+    "hp": 3250,
+    "ac": 200
+  },
+  {
+    "id": 202173,
+    "name": "Borik_Darkanvil",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202174,
+    "name": "Channeler_Olaemos",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202175,
+    "name": "Channeler_Keatrem",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202176,
+    "name": "Channeler_Alyrianne",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202177,
+    "name": "Channeler_Cerakoth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202178,
+    "name": "Channeler_Lariland",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202179,
+    "name": "Mystic_Abomin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202180,
+    "name": "Mystic_Somas",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202181,
+    "name": "Mystic_Pikor",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202182,
+    "name": "Mystic_Ryrin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202183,
+    "name": "Mystic_Goharkor",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202184,
+    "name": "Reaver_Nydlil",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202185,
+    "name": "Reaver_Praden",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202186,
+    "name": "Reaver_Muron",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202187,
+    "name": "Reaver_Thirlan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202188,
+    "name": "Reaver_Uledrith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202189,
+    "name": "Pathfinder_Viliken",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202190,
+    "name": "Pathfinder_Arelat",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202191,
+    "name": "Pathfinder_Naend",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202192,
+    "name": "Pathfinder_Thoajin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202193,
+    "name": "Pathfinder_Vaered",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202194,
+    "name": "Cavalier_Waut",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202195,
+    "name": "Cavalier_Ethigom",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202196,
+    "name": "Cavalier_Cerakor",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202197,
+    "name": "Cavalier_Preradus",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202198,
+    "name": "Cavalier_Aodus",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202199,
+    "name": "Heretic_Drahur",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202200,
+    "name": "Heretic_Niraf",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202201,
+    "name": "Heretic_Ceikon",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202202,
+    "name": "Heretic_Edalith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202203,
+    "name": "Heretic_Elirev",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202204,
+    "name": "Elementalist_Somat",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202205,
+    "name": "Elementalist_Onaec",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202206,
+    "name": "Elementalist_Siewth",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202207,
+    "name": "Elementalist_Padan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202208,
+    "name": "Elementalist_Kaeob",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202209,
+    "name": "Illusionist_Jerup",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202210,
+    "name": "Illusionist_Warek",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202211,
+    "name": "Illusionist_Acored",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202212,
+    "name": "Illusionist_Lobaen",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202213,
+    "name": "Illusionist_Sevat",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202214,
+    "name": "Wanderer_Astobin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202215,
+    "name": "Wanderer_Thermon",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202216,
+    "name": "Wanderer_Kedrisan",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202217,
+    "name": "Wanderer_Frardok",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202218,
+    "name": "Wanderer_Qenda",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202219,
+    "name": "Vicar_Ceraen",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202220,
+    "name": "Vicar_Glaunn",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202221,
+    "name": "Vicar_Diarin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202222,
+    "name": "Vicar_Delin",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202223,
+    "name": "Vicar_Thiran",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202224,
+    "name": "Primalist_Saosith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202225,
+    "name": "Primalist_Uliag",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202226,
+    "name": "Primalist_Loerith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202227,
+    "name": "Primalist_Nydalith",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202228,
+    "name": "Primalist_Worenon",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202229,
+    "name": "Minstrel_Eoweril",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202230,
+    "name": "Minstrel_Cirsaelle",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202231,
+    "name": "Minstrel_Silnon",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202232,
+    "name": "Minstrel_Gwiar",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202233,
+    "name": "Minstrel_Joet",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202234,
+    "name": "Savage_Lord_Dwev",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202235,
+    "name": "Savage_Lord_Etherat",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202236,
+    "name": "Savage_Lord_Cedrean",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202237,
+    "name": "High_Priest_Eliwan",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202238,
+    "name": "Crusader_Gimil",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202239,
+    "name": "Oracle_Cador",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202240,
+    "name": "Hierophant_Trilawyth",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202241,
+    "name": "Arch_Mage_Olera",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202242,
+    "name": "Phantasmist_Abaur",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202243,
+    "name": "Sorcerer_Farin",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202244,
+    "name": "Virtuoso_Legilwan",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202245,
+    "name": "Phantasmist_Tairon",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202246,
+    "name": "Oracle_Maeth",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202247,
+    "name": "High_Priest_Vasil",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202248,
+    "name": "Grandmaster_Limsa",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202249,
+    "name": "Assassin_Daran",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202250,
+    "name": "Crusader_Difur",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202251,
+    "name": "Warlord_Welorf",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202252,
+    "name": "Arch_Mage_Narik",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202253,
+    "name": "Sorcerer_Kerynth",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202254,
+    "name": "Oracle_Guwan",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202255,
+    "name": "High_Priest_Elikor",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202256,
+    "name": "Warlock_Vesthin",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202257,
+    "name": "Phantasmist_Salkith",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202258,
+    "name": "Sorcerer_Dogan",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202259,
+    "name": "Arch_Mage_Deidus",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202260,
+    "name": "Grave_Lord_Dreavud",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202321,
+    "name": "Assassin_Mirot",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202263,
+    "name": "Grandmaster_Vohar",
+    "hp": 32000,
+    "ac": 200
+  },
+  {
+    "id": 202324,
+    "name": "Tomeseeker_Salkien",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 202340,
+    "name": "Priest_of_Discord",
+    "hp": 31505,
+    "ac": 190
+  },
+  {
+    "id": 204455,
+    "name": "Grave_Checker",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 204458,
+    "name": "Maze_Checker",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 204457,
+    "name": "EinoInvisDay",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 204007,
+    "name": "a_ravenous_nightstalker",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 204046,
+    "name": "a_young_bat",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 204008,
+    "name": "a_gnarled_treant",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 204000,
+    "name": "a_virulent_arachnid",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 204021,
+    "name": "a_mephit",
+    "hp": 16500,
+    "ac": 200
+  },
+  {
+    "id": 204022,
+    "name": "a_misery_mephit",
+    "hp": 14200,
+    "ac": 200
+  },
+  {
+    "id": 204031,
+    "name": "a_torment_bat",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 204030,
+    "name": "a_tremulous_bat",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 204026,
+    "name": "a_scourge_hobgoblin",
+    "hp": 17700,
+    "ac": 200
+  },
+  {
+    "id": 204014,
+    "name": "a_vexed_banshee",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 204013,
+    "name": "a_nettling_wraith",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 204045,
+    "name": "a_virulent_hatchling",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 204009,
+    "name": "a_blood_raven",
+    "hp": 12600,
+    "ac": 200
+  },
+  {
+    "id": 204002,
+    "name": "a_predatory_creeper",
+    "hp": 21400,
+    "ac": 200
+  },
+  {
+    "id": 204048,
+    "name": "a_fiendish_consort",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 204018,
+    "name": "a_gloom_nightmare",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 204020,
+    "name": "a_foreboding_guardian",
+    "hp": 27000,
+    "ac": 200
+  },
+  {
+    "id": 204029,
+    "name": "a_loathsome_creeper",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 204070,
+    "name": "Thelin_Poxbourne",
+    "hp": 6500,
+    "ac": 200
+  },
+  {
+    "id": 204071,
+    "name": "a_cracked_skull",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 204074,
+    "name": "a_tombstone",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 204066,
+    "name": "a_dark_visage",
+    "hp": 20000,
+    "ac": 200
+  },
+  {
+    "id": 204038,
+    "name": "a_shadow_steed",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 204001,
+    "name": "Hatchling",
+    "hp": 10600,
+    "ac": 200
+  },
+  {
+    "id": 204019,
+    "name": "a_nightstalker",
+    "hp": 23000,
+    "ac": 200
+  },
+  {
+    "id": 204040,
+    "name": "a_murkwater_minnow",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 204004,
+    "name": "a_ghastly_bat",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 204041,
+    "name": "a_wraith",
+    "hp": 13600,
+    "ac": 200
+  },
+  {
+    "id": 204042,
+    "name": "a_terror_bat",
+    "hp": 14000,
+    "ac": 200
+  },
+  {
+    "id": 204049,
+    "name": "#a_bullyrag_bat",
+    "hp": 31600,
+    "ac": 200
+  },
+  {
+    "id": 204025,
+    "name": "a_horror_hobgoblin",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 204024,
+    "name": "a_hobgoblin_reaper",
+    "hp": 26750,
+    "ac": 200
+  },
+  {
+    "id": 204023,
+    "name": "a_harrowing_hobgoblin",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 204044,
+    "name": "#a_fearsome_hobgoblin",
+    "hp": 27400,
+    "ac": 200
+  },
+  {
+    "id": 204050,
+    "name": "#a_painwrack_hobgoblin",
+    "hp": 19600,
+    "ac": 200
+  },
+  {
+    "id": 204015,
+    "name": "a_tortured_banshee",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 204005,
+    "name": "a_crumbling_gargoyle",
+    "hp": 18100,
+    "ac": 200
+  },
+  {
+    "id": 204003,
+    "name": "a_weathered_gargoyle",
+    "hp": 18000,
+    "ac": 200
+  },
+  {
+    "id": 204012,
+    "name": "a_tar`dak_hunter",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 204027,
+    "name": "a_slarghilug",
+    "hp": 12300,
+    "ac": 200
+  },
+  {
+    "id": 204011,
+    "name": "a_hobgoblin",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 204047,
+    "name": "Seilaen",
+    "hp": 25400,
+    "ac": 200
+  },
+  {
+    "id": 210000,
+    "name": "a_hurricane_lorok",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210113,
+    "name": "a_typhoon_lorok",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210013,
+    "name": "a_forlorn_ent",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210007,
+    "name": "a_wanton_tronera",
+    "hp": 17100,
+    "ac": 200
+  },
+  {
+    "id": 210004,
+    "name": "a_scorned_tronendi",
+    "hp": 19500,
+    "ac": 200
+  },
+  {
+    "id": 210022,
+    "name": "a_jotna_her_megir",
+    "hp": 31800,
+    "ac": 200
+  },
+  {
+    "id": 210039,
+    "name": "a_roving_cactore",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210043,
+    "name": "an_armantis_wayfarer",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210044,
+    "name": "a_sheklak_armanento",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210051,
+    "name": "Krelk_the_Drifter",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210059,
+    "name": "Grok",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210060,
+    "name": "Wembly_the_Forlorn",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210061,
+    "name": "Bittrik_the_Unkempt",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210018,
+    "name": "a_storm_drenched_nophtan",
+    "hp": 21400,
+    "ac": 200
+  },
+  {
+    "id": 210019,
+    "name": "a_hurricane_nophtan",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 210040,
+    "name": "a_typhoon_amphan",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 210047,
+    "name": "a_tempest_toad",
+    "hp": 26800,
+    "ac": 200
+  },
+  {
+    "id": 210084,
+    "name": "a_vacillating_loktole",
+    "hp": 17700,
+    "ac": 200
+  },
+  {
+    "id": 210046,
+    "name": "a_hurricane_loktole",
+    "hp": 21300,
+    "ac": 200
+  },
+  {
+    "id": 210085,
+    "name": "a_swordfish",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 210086,
+    "name": "a_fish",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 210009,
+    "name": "a_beleaguered_ent",
+    "hp": 15900,
+    "ac": 200
+  },
+  {
+    "id": 210005,
+    "name": "a_wandering_grezlan",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210017,
+    "name": "a_storm_gruezok",
+    "hp": 16500,
+    "ac": 200
+  },
+  {
+    "id": 210087,
+    "name": "a_Koka`Vor_senvar",
+    "hp": 22000,
+    "ac": 200
+  },
+  {
+    "id": 210088,
+    "name": "a_Koka`Vor_krovian",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210012,
+    "name": "a_rock_storm",
+    "hp": 14100,
+    "ac": 200
+  },
+  {
+    "id": 210021,
+    "name": "a_whirling_rock_storm",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210020,
+    "name": "a_violent_sand_storm",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210024,
+    "name": "a_roving_scorpioco",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210034,
+    "name": "a_nomadic_scorpion",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210016,
+    "name": "a_noxious_scorponnis",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210014,
+    "name": "a_spined_cactoric",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210010,
+    "name": "a_rootless_cactoren",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210023,
+    "name": "a_fannsk",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210095,
+    "name": "a_storm_worn_armantis",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210006,
+    "name": "a_srerento_armantis",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210002,
+    "name": "a_typhoon_floraling",
+    "hp": 19500,
+    "ac": 200
+  },
+  {
+    "id": 210096,
+    "name": "a_floral_amalgam",
+    "hp": 15900,
+    "ac": 200
+  },
+  {
+    "id": 210097,
+    "name": "a_waterlogged_floran",
+    "hp": 17700,
+    "ac": 200
+  },
+  {
+    "id": 210242,
+    "name": "a_grezlan_cub",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 210031,
+    "name": "an_her_megir",
+    "hp": 30600,
+    "ac": 200
+  },
+  {
+    "id": 207062,
+    "name": "A_faint_rattle",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 207278,
+    "name": "A_warm",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 207061,
+    "name": "An_acidic_mist",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 207280,
+    "name": "You_hear",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 207016,
+    "name": "A_Boruk_lacerator",
+    "hp": 25300,
+    "ac": 200
+  },
+  {
+    "id": 207017,
+    "name": "A_Kaniz_flayer",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 207019,
+    "name": "A_Boruk_minion",
+    "hp": 26200,
+    "ac": 200
+  },
+  {
+    "id": 207018,
+    "name": "a_Kaniz_minion",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 207021,
+    "name": "A_twisted_crawler",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 207048,
+    "name": "A_cloudy_image",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 207000,
+    "name": "A_blurry_image",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 207032,
+    "name": "A_flayed_horror",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 207033,
+    "name": "A_skinless_creature",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 207005,
+    "name": "A_Kaniz_ravager",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 207030,
+    "name": "A_blood_raven",
+    "hp": 18600,
+    "ac": 200
+  },
+  {
+    "id": 207040,
+    "name": "A_Boruk_torturer",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 207039,
+    "name": "A_Kaniz_torturer",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 207007,
+    "name": "A_blood_raven_hatchling",
+    "hp": 17500,
+    "ac": 200
+  },
+  {
+    "id": 207036,
+    "name": "A_glistening_blood_raven",
+    "hp": 19900,
+    "ac": 200
+  },
+  {
+    "id": 207008,
+    "name": "A_Boruk_hunter",
+    "hp": 20000,
+    "ac": 200
+  },
+  {
+    "id": 207060,
+    "name": "The_shadows",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 207063,
+    "name": "Something_dark",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 207014,
+    "name": "Tylis_Newleaf",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 207035,
+    "name": "A_Kaniz_tormentor",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 207034,
+    "name": "A_Boruk_tormentor",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 207006,
+    "name": "a_small_blood_raven",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 207038,
+    "name": "A_Kaniz_hopedefiler",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 207046,
+    "name": "#A_pain_devourer",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 207012,
+    "name": "A_Boruk_painharvester",
+    "hp": 23500,
+    "ac": 200
+  },
+  {
+    "id": 207042,
+    "name": "A_construct_breeder",
+    "hp": 20200,
+    "ac": 200
+  },
+  {
+    "id": 207010,
+    "name": "A_construct_harvester",
+    "hp": 20100,
+    "ac": 200
+  },
+  {
+    "id": 207013,
+    "name": "A_Kaniz_hunter",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 203000,
+    "name": "A_dense",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 203362,
+    "name": "Muzzrap_Dirtdigger",
+    "hp": 7600,
+    "ac": 200
+  },
+  {
+    "id": 203363,
+    "name": "Soulbinder_Derith",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 203364,
+    "name": "Hrelic_Reista",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 203365,
+    "name": "Illian_Rellasp",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 203366,
+    "name": "Adroha_Jezith",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203368,
+    "name": "Weavereader_Ralmajir",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203369,
+    "name": "Weavereader_Dox`Atyr",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203370,
+    "name": "Weavereader_Aewen",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203371,
+    "name": "Apprentice_Fih`Ylia",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203372,
+    "name": "Fahlia_Shadyglade",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203373,
+    "name": "Tylis_Newleaf",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203374,
+    "name": "Elder_Poxbourne",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203375,
+    "name": "Elder_Fuirstel",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203376,
+    "name": "an_earth_elemental_focus",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203377,
+    "name": "Taq`aal_Emeraldshard",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 203378,
+    "name": "a_water_elemental_focus",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203379,
+    "name": "Jurmak_the_Undertow",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 203380,
+    "name": "a_fire_elemental_focus",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203381,
+    "name": "Miak_the_Searedsoul",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 203382,
+    "name": "an_air_elemental_focus",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203383,
+    "name": "Sarhya_the_Dawnbreeze",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 203384,
+    "name": "Elder_Harrik",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203385,
+    "name": "Jimlok_Keylifter",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203386,
+    "name": "Rataga_Stoneskipper",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203029,
+    "name": "_",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203387,
+    "name": "Saluk_Tramuj",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203388,
+    "name": "Aywelin_Creekrunner",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203389,
+    "name": "Zurmsa_Grulm",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203390,
+    "name": "Kalin_Reddin",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203391,
+    "name": "Cayrin_Smirten",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203392,
+    "name": "Rugurt_Grubdigger",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203393,
+    "name": "Palin_Firefly",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203394,
+    "name": "Adler_Fuirstel",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203395,
+    "name": "Fellan_Shireshore",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203396,
+    "name": "Jasmine_Shireshore",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203397,
+    "name": "Tya_Silvercloud",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203398,
+    "name": "Drogguk_Gearlifter",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203399,
+    "name": "Elder_Gelok",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203400,
+    "name": "Urgla_Fishbrains",
+    "hp": 7600,
+    "ac": 200
+  },
+  {
+    "id": 203401,
+    "name": "Elder_Jal`Amra",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203402,
+    "name": "Apprentice_Daultier",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203403,
+    "name": "Elder_Aytael",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203404,
+    "name": "Elder_Humfort",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203405,
+    "name": "Elder_Clinka",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203406,
+    "name": "Elder_Zsa`Tal",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203407,
+    "name": "Rugresch_Tragguk",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203408,
+    "name": "Kalym_Rasalan",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203409,
+    "name": "Tinan_Aliis",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203410,
+    "name": "Sariliz_Grizka",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203411,
+    "name": "Trila_Cabbageroll",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203412,
+    "name": "Hannis_Silvertip",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203413,
+    "name": "Paurnil_Goldenleaves",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203414,
+    "name": "Domri_Gemstriker",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203415,
+    "name": "Taisika_Cloudfire",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203416,
+    "name": "Jasila_Maqul",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203417,
+    "name": "Aelisian_Taliz",
+    "hp": 7600,
+    "ac": 200
+  },
+  {
+    "id": 203418,
+    "name": "Elder_Tal_Almad",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203419,
+    "name": "Adrania_Fireyese",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203420,
+    "name": "Parija_Kalamir",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203421,
+    "name": "Gregory_Maligus",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203422,
+    "name": "Malakar_Ay`Ayat",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203423,
+    "name": "Samusk_Hariij",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203424,
+    "name": "Aliia_Tal_Almad",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203425,
+    "name": "Dubbel_Strohbarrel",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203426,
+    "name": "Jasir_Amisan",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203427,
+    "name": "Jimmik_Greenstone",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 203430,
+    "name": "Bor_Wharhammer",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 203431,
+    "name": "Phanti_Sacredsoul",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 203432,
+    "name": "Iramai_Sacredsoul",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 208179,
+    "name": "A_Lumbering_Beast",
+    "hp": 25000,
+    "ac": 250
+  },
+  {
+    "id": 208000,
+    "name": "A_Razorfiend_Subduer",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 208009,
+    "name": "An_Ancient_Guardian",
+    "hp": 25000,
+    "ac": 280
+  },
+  {
+    "id": 208003,
+    "name": "A_Crystalline_Golem",
+    "hp": 25200,
+    "ac": 250
+  },
+  {
+    "id": 208017,
+    "name": "An_Undead_Vassal",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 208002,
+    "name": "A_Crystalline_Arachnae",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 208004,
+    "name": "A_Crystalline_Crawler",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 208024,
+    "name": "a_tree_frog",
+    "hp": 22000,
+    "ac": 200
+  },
+  {
+    "id": 208034,
+    "name": "A_Gamite_Frog",
+    "hp": 22800,
+    "ac": 200
+  },
+  {
+    "id": 208084,
+    "name": "A_Diseased_Guard",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 208168,
+    "name": "Dialogue_Man",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 208165,
+    "name": "#Glass_Start",
+    "hp": 30000,
+    "ac": 200
+  },
+  {
+    "id": 208160,
+    "name": "#Sleep_Timer_C",
+    "hp": 30000,
+    "ac": 200
+  },
+  {
+    "id": 208176,
+    "name": "Rahlgon",
+    "hp": 30000,
+    "ac": 280
+  },
+  {
+    "id": 208175,
+    "name": "A_Mindless_Minion",
+    "hp": 25000,
+    "ac": 250
+  },
+  {
+    "id": 208028,
+    "name": "An_Animated_Soldier",
+    "hp": 29600,
+    "ac": 200
+  },
+  {
+    "id": 208031,
+    "name": "An_Apprentice_Cartographer",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208035,
+    "name": "Barry_Karmme",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208036,
+    "name": "Genii_Rolfs",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208037,
+    "name": "Aken_Feldmin",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208038,
+    "name": "Fenric_Zarign",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208043,
+    "name": "An_Animated_Guard",
+    "hp": 31000,
+    "ac": 200
+  },
+  {
+    "id": 208006,
+    "name": "A_Luminii_Crawler",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 208019,
+    "name": "A_Captured_Razorfiend",
+    "hp": 29600,
+    "ac": 200
+  },
+  {
+    "id": 208072,
+    "name": "An_Undead_Footman",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 208063,
+    "name": "Helix_Jeson",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208064,
+    "name": "Polarix_Mudder",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208065,
+    "name": "Ceson_Fallonic",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208066,
+    "name": "Paralin_Notion",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208067,
+    "name": "Zech_Terrun",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208068,
+    "name": "Regalt_Tripedes",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208069,
+    "name": "Fyking_Baer",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208070,
+    "name": "Fellon_Garnuckle",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208071,
+    "name": "Rydric_Kane",
+    "hp": 31300,
+    "ac": 200
+  },
+  {
+    "id": 208073,
+    "name": "a_rusted_suit_of_mail",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 208005,
+    "name": "an_undead_squire",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 214059,
+    "name": "a_War_Wraith",
+    "hp": 17250,
+    "ac": 200
+  },
+  {
+    "id": 214011,
+    "name": "_",
+    "hp": 5000,
+    "ac": 5
+  },
+  {
+    "id": 214078,
+    "name": "A_tortured_soul",
+    "hp": 22150,
+    "ac": 200
+  },
+  {
+    "id": 214282,
+    "name": "You_hear",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 214107,
+    "name": "Huge_spikes",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 214102,
+    "name": "A_Cold_Wind",
+    "hp": 30000,
+    "ac": 200
+  },
+  {
+    "id": 214012,
+    "name": "Shadows",
+    "hp": 28000,
+    "ac": 200
+  },
+  {
+    "id": 214023,
+    "name": "a_Diaku_Death_Knight",
+    "hp": 26900,
+    "ac": 200
+  },
+  {
+    "id": 214020,
+    "name": "a_Diaku_Warrior",
+    "hp": 29200,
+    "ac": 200
+  },
+  {
+    "id": 214047,
+    "name": "a_Diaku_Boar",
+    "hp": 16550,
+    "ac": 200
+  },
+  {
+    "id": 214004,
+    "name": "Diaku_Sentry",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 214038,
+    "name": "an_Oracle_of_Zek",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 214019,
+    "name": "a_Diaku_Oracle",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 214000,
+    "name": "a_War_Crow",
+    "hp": 24750,
+    "ac": 200
+  },
+  {
+    "id": 214039,
+    "name": "Diaku_Guardian",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 214016,
+    "name": "a_Diaku_Scout",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 214100,
+    "name": "An_Arrow",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 214048,
+    "name": "a_War_Boar",
+    "hp": 29100,
+    "ac": 200
+  },
+  {
+    "id": 214094,
+    "name": "a_zek_initiate",
+    "hp": 24500,
+    "ac": 200
+  },
+  {
+    "id": 214286,
+    "name": "The_sky",
+    "hp": 26000,
+    "ac": 200
+  },
+  {
+    "id": 214058,
+    "name": "War_Forge_Assistant",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214093,
+    "name": "a_Warrior_of_Zek",
+    "hp": 24400,
+    "ac": 200
+  },
+  {
+    "id": 214050,
+    "name": "Hendin_Deathbringer",
+    "hp": 29000,
+    "ac": 200
+  },
+  {
+    "id": 214032,
+    "name": "Gindan_Darkblade",
+    "hp": 29500,
+    "ac": 200
+  },
+  {
+    "id": 214086,
+    "name": "Hendin_Shadow_Master",
+    "hp": 31500,
+    "ac": 200
+  },
+  {
+    "id": 214031,
+    "name": "Gindan_Blademaster",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 214036,
+    "name": "Diaku_Elite_Guard",
+    "hp": 31400,
+    "ac": 200
+  },
+  {
+    "id": 214049,
+    "name": "Hendin_Assassin",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 214013,
+    "name": "Diaku_Armsman",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 214022,
+    "name": "a_boar_beast",
+    "hp": 23550,
+    "ac": 200
+  },
+  {
+    "id": 214018,
+    "name": "a_Battle_Wraith",
+    "hp": 14150,
+    "ac": 200
+  },
+  {
+    "id": 214046,
+    "name": "a_Diaku_Raider",
+    "hp": 24350,
+    "ac": 200
+  },
+  {
+    "id": 214070,
+    "name": "Artan_Bloodforge",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214066,
+    "name": "Rynd_Whistlesong",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214061,
+    "name": "Bouncer_Dunzuk",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214060,
+    "name": "R`vule_Aukorrse",
+    "hp": 525,
+    "ac": 200
+  },
+  {
+    "id": 214044,
+    "name": "Gnaap_Guinders",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214062,
+    "name": "Lysette_Wolftrot",
+    "hp": 700,
+    "ac": 200
+  },
+  {
+    "id": 214043,
+    "name": "Aukris_Tomb",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214063,
+    "name": "Frana_Shimi",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214064,
+    "name": "Leara_Talissi",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214065,
+    "name": "Iani_Darkmoore",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214067,
+    "name": "Martok_Weslent",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214068,
+    "name": "Myai_X`Lottl",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214069,
+    "name": "Basher_Gruk",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214071,
+    "name": "Luneviere_Elianos",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214042,
+    "name": "Kaya_Novashine",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214041,
+    "name": "Darrain_Lanseb",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214072,
+    "name": "Maurian_Sureshot",
+    "hp": 875,
+    "ac": 200
+  },
+  {
+    "id": 214040,
+    "name": "a_Fledgling_War_Boar",
+    "hp": 15750,
+    "ac": 200
+  },
+  {
+    "id": 214104,
+    "name": "General_Invisible_Man",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 214045,
+    "name": "a_Decorus_Boar",
+    "hp": 17700,
+    "ac": 200
+  },
+  {
+    "id": 214052,
+    "name": "#Rallos_Zek_",
+    "hp": 9036,
+    "ac": 200
+  },
+  {
+    "id": 214014,
+    "name": "Giwin_Mirakon",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 219169,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219168,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 201079,
+    "name": "High_Guardian_of_Justice",
+    "hp": 22800,
+    "ac": 200
+  },
+  {
+    "id": 201446,
+    "name": "High_Guardian_of_Justice",
+    "hp": 22800,
+    "ac": 200
+  },
+  {
+    "id": 201393,
+    "name": "tortured_spirit",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 201448,
+    "name": "tortured_spirit",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 205155,
+    "name": "Guardian_Knight_of_Pestilence",
+    "hp": 21000,
+    "ac": 200
+  },
+  {
+    "id": 207009,
+    "name": "A_construct_of_agony",
+    "hp": 14100,
+    "ac": 200
+  },
+  {
+    "id": 207282,
+    "name": "A_construct_of_agony",
+    "hp": 18100,
+    "ac": 200
+  },
+  {
+    "id": 207041,
+    "name": "A_construct_of_pain",
+    "hp": 16100,
+    "ac": 200
+  },
+  {
+    "id": 207286,
+    "name": "A_construct_of_pain",
+    "hp": 20700,
+    "ac": 200
+  },
+  {
+    "id": 207043,
+    "name": "A_construct_of_anguish",
+    "hp": 14100,
+    "ac": 200
+  },
+  {
+    "id": 207288,
+    "name": "A_construct_of_anguish",
+    "hp": 18100,
+    "ac": 200
+  },
+  {
+    "id": 207218,
+    "name": "A_construct_of_suffering",
+    "hp": 16100,
+    "ac": 200
+  },
+  {
+    "id": 207290,
+    "name": "A_construct_of_suffering",
+    "hp": 20700,
+    "ac": 200
+  },
+  {
+    "id": 208030,
+    "name": "a_planarian_larvae",
+    "hp": 22800,
+    "ac": 200
+  },
+  {
+    "id": 208183,
+    "name": "a_planarian_larvae",
+    "hp": 22800,
+    "ac": 200
+  },
+  {
+    "id": 210011,
+    "name": "a_Kelek`Vor_moss_snake",
+    "hp": 19500,
+    "ac": 200
+  },
+  {
+    "id": 210405,
+    "name": "a_Kelek`Vor_moss_snake",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210036,
+    "name": "a_Krendic_slitherer",
+    "hp": 19500,
+    "ac": 200
+  },
+  {
+    "id": 210409,
+    "name": "a_Krendic_slitherer",
+    "hp": 17600,
+    "ac": 200
+  },
+  {
+    "id": 210038,
+    "name": "an_irmin_fannsk",
+    "hp": 29400,
+    "ac": 200
+  },
+  {
+    "id": 210411,
+    "name": "an_irmin_fannsk",
+    "hp": 31800,
+    "ac": 200
+  },
+  {
+    "id": 210041,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210413,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210414,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210415,
+    "name": "a_tempest_torn_traveler",
+    "hp": 17760,
+    "ac": 200
+  },
+  {
+    "id": 210093,
+    "name": "a_Srerendi_slitherer",
+    "hp": 19500,
+    "ac": 200
+  },
+  {
+    "id": 210417,
+    "name": "a_Srerendi_slitherer",
+    "hp": 17500,
+    "ac": 200
+  },
+  {
+    "id": 210099,
+    "name": "a_hleyta_menn",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 210419,
+    "name": "a_hleyta_menn",
+    "hp": 17100,
+    "ac": 200
+  },
+  {
+    "id": 210211,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210421,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210422,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210423,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210424,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210425,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210214,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210427,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210428,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210429,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210430,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210216,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210432,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210433,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210434,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210435,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210436,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210217,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210438,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210439,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210440,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210441,
+    "name": "a_forgotten_traveler",
+    "hp": 19000,
+    "ac": 200
+  },
+  {
+    "id": 210228,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210443,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210444,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210445,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210446,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210447,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210448,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210449,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210450,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210451,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210452,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210453,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210454,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210244,
+    "name": "#a_Diaku_Raider",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210456,
+    "name": "#a_Diaku_Raider",
+    "hp": 25400,
+    "ac": 200
+  },
+  {
+    "id": 210457,
+    "name": "#a_Diaku_Raider",
+    "hp": 24170,
+    "ac": 200
+  },
+  {
+    "id": 218003,
+    "name": "An_Earthen_Stonejumper",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 214090,
+    "name": "a_Gladiator",
+    "hp": 24300,
+    "ac": 200
+  },
+  {
+    "id": 214029,
+    "name": "a_Knight_of_Zek",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 219053,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219054,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219055,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219049,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217009,
+    "name": "a_doomfire_charmer",
+    "hp": 31000,
+    "ac": 230
+  },
+  {
+    "id": 219159,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219205,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218021,
+    "name": "An_Earthen_Warden",
+    "hp": 28800,
+    "ac": 200
+  },
+  {
+    "id": 216015,
+    "name": "a_triloun_water_guardian",
+    "hp": 28500,
+    "ac": 230
+  },
+  {
+    "id": 216072,
+    "name": "The_monstrous",
+    "hp": 13,
+    "ac": 230
+  },
+  {
+    "id": 219162,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219163,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 215036,
+    "name": "A_Djinn_Temple_Scholar",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 219211,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216058,
+    "name": "HatchSpawnPH",
+    "hp": 13,
+    "ac": 230
+  },
+  {
+    "id": 219047,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219052,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219135,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219136,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219137,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218012,
+    "name": "A_Korascian_Necksnapper",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 215008,
+    "name": "A_Temple_Guardian",
+    "hp": 30800,
+    "ac": 200
+  },
+  {
+    "id": 215021,
+    "name": "An_Elemental_Doomseeker",
+    "hp": 30800,
+    "ac": 200
+  },
+  {
+    "id": 219192,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219191,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219190,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217048,
+    "name": "an_obsidian_tree_spider",
+    "hp": 23400,
+    "ac": 230
+  },
+  {
+    "id": 216012,
+    "name": "a_triloun_keeper",
+    "hp": 27700,
+    "ac": 230
+  },
+  {
+    "id": 219209,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219208,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217066,
+    "name": "As_the",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 219152,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219080,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219079,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219200,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219085,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219074,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219075,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219076,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219073,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219067,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219068,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219069,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219070,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219071,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219072,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 216017,
+    "name": "a_triloun_diviner",
+    "hp": 22000,
+    "ac": 230
+  },
+  {
+    "id": 219204,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219203,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219050,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219051,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218024,
+    "name": "An_Earthcrafted_Assassin",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 219164,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 215020,
+    "name": "A_Nilborien_Scholar",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 215035,
+    "name": "An_Air_Phoenix_Noble",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 219167,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219086,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219087,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219088,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219170,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216233,
+    "name": "a_large_pirahna",
+    "hp": 21000,
+    "ac": 230
+  },
+  {
+    "id": 217006,
+    "name": "a_flame_lordling",
+    "hp": 22300,
+    "ac": 230
+  },
+  {
+    "id": 219158,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219212,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216052,
+    "name": "a_sea_turtle_youngling",
+    "hp": 7200,
+    "ac": 230
+  },
+  {
+    "id": 216029,
+    "name": "a_reef_pirahna",
+    "hp": 19900,
+    "ac": 230
+  },
+  {
+    "id": 216032,
+    "name": "a_greater_frog",
+    "hp": 32000,
+    "ac": 230
+  },
+  {
+    "id": 217057,
+    "name": "a_doomfire_wizard",
+    "hp": 28000,
+    "ac": 230
+  },
+  {
+    "id": 216027,
+    "name": "a_large_barracuda",
+    "hp": 26000,
+    "ac": 230
+  },
+  {
+    "id": 219172,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219171,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219084,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 218016,
+    "name": "A_Stone_Abomination",
+    "hp": 31800,
+    "ac": 200
+  },
+  {
+    "id": 218028,
+    "name": "A_Towering_Rock_Formation",
+    "hp": 31800,
+    "ac": 200
+  },
+  {
+    "id": 218009,
+    "name": "An_Animated_Earthwalker",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 219127,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219126,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219202,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219201,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216073,
+    "name": "a_swarm",
+    "hp": 13,
+    "ac": 230
+  },
+  {
+    "id": 216016,
+    "name": "a_frog",
+    "hp": 30200,
+    "ac": 230
+  },
+  {
+    "id": 218014,
+    "name": "An_Arborean_Earthshaker",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 218004,
+    "name": "A_Korascian_Hunter",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 217012,
+    "name": "a_defender_of_fire",
+    "hp": 31000,
+    "ac": 230
+  },
+  {
+    "id": 217024,
+    "name": "a_jopal_soldier",
+    "hp": 26700,
+    "ac": 230
+  },
+  {
+    "id": 217026,
+    "name": "a_jopal_mystic",
+    "hp": 24200,
+    "ac": 230
+  },
+  {
+    "id": 217413,
+    "name": "a_trained_obsidian_spider",
+    "hp": 26600,
+    "ac": 230
+  },
+  {
+    "id": 219198,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217041,
+    "name": "a_fiery_steed",
+    "hp": 26300,
+    "ac": 230
+  },
+  {
+    "id": 217028,
+    "name": "a_jopal_gatherer",
+    "hp": 24200,
+    "ac": 230
+  },
+  {
+    "id": 219150,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219149,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219098,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219099,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219100,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219101,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219102,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219103,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219104,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219105,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219097,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219092,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219093,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219094,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219095,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219096,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219089,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219090,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219091,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 216028,
+    "name": "a_reef_swordfish",
+    "hp": 26000,
+    "ac": 230
+  },
+  {
+    "id": 216033,
+    "name": "a_large_swordfish",
+    "hp": 27500,
+    "ac": 230
+  },
+  {
+    "id": 217068,
+    "name": "A_booming",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 217070,
+    "name": "Loud_cries",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 217067,
+    "name": "A_maddened",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 217013,
+    "name": "a_diviner_of_fire",
+    "hp": 22700,
+    "ac": 230
+  },
+  {
+    "id": 217011,
+    "name": "a_magus_of_fire",
+    "hp": 22600,
+    "ac": 230
+  },
+  {
+    "id": 217016,
+    "name": "a_chaplain_of_fire",
+    "hp": 28300,
+    "ac": 230
+  },
+  {
+    "id": 219048,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219082,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 215041,
+    "name": "A_Nilborien_Noble",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 219083,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 216018,
+    "name": "a_greater_barracuda",
+    "hp": 27500,
+    "ac": 230
+  },
+  {
+    "id": 215022,
+    "name": "A_Nilborien_Servant",
+    "hp": 30800,
+    "ac": 200
+  },
+  {
+    "id": 219151,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216013,
+    "name": "a_greater_swordfish",
+    "hp": 29000,
+    "ac": 230
+  },
+  {
+    "id": 218000,
+    "name": "An_Earthen_Mudslinger",
+    "hp": 28800,
+    "ac": 200
+  },
+  {
+    "id": 218008,
+    "name": "A_Fearsome_Earthcrafter",
+    "hp": 28800,
+    "ac": 200
+  },
+  {
+    "id": 219077,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219081,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 215025,
+    "name": "storm_ent",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 219157,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219213,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218015,
+    "name": "A_Rotting_Arborean",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 219156,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219153,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219154,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219155,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219063,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219064,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219065,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219066,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219078,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218023,
+    "name": "A_Mangled_Vegerog",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 219130,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219131,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219132,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219133,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219134,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217014,
+    "name": "a_soldier_of_fire",
+    "hp": 31500,
+    "ac": 230
+  },
+  {
+    "id": 218085,
+    "name": "The_last",
+    "hp": 13749,
+    "ac": 5
+  },
+  {
+    "id": 218036,
+    "name": "stonetxt",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 217045,
+    "name": "a_jopal_guardian",
+    "hp": 28400,
+    "ac": 230
+  },
+  {
+    "id": 216025,
+    "name": "a_greater_pirahna",
+    "hp": 22200,
+    "ac": 230
+  },
+  {
+    "id": 216019,
+    "name": "Fishlord_Craiyk",
+    "hp": 10000,
+    "ac": 230
+  },
+  {
+    "id": 216020,
+    "name": "Fishlord_Lezom",
+    "hp": 10000,
+    "ac": 230
+  },
+  {
+    "id": 219160,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219161,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216002,
+    "name": "a_triloun_champion",
+    "hp": 32000,
+    "ac": 230
+  },
+  {
+    "id": 219210,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219129,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219128,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219199,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219062,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219061,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218011,
+    "name": "An_Unkempt_Arborean",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 216009,
+    "name": "a_hraquis_magus",
+    "hp": 24000,
+    "ac": 230
+  },
+  {
+    "id": 216007,
+    "name": "a_hraquis_mystic",
+    "hp": 30200,
+    "ac": 230
+  },
+  {
+    "id": 219207,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219206,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219060,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219056,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219057,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219058,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219059,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 216022,
+    "name": "a_hraquis_faith_warden",
+    "hp": 30200,
+    "ac": 230
+  },
+  {
+    "id": 218020,
+    "name": "A_War_Shapen_Earth_Emissary",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 217039,
+    "name": "a_jopal_flame_guardian",
+    "hp": 26600,
+    "ac": 230
+  },
+  {
+    "id": 217072,
+    "name": "Four_enraged",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 217416,
+    "name": "The_ground",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 217069,
+    "name": "An_echoing",
+    "hp": 20,
+    "ac": 5
+  },
+  {
+    "id": 219046,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219166,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219165,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218238,
+    "name": "An_Earthern_Crusader",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 215382,
+    "name": "__",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218025,
+    "name": "A_Vekerchiki_Warrior",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 219045,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219011,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219012,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219013,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219014,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219015,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219016,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219017,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219018,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219019,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219020,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219021,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219022,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219023,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219024,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219025,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219026,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219027,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219028,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219029,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219030,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219031,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219032,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219033,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219034,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219035,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219036,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219037,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219038,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219039,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219040,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219041,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219042,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219043,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219044,
+    "name": "_____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218010,
+    "name": "A_Mass_of_Living_Earth",
+    "hp": 31700,
+    "ac": 200
+  },
+  {
+    "id": 219125,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219123,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219124,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219114,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219115,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219116,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219117,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219118,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219119,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219120,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219121,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219122,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219142,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219143,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219144,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219145,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219141,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219140,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219139,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218005,
+    "name": "A_Gemmed_Guardian",
+    "hp": 30500,
+    "ac": 200
+  },
+  {
+    "id": 219113,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218002,
+    "name": "A_Crystalline_Formation",
+    "hp": 30600,
+    "ac": 200
+  },
+  {
+    "id": 218001,
+    "name": "A_Majestic_Gemwalker",
+    "hp": 30500,
+    "ac": 200
+  },
+  {
+    "id": 219112,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219106,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219107,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219108,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219109,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219110,
+    "name": "_",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 219111,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 218034,
+    "name": "A_Gemmed_Protector",
+    "hp": 30500,
+    "ac": 200
+  },
+  {
+    "id": 219197,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219194,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219195,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219196,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219193,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219008,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219009,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219010,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219006,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219007,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217044,
+    "name": "a_jopal_defender",
+    "hp": 28600,
+    "ac": 230
+  },
+  {
+    "id": 217042,
+    "name": "a_jopal_protector",
+    "hp": 28600,
+    "ac": 230
+  },
+  {
+    "id": 222034,
+    "name": "The",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 217046,
+    "name": "a_lava_lordling",
+    "hp": 26000,
+    "ac": 230
+  },
+  {
+    "id": 217047,
+    "name": "a_jopal_lavahurler",
+    "hp": 25700,
+    "ac": 230
+  },
+  {
+    "id": 218341,
+    "name": "TrapMan1",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 219146,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 217029,
+    "name": "a_flame_lord",
+    "hp": 23900,
+    "ac": 230
+  },
+  {
+    "id": 217002,
+    "name": "an_obsidian_tree_spiderling",
+    "hp": 23800,
+    "ac": 230
+  },
+  {
+    "id": 217388,
+    "name": "a_young_obsidian_tree_spiderling",
+    "hp": 7200,
+    "ac": 180
+  },
+  {
+    "id": 217007,
+    "name": "a_jopal_hunter",
+    "hp": 22200,
+    "ac": 230
+  },
+  {
+    "id": 217017,
+    "name": "a_lesser_fiery_spirit_steed",
+    "hp": 7200,
+    "ac": 180
+  },
+  {
+    "id": 218342,
+    "name": "vegeventspawn",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218343,
+    "name": "vegtxt",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218059,
+    "name": "The_creature",
+    "hp": 13749,
+    "ac": 5
+  },
+  {
+    "id": 219173,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219174,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219175,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219176,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219177,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219178,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219179,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219180,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219181,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219182,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219183,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219184,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219185,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219186,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219187,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219188,
+    "name": "____",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219189,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219148,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219147,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219138,
+    "name": "_",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219000,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219001,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219002,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219003,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219004,
+    "name": "___",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 219005,
+    "name": "__",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 206000,
+    "name": "a_corrupted_system",
+    "hp": 19500,
+    "ac": 200
+  },
+  {
+    "id": 201456,
+    "name": "#a_blood_leech",
+    "hp": 19000,
+    "ac": 200
+  },
+  {
+    "id": 201461,
+    "name": "#a_grallok_overseer",
+    "hp": 15000,
+    "ac": 200
+  },
+  {
+    "id": 201452,
+    "name": "a_festering_rat",
+    "hp": 6600,
+    "ac": 200
+  },
+  {
+    "id": 201451,
+    "name": "tormented_wraith",
+    "hp": 10000,
+    "ac": 200
+  },
+  {
+    "id": 201453,
+    "name": "#a_diamond_beetle",
+    "hp": 15600,
+    "ac": 200
+  },
+  {
+    "id": 201454,
+    "name": "#a_grallok_appraisor",
+    "hp": 15000,
+    "ac": 200
+  },
+  {
+    "id": 201455,
+    "name": "#a_grallok_crusader",
+    "hp": 15000,
+    "ac": 200
+  },
+  {
+    "id": 201460,
+    "name": "#a_grallok_elder",
+    "hp": 13000,
+    "ac": 200
+  },
+  {
+    "id": 201468,
+    "name": "#a_screeching_parasite",
+    "hp": 16000,
+    "ac": 200
+  },
+  {
+    "id": 201492,
+    "name": "#the_ancient_crawler",
+    "hp": 19000,
+    "ac": 200
+  },
+  {
+    "id": 201493,
+    "name": "#the_grallok_underlord",
+    "hp": 20000,
+    "ac": 200
+  },
+  {
+    "id": 201494,
+    "name": "#the_yrendan_scarab",
+    "hp": 18200,
+    "ac": 200
+  },
+  {
+    "id": 204006,
+    "name": "#an_agony_mephit",
+    "hp": 16100,
+    "ac": 208
+  },
+  {
+    "id": 204010,
+    "name": "#The_Bullyrag_Bat",
+    "hp": 30000,
+    "ac": 200
+  },
+  {
+    "id": 201518,
+    "name": "_",
+    "hp": 1,
+    "ac": 200
+  },
+  {
+    "id": 204016,
+    "name": "an_infernal_consort",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 206198,
+    "name": "#a_malfunctioning_system",
+    "hp": 11500,
+    "ac": 200
+  },
+  {
+    "id": 205132,
+    "name": "an_arachnae_parian",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205135,
+    "name": "a_harrion_larva",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205150,
+    "name": "a_sengian_larva",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205136,
+    "name": "a_generian_larva",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205143,
+    "name": "an_arachnae_bumbler",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205140,
+    "name": "a_generian_fly",
+    "hp": 12100,
+    "ac": 200
+  },
+  {
+    "id": 205052,
+    "name": "a_pile_of_swamp_bile",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205129,
+    "name": "a_scaevian_fly",
+    "hp": 12100,
+    "ac": 200
+  },
+  {
+    "id": 205151,
+    "name": "Rythrak",
+    "hp": 16200,
+    "ac": 200
+  },
+  {
+    "id": 205141,
+    "name": "Resnak",
+    "hp": 19600,
+    "ac": 200
+  },
+  {
+    "id": 205119,
+    "name": "Rankle",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 210001,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210003,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210008,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210025,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210030,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210037,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210042,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210045,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210048,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210049,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210050,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210052,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210053,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210054,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210065,
+    "name": "an_abandoned_wanderer",
+    "hp": 18000,
+    "ac": 200
+  },
+  {
+    "id": 210055,
+    "name": "_ ",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210057,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210058,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210063,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210064,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210066,
+    "name": "an_aimless_adventurer",
+    "hp": 14100,
+    "ac": 200
+  },
+  {
+    "id": 210067,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210068,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210069,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210070,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210071,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210072,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210073,
+    "name": "an_aimless_adventurer",
+    "hp": 19300,
+    "ac": 200
+  },
+  {
+    "id": 210074,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210075,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210076,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210077,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210078,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210079,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210080,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210081,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210082,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210083,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210089,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210091,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210092,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210094,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210098,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210100,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210101,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210102,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210103,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210104,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210105,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210106,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210107,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210108,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210109,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210110,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210111,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210112,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210114,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210115,
+    "name": "a_storm_battered_traveler",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 210116,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210117,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210118,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210119,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210120,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210121,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210122,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210123,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210124,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210125,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210126,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210127,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210128,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210129,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210130,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210131,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210132,
+    "name": "an_abandoned_wanderer",
+    "hp": 24600,
+    "ac": 200
+  },
+  {
+    "id": 210133,
+    "name": "a_forgotten_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210134,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210135,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210136,
+    "name": "a_storm_battered_traveler",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 210137,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210138,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210139,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210140,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210141,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210142,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210143,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210144,
+    "name": "a_tempest_torn_traveler",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 210145,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210146,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210147,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210148,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210149,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210150,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210151,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210152,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210153,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210154,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210155,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210156,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210157,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210158,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210159,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210160,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210161,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210162,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210163,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210164,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210165,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210166,
+    "name": "_",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 210167,
+    "name": "#a_Diaku_Raider",
+    "hp": 23400,
+    "ac": 200
+  },
+  {
+    "id": 205162,
+    "name": "a_blarian_larva",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205163,
+    "name": "a_carrion_larva",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205164,
+    "name": "#a_contagious_arachnae",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205165,
+    "name": "a_diseased_infested_bubonian",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 205166,
+    "name": "a_malarian_defiler",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 205167,
+    "name": "a_malarian_metamo",
+    "hp": 20800,
+    "ac": 200
+  },
+  {
+    "id": 205168,
+    "name": "a_pusling_memnoc",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205169,
+    "name": "a_pusling_sage",
+    "hp": 15000,
+    "ac": 200
+  },
+  {
+    "id": 205170,
+    "name": "a_putrid_pile_of_flesh",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205171,
+    "name": "a_sengian_fly",
+    "hp": 11400,
+    "ac": 200
+  },
+  {
+    "id": 205173,
+    "name": "an_arachnae_aster",
+    "hp": 15800,
+    "ac": 200
+  },
+  {
+    "id": 205174,
+    "name": "#an_infested_plaguespreader",
+    "hp": 17000,
+    "ac": 200
+  },
+  {
+    "id": 205175,
+    "name": "#Melferious_Ronn",
+    "hp": 20000,
+    "ac": 200
+  },
+  {
+    "id": 205176,
+    "name": "Guardian_of_the_Crypt",
+    "hp": 22400,
+    "ac": 200
+  },
+  {
+    "id": 204462,
+    "name": "a_blood_raven",
+    "hp": 14700,
+    "ac": 200
+  },
+  {
+    "id": 204478,
+    "name": "an_ethereal_banshee",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 204485,
+    "name": "EinoInvisNight",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 204486,
+    "name": "Thelin_Poxbourne",
+    "hp": 15000,
+    "ac": 200
+  },
+  {
+    "id": 208184,
+    "name": "An_Undead_Doorman",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 208185,
+    "name": "A_Diseased_Doorman",
+    "hp": 20700,
+    "ac": 200
+  },
+  {
+    "id": 208186,
+    "name": "a_festering_worm",
+    "hp": 24100,
+    "ac": 200
+  },
+  {
+    "id": 208187,
+    "name": "A_Lucid_Arachnae",
+    "hp": 25000,
+    "ac": 200
+  },
+  {
+    "id": 208188,
+    "name": "A_Razorfiend_Subduer",
+    "hp": 26500,
+    "ac": 200
+  },
+  {
+    "id": 208189,
+    "name": "A_Razorfiend_Subjugator",
+    "hp": 28000,
+    "ac": 200
+  },
+  {
+    "id": 208190,
+    "name": "A_Razorfiend_Suppressor",
+    "hp": 28000,
+    "ac": 200
+  },
+  {
+    "id": 208191,
+    "name": "A_Skeletal_Guardian",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 208192,
+    "name": "a_small_tree_frog",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 208193,
+    "name": "A_Traglimite_Frog",
+    "hp": 23650,
+    "ac": 200
+  },
+  {
+    "id": 208195,
+    "name": "#Lieutenant_Baelin_Dwinn",
+    "hp": 25200,
+    "ac": 200
+  },
+  {
+    "id": 208196,
+    "name": "#Lieutenant_Junis_Bolarin",
+    "hp": 23500,
+    "ac": 200
+  },
+  {
+    "id": 208197,
+    "name": "#Sergeant_Terrick_Burns",
+    "hp": 28500,
+    "ac": 200
+  },
+  {
+    "id": 208198,
+    "name": "An_Undead_Vassal",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 208199,
+    "name": "An_Undead_Vassal",
+    "hp": 23500,
+    "ac": 200
+  },
+  {
+    "id": 208200,
+    "name": "A_Gamite_Frog",
+    "hp": 24350,
+    "ac": 200
+  },
+  {
+    "id": 208212,
+    "name": "a_tree_frog",
+    "hp": 22000,
+    "ac": 200
+  },
+  {
+    "id": 208210,
+    "name": "A_Crystalline_Arachnae",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 208211,
+    "name": "A_Crystalline_Crawler",
+    "hp": 23600,
+    "ac": 200
+  },
+  {
+    "id": 208213,
+    "name": "A_Lumbering_Beast",
+    "hp": 30000,
+    "ac": 280
+  },
+  {
+    "id": 210490,
+    "name": "a_hleyta_menn",
+    "hp": 17100,
+    "ac": 200
+  },
+  {
+    "id": 214290,
+    "name": "a_Diaku_Death_Knight",
+    "hp": 23250,
+    "ac": 200
+  },
+  {
+    "id": 214291,
+    "name": "a_Diaku_Death_Knight",
+    "hp": 20400,
+    "ac": 200
+  },
+  {
+    "id": 214292,
+    "name": "a_Diaku_Oracle",
+    "hp": 22250,
+    "ac": 200
+  },
+  {
+    "id": 214293,
+    "name": "a_Diaku_Oracle",
+    "hp": 25400,
+    "ac": 200
+  },
+  {
+    "id": 214294,
+    "name": "a_Diaku_Scout",
+    "hp": 19450,
+    "ac": 200
+  },
+  {
+    "id": 214295,
+    "name": "a_Diaku_Warrior",
+    "hp": 22850,
+    "ac": 200
+  },
+  {
+    "id": 214297,
+    "name": "a_frenzied_initiate",
+    "hp": 26700,
+    "ac": 200
+  },
+  {
+    "id": 214298,
+    "name": "a_frenzied_initiate",
+    "hp": 26550,
+    "ac": 200
+  },
+  {
+    "id": 214299,
+    "name": "#a_frenzied_initiate",
+    "hp": 22200,
+    "ac": 200
+  },
+  {
+    "id": 214304,
+    "name": "a_War_Boar",
+    "hp": 14300,
+    "ac": 200
+  },
+  {
+    "id": 214305,
+    "name": "a_War_Wraith",
+    "hp": 21200,
+    "ac": 200
+  },
+  {
+    "id": 214306,
+    "name": "A_Young_War_Boar",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 214309,
+    "name": "#an_Enraged_War_Boar",
+    "hp": 29500,
+    "ac": 200
+  },
+  {
+    "id": 214321,
+    "name": "#Zelrin_Morlock",
+    "hp": 23150,
+    "ac": 200
+  },
+  {
+    "id": 214001,
+    "name": "a_zek_initiate",
+    "hp": 24500,
+    "ac": 200
+  },
+  {
+    "id": 214002,
+    "name": "a_zek_initiate",
+    "hp": 24500,
+    "ac": 200
+  },
+  {
+    "id": 214003,
+    "name": "a_zek_initiate",
+    "hp": 24500,
+    "ac": 200
+  },
+  {
+    "id": 214005,
+    "name": "a_zek_initiate",
+    "hp": 24500,
+    "ac": 200
+  },
+  {
+    "id": 214006,
+    "name": "a_zek_initiate",
+    "hp": 24500,
+    "ac": 200
+  },
+  {
+    "id": 214007,
+    "name": "_",
+    "hp": 5000,
+    "ac": 5
+  },
+  {
+    "id": 214008,
+    "name": "_",
+    "hp": 5000,
+    "ac": 5
+  },
+  {
+    "id": 214009,
+    "name": "_",
+    "hp": 5000,
+    "ac": 5
+  },
+  {
+    "id": 214010,
+    "name": "_",
+    "hp": 5000,
+    "ac": 5
+  },
+  {
+    "id": 214015,
+    "name": "a_Gladiator",
+    "hp": 24300,
+    "ac": 200
+  },
+  {
+    "id": 214017,
+    "name": "a_Gladiator",
+    "hp": 24300,
+    "ac": 200
+  },
+  {
+    "id": 214021,
+    "name": "a_Gladiator",
+    "hp": 24300,
+    "ac": 200
+  },
+  {
+    "id": 214325,
+    "name": "a_frenzied_initiate",
+    "hp": 28250,
+    "ac": 200
+  },
+  {
+    "id": 214025,
+    "name": "a_Diaku_Scout",
+    "hp": 23000,
+    "ac": 200
+  },
+  {
+    "id": 214327,
+    "name": "Stampede_Controller",
+    "hp": 11,
+    "ac": 5
+  },
+  {
+    "id": 207292,
+    "name": "A_Boruk_minion",
+    "hp": 26200,
+    "ac": 200
+  },
+  {
+    "id": 207293,
+    "name": "A_Boruk_ravager",
+    "hp": 20700,
+    "ac": 200
+  },
+  {
+    "id": 207294,
+    "name": "A_construct_of_malevolence",
+    "hp": 20700,
+    "ac": 200
+  },
+  {
+    "id": 207296,
+    "name": "A_Kaniz_flesh_flayer",
+    "hp": 25300,
+    "ac": 200
+  },
+  {
+    "id": 207298,
+    "name": "#A_pain_golem",
+    "hp": 18100,
+    "ac": 200
+  },
+  {
+    "id": 207305,
+    "name": "#A_sorrow_seeker",
+    "hp": 19400,
+    "ac": 200
+  },
+  {
+    "id": 207307,
+    "name": "a_tormented_soul",
+    "hp": 4589,
+    "ac": 178
+  },
+  {
+    "id": 207309,
+    "name": "#Argan_Milek",
+    "hp": 2000,
+    "ac": 129
+  },
+  {
+    "id": 207310,
+    "name": "Dirge_Malicia",
+    "hp": 21500,
+    "ac": 200
+  },
+  {
+    "id": 207311,
+    "name": "rotting_small_raven",
+    "hp": 7200,
+    "ac": 200
+  },
+  {
+    "id": 207312,
+    "name": "#The_Mouths_of_Misery",
+    "hp": 22100,
+    "ac": 200
+  },
+  {
+    "id": 217004,
+    "name": "a_jopal_gatherer",
+    "hp": 26600,
+    "ac": 230
+  },
+  {
+    "id": 217018,
+    "name": "a_jopal_hunter",
+    "hp": 24100,
+    "ac": 230
+  },
+  {
+    "id": 218390,
+    "name": "muddite_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218391,
+    "name": "stone_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218392,
+    "name": "vegerog_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218393,
+    "name": "arbitor_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 218399,
+    "name": "TrapMan2",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218400,
+    "name": "TrapMan3",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218401,
+    "name": "TrapMan4",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218402,
+    "name": "TrapMan5",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218403,
+    "name": "TrapMan6",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218404,
+    "name": "TrapMan7",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218405,
+    "name": "TrapMan8",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218406,
+    "name": "TrapMan9",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218407,
+    "name": "TrapMan10",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218408,
+    "name": "TrapMan11",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218409,
+    "name": "TrapMan12",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218410,
+    "name": "TrapMan13",
+    "hp": 100,
+    "ac": 5
+  },
+  {
+    "id": 218412,
+    "name": "POEElem3day",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 222042,
+    "name": "_",
+    "hp": 25,
+    "ac": 5
+  },
+  {
+    "id": 215402,
+    "name": "An_Erratic_Arachnid",
+    "hp": 15700,
+    "ac": 200
+  },
+  {
+    "id": 215414,
+    "name": "stormrider_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215415,
+    "name": "elemental_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215416,
+    "name": "phoenix_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215417,
+    "name": "spider_man",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215418,
+    "name": "armor_guy",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215419,
+    "name": "POACastellanController",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215420,
+    "name": "POAStormriderController",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215421,
+    "name": "POAElementalController",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215422,
+    "name": "POASpiderController",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215423,
+    "name": "POAPhoenixController",
+    "hp": 1,
+    "ac": 5
+  },
+  {
+    "id": 215444,
+    "name": "An_Air_Phoenix_Noble",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 215434,
+    "name": "A_Djinn_Temple_Scholar",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 215435,
+    "name": "A_Nilborien_Noble",
+    "hp": 23700,
+    "ac": 200
+  },
+  {
+    "id": 215436,
+    "name": "A_Nilborien_Noble",
+    "hp": 25100,
+    "ac": 200
+  },
+  {
+    "id": 215437,
+    "name": "A_Nilborien_Noble",
+    "hp": 27400,
+    "ac": 200
+  },
+  {
+    "id": 215438,
+    "name": "A_Nilborien_Scholar",
+    "hp": 23700,
+    "ac": 200
+  },
+  {
+    "id": 215439,
+    "name": "A_Nilborien_Scholar",
+    "hp": 27400,
+    "ac": 200
+  },
+  {
+    "id": 215445,
+    "name": "An_Air_Phoenix_Noble",
+    "hp": 27400,
+    "ac": 200
+  },
+  {
+    "id": 216250,
+    "name": "a_young_sea_turtle",
+    "hp": 11800,
+    "ac": 230
+  },
+  {
+    "id": 216262,
+    "name": "a_reef_barracuda",
+    "hp": 24600,
+    "ac": 230
+  },
+  {
+    "id": 216268,
+    "name": "a_ferocious_anglerfish",
+    "hp": 17700,
+    "ac": 230
+  },
+  {
+    "id": 216269,
+    "name": "a_furious_anglerfish",
+    "hp": 17400,
+    "ac": 230
+  },
+  {
+    "id": 216270,
+    "name": "a_fierce_anglerfish",
+    "hp": 17600,
+    "ac": 230
+  },
+  {
+    "id": 216271,
+    "name": "a_reef_anglerfish",
+    "hp": 17500,
+    "ac": 230
+  },
+  {
+    "id": 217423,
+    "name": "a_fiery_spirit_steed",
+    "hp": 26900,
+    "ac": 230
+  },
+  {
+    "id": 217424,
+    "name": "a_giant_obsidian_tree_spider",
+    "hp": 25000,
+    "ac": 230
+  },
+  {
+    "id": 217455,
+    "name": "an_obsidian_tree_spider",
+    "hp": 26000,
+    "ac": 230
+  },
+  {
+    "id": 217456,
+    "name": "a_doomfire_wizard",
+    "hp": 31600,
+    "ac": 230
+  },
+  {
+    "id": 223077,
+    "name": "_",
+    "hp": 25,
+    "ac": 5
+  },
+  {
+    "id": 223078,
+    "name": "_",
+    "hp": 25,
+    "ac": 5
   }
 ]

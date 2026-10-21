@@ -165,10 +165,16 @@ export class HighContrastOverlay {
   private wuProcFlash = 0     // Technique of Master Wu proc indicator, by the target icon
   private wuProcLabel = ''
   private wuProcSub   = ''
+  private tripleAttackFlash = 0    // small top-right icon, independent of banners/wuProc
+  private quadAttackFlash   = 0    // same, for a 4-in-a-row cluster
+  private multiAttackHits: number[] = []  // mainhand-crush timestamps in the current round
+  private multiAttackRoundStart = 0       // ts of the round's first hit — round is capped to 100ms from here
+  private multiAttackFlushTimer: ReturnType<typeof setTimeout> | null = null
   private dwPendingTs = 0    // timestamp when weave key landed in window; cleared by fist or timer
   private banners: Banner[] = []
   private bigBannerQueue: Banner[] = []
   private gradeScreen: GradeScreen | null = null
+  private copyFlash: { text: string; color: string; born: number } | null = null
   private lastGradeResult: import('./rhythm-engine').GradeResult | null = null
   private fightHistory: GradeResult[] = []
   // ── Rogue Mode ────────────────────────────────────────────────
@@ -213,6 +219,7 @@ export class HighContrastOverlay {
   private static readonly FIST_ONLY_THRESHOLD = 5
   avatarActive = false
   savageryActive = false
+  savageryVariant: 'savagery' | 'ferocity' = 'savagery'
   private lastKnownMainhand = ''
   private lastKnownAtkRating = 0
   private avatarFightMs = 0;     private avatarFightStart:      number | null = null
@@ -400,6 +407,7 @@ export class HighContrastOverlay {
       }
       case EvType.COMBAT_END:
         this.audio.resetDebounce(DEBUFF_ALERT_SOUND_NAMES)
+        if (/\bYou have been slain\b/i.test((ev.data?.line as string) ?? '')) this.clearDisciplineBuffs()
         if (this.cfg.ROGUE_MODE_ENABLED) {
           if (this.rogueInCombat) {
             this.rogueInCombat = false
@@ -422,6 +430,7 @@ export class HighContrastOverlay {
         const hit    = (ev.data?.hit    as boolean) ?? false
         if (ev.data?.target) this.currentTarget = ev.data.target as string
         this.combatCrushCount++
+        if (hit) this.checkTripleAttack(ct)
         if (this.fistOnlyMode) {
           this.fistOnlyMode = false
           this.banners.push(new Banner('WEAPON — WEAVE MODE', HC.combat, 3000))
@@ -548,6 +557,11 @@ export class HighContrastOverlay {
         this.rhythm.onReturnInRange(lgNow)
         if (!this.rhythm.inCombat) this.rhythm.onCombatStart(lgNow)
         this.lastCombatActivity = lgNow
+        // In hybrid/damageOnly tracking mode, mainhand crush hits arrive here as
+        // LOG_DAMAGE(source:'mainhand') instead of a separate MAINHAND_CRUSH event —
+        // Triple/Quadruple Attack detection needs this hook too, or it never fires
+        // for anyone using hybrid tracking.
+        if (source === 'mainhand') this.checkTripleAttack(lgNow)
         this.rhythm.onLogDamage(damage, source === 'backstab' ? 'misc' : source)
         break
       }
@@ -698,11 +712,16 @@ export class HighContrastOverlay {
         }
         if (buff === 'savagery') {
           this.savageryActive = active
+          const variant = (ev.data?.variant as 'savagery' | 'ferocity') ?? this.savageryVariant
+          this.savageryVariant = variant
           if (this.rhythm.inCombat) {
             if (active) { if (this.savageryFightStart === null) this.savageryFightStart = now() }
             else if (this.savageryFightStart !== null) { this.savageryFightMs += now() - this.savageryFightStart; this.savageryFightStart = null }
           }
-          if (active) { this.banners.push(new Banner('SAVAGERY ON', '#f97316', 4000)); this.audio.playFileSound('savagery') }
+          if (active) {
+            const label = variant === 'ferocity' ? 'FEROCITY ON' : 'SAVAGERY ON'
+            this.banners.push(new Banner(label, '#f97316', 4000)); this.audio.playFileSound('savagery')
+          }
         }
         if (buff === 'innerflame') {
           const t = now()
@@ -993,6 +1012,28 @@ export class HighContrastOverlay {
     return weighted / elapsed
   }
 
+  /** EQ clears nearly all buffs on death — the game doesn't always print a
+   *  "fades" line for each one, so without this the overlay's own tracked
+   *  state (and its header pills/banners) would keep showing Avatar/Savagery
+   *  active after a death that actually stripped them. Flushes any in-progress
+   *  fight-time accumulation first, same as a normal active:false would. */
+  private clearDisciplineBuffs(): void {
+    const t = now()
+    if (this.avatarActive) {
+      this.avatarActive = false
+      if (this.avatarFightStart !== null) { this.avatarFightMs += t - this.avatarFightStart; this.avatarFightStart = null }
+    }
+    if (this.savageryActive) {
+      this.savageryActive = false
+      if (this.savageryFightStart !== null) { this.savageryFightMs += t - this.savageryFightStart; this.savageryFightStart = null }
+    }
+    if (this.innerflameUntil > 0) {
+      this.innerflameUntil = 0
+      if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
+    }
+    this.whirlwindUntil = 0
+  }
+
   private flushBuffs(fightDuration: number): { avatar: number; savagery: number; innerflame: number } {
     const endNow = now()
     const flush = (start: number | null, accum: number) =>
@@ -1044,6 +1085,43 @@ export class HighContrastOverlay {
     window.electronAPI?.sendLeaderboardRecord(record)
   }
 
+  /** Monk Triple/Quadruple Attack detection: flags when 3 (or 4) mainhand-crush
+   *  hits land within a single 100ms round. Offhand/dual-wield swings never
+   *  reach this — they arrive as separate FIST_ATTACK events — and ripostes
+   *  never reach this either, since log-reader excludes them before a
+   *  MAINHAND_CRUSH event is ever emitted. On the 3rd hit we wait one more
+   *  window before declaring Triple, so a 4th hit arriving just after can still
+   *  escalate the flash to Quadruple instead of firing both.
+   *
+   *  The round is a hard 100ms cap from its *first* hit, not a sliding gap
+   *  filter — a chain of hits each <100ms apart but spanning well past 100ms
+   *  total is not one round, it's several, so it must never roll an old hit
+   *  forward into the window used to judge a newer one. */
+  private checkTripleAttack(hitTs: number): void {
+    if (!this.cfg.TRIPLE_ATTACK_DETECTION_ENABLED) return
+    const WINDOW_MS = 100
+    if (this.multiAttackHits.length === 0 || hitTs - this.multiAttackRoundStart > WINDOW_MS) {
+      this.multiAttackHits = []
+      this.multiAttackRoundStart = hitTs
+    }
+    this.multiAttackHits.push(hitTs)
+    if (this.multiAttackHits.length >= 4) {
+      if (this.multiAttackFlushTimer !== null) { clearTimeout(this.multiAttackFlushTimer); this.multiAttackFlushTimer = null }
+      this.quadAttackFlash = 1
+      this.multiAttackHits = []
+      return
+    }
+    if (this.multiAttackHits.length === 3 && this.multiAttackFlushTimer === null) {
+      this.multiAttackFlushTimer = setTimeout(() => {
+        this.multiAttackFlushTimer = null
+        if (this.multiAttackHits.length === 3) {
+          this.tripleAttackFlash = 1
+          this.multiAttackHits = []
+        }
+      }, WINDOW_MS)
+    }
+  }
+
   private copyToClipboard(): void {
     const r = this.lastGradeResult ?? this.rhythm.makeGrade()
     const weaved  = r.keystrokeGrading ? r.keystrokeRoundsWeaved : r.roundsWeaved
@@ -1052,9 +1130,9 @@ export class HighContrastOverlay {
       `Bonus attacks: ${r.weaveAttempts} attempts ${r.weaveLanded} landed | ` +
       `Added DPS: ${r.addedDps.toFixed(0)}` + react
     navigator.clipboard.writeText(text).then(() => {
-      this.banners.push(new Banner('Copied to clipboard!', '#5aeb96', 2000))
+      this.copyFlash = { text: 'COPIED!', color: '#5aeb96', born: now() }
     }).catch(() => {
-      this.banners.push(new Banner('Clipboard error!', '#ff4040', 2000))
+      this.copyFlash = { text: 'CLIPBOARD ERROR!', color: '#ff4040', born: now() }
     })
   }
 
@@ -1172,6 +1250,8 @@ export class HighContrastOverlay {
     this.clipWarn    = Math.max(0, this.clipWarn    - dt * 2)
     this.dwRollFlash = Math.max(0, this.dwRollFlash - dt * 1.2)
     this.wuProcFlash = Math.max(0, this.wuProcFlash - dt * 0.3)
+    this.tripleAttackFlash = Math.max(0, this.tripleAttackFlash - dt * 0.5)
+    this.quadAttackFlash   = Math.max(0, this.quadAttackFlash   - dt * 0.5)
     this.banners = this.banners.filter(b => !b.expired)
     if (this.bigBannerQueue.length && !this.banners.some(b => b.bigNumber !== undefined)) {
       const next = this.bigBannerQueue.shift()!
@@ -1217,6 +1297,7 @@ export class HighContrastOverlay {
     this.drawClipWarn()
     this.drawDwRollFail()
     this.drawWuProc()
+    this.drawMultiAttackIcon()
     this.drawFooter()
     this.drawNoLogNotice()
     this.drawBanners()
@@ -1358,11 +1439,12 @@ export class HighContrastOverlay {
       buffX += 36
     }
     if (this.savageryActive) {
+      const label = this.savageryVariant === 'ferocity' ? 'FERO' : 'SAV'
       ctx.fillStyle = '#f97316'
       ctx.fillRect(buffX, 8, 32, 16)
       ctx.fillStyle = '#fff'
       ctx.textAlign = 'center'
-      ctx.fillText('Fero', buffX + 16, 20)
+      ctx.fillText(label, buffX + 16, 20)
       ctx.textAlign = 'left'
       buffX += 36
     }
@@ -1401,6 +1483,31 @@ export class HighContrastOverlay {
 
     this.drawInnerflameBar(27, 3)
     this.drawWhirlwindBar(24, 3)
+  }
+
+  /** Small, independent top-right icon for Triple/Quadruple Attack procs — drawn
+   *  under the haste% readout, deliberately outside the banners/wuProc stack so
+   *  a Huge Round or Crit banner never overrides it. */
+  private drawMultiAttackIcon(): void {
+    const quad   = this.quadAttackFlash > 0
+    const triple = !quad && this.tripleAttackFlash > 0
+    if (!quad && !triple) return
+    const ctx = this.ctx
+    const w = this.canvas.width
+    const a = Math.min(1, quad ? this.quadAttackFlash : this.tripleAttackFlash)
+    const label = quad ? 'QUAD ATK' : 'TRIPLE ATK'
+    const color = quad ? '#ff5050' : '#ff9f44'
+    const y = 38
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'
+    ctx.font = '800 9px "Archivo", sans-serif'
+    const tw = ctx.measureText(label).width
+    const padX = 6, boxW = tw + padX * 2, boxH = 14
+    ctx.fillStyle = this.rgba(color, 0.9 * a)
+    ctx.fillRect(w - 10 - boxW, y - boxH / 2, boxW, boxH)
+    ctx.fillStyle = this.rgba('#000', a)
+    ctx.fillText(label, w - 10 - padX, y)
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'alphabetic'
   }
 
   private drawHighwayBox(): void {
@@ -2048,24 +2155,39 @@ export class HighContrastOverlay {
     ctx.fillText(g.grade, 48, h / 2)
 
     ctx.textAlign = 'left'
+    const rowH = 18
     ctx.font = '800 14px "Archivo", sans-serif'
     ctx.fillStyle = this.rgba(HC.text, a)
     const weaved = (g as any).keystrokeGrading ? (g as any).keystrokeRoundsWeaved : (g as any).roundsWeaved
-    ctx.fillText(`${weaved}/${(g as any).totalRounds} WEAVES LANDED`, 96, h / 2 - 22)
+    ctx.fillText(`${weaved}/${(g as any).totalRounds} WEAVES LANDED`, 96, h / 2 - rowH)
     ctx.font = '600 12px "Archivo", sans-serif'
-    ctx.fillText(`NET ${Math.round((g as any).totalDps ?? 0)} DPS`, 96, h / 2 - 4)
+    ctx.fillText(`NET ${Math.round((g as any).totalDps ?? 0)} DPS`, 96, h / 2)
     ctx.fillStyle = this.rgba(HC.weaveDps, a)
-    ctx.fillText(`+${Math.round(g.addedDps)} FROM WEAVING`, 96, h / 2 + 14)
+    ctx.fillText(`+${Math.round(g.addedDps)} FROM WEAVING`, 96, h / 2 + rowH)
+
+    const col2 = 270
     ctx.fillStyle = this.rgba(HC.textDim, a)
     ctx.font = '600 10px "Archivo", sans-serif'
     const r = (g as any).avgReactionMs
-    ctx.fillText(`${r != null ? Math.round(r) : '—'} MS AVG REACTION`, 96, h / 2 + 30)
-    ctx.fillText(`BEST 1S BURST: ${Math.round((g as any).bestOneSecondDamage ?? 0).toLocaleString()} DMG`, 96, h / 2 + 46)
+    ctx.fillText(`${r != null ? Math.round(r) : '—'}MS REACT`, col2, h / 2 - rowH / 2)
+    ctx.fillText(`1S BURST: ${Math.round((g as any).bestOneSecondDamage ?? 0).toLocaleString()}`, col2, h / 2 + rowH / 2)
 
     ctx.font = '600 9px "Archivo", sans-serif'
     ctx.fillStyle = this.rgba(HC.accent, a)
     ctx.textAlign = 'right'
     ctx.fillText('[ V ] COPY  ·  [ SPACE ] DISMISS', w - 10, h - 10)
+
+    if (this.copyFlash) {
+      const age = now() - this.copyFlash.born
+      const flashAlpha = age < 1400 ? 1 - Math.max(0, (age - 900) / 500) : 0
+      if (flashAlpha > 0) {
+        ctx.font = '700 10px "Archivo", sans-serif'
+        ctx.fillStyle = this.rgba(this.copyFlash.color, a * flashAlpha)
+        ctx.fillText(this.copyFlash.text, w - 10, h - 26)
+      } else {
+        this.copyFlash = null
+      }
+    }
     ctx.textAlign = 'left'
   }
 

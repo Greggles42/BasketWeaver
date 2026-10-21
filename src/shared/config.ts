@@ -205,6 +205,7 @@ export const Config = {
   OFFHAND_WEAPON_NAME:  '',  // display name, set via tray Offhand Delay
   HASTE_PCT:             0.0,
   OFFHAND_CRUSH_ENABLED: false,  // treat 2nd crush in a round as offhand (blunt OH weapons like Ribcracker)
+  TRIPLE_ATTACK_DETECTION_ENABLED: true,  // Monk: flag 3 mainhand crush hits landing within 100ms as a Triple Attack proc
   WEAVE_BANDOLIER_ACTIVE:       false, // runtime: true while a weave bandolier set is loaded (set name contains "weave")
   WEAVE_BANDOLIER_OFF_DELAY_MS: 400,   // ms to keep weave active after swap-back message (Zeal pipe arrives before hit)
 

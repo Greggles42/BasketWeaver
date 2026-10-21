@@ -209,6 +209,7 @@ function loadSettings(): void {
       if (typeof saved.ROGUE_BACKSTAB_SET_NAME === 'string')  Config.ROGUE_BACKSTAB_SET_NAME = saved.ROGUE_BACKSTAB_SET_NAME
       if (typeof saved.ROGUE_BACKSTAB_WINDOW_MS === 'number') Config.ROGUE_BACKSTAB_WINDOW_MS = Math.min(800, Math.max(100, saved.ROGUE_BACKSTAB_WINDOW_MS))
       if (typeof saved.ROGUE_MAX_HIT_TRACKING_ENABLED === 'boolean') Config.ROGUE_MAX_HIT_TRACKING_ENABLED = saved.ROGUE_MAX_HIT_TRACKING_ENABLED
+      if (typeof saved.TRIPLE_ATTACK_DETECTION_ENABLED === 'boolean') Config.TRIPLE_ATTACK_DETECTION_ENABLED = saved.TRIPLE_ATTACK_DETECTION_ENABLED
       if (typeof saved.WEAVE_KEY_CODE     === 'number') Config.WEAVE_KEY_CODE     = saved.WEAVE_KEY_CODE
       if (typeof saved.WEAVE_KEY_DISPLAY  === 'string') Config.WEAVE_KEY_DISPLAY  = saved.WEAVE_KEY_DISPLAY
       if (typeof saved.WEAVE_KEY2_CODE    === 'number') Config.WEAVE_KEY2_CODE    = saved.WEAVE_KEY2_CODE
@@ -264,6 +265,7 @@ export function saveSettings(): void {
       ROGUE_BACKSTAB_SET_NAME:    Config.ROGUE_BACKSTAB_SET_NAME,
       ROGUE_BACKSTAB_WINDOW_MS:   Config.ROGUE_BACKSTAB_WINDOW_MS,
       ROGUE_MAX_HIT_TRACKING_ENABLED: Config.ROGUE_MAX_HIT_TRACKING_ENABLED,
+      TRIPLE_ATTACK_DETECTION_ENABLED: Config.TRIPLE_ATTACK_DETECTION_ENABLED,
       MAINHAND_ATTACK_TYPE:       Config.MAINHAND_ATTACK_TYPE,
       AUTO_DETECT_LOG:            Config.AUTO_DETECT_LOG,
       WEAVE_KEY_CODE:             Config.WEAVE_KEY_CODE,
@@ -887,6 +889,7 @@ function setupIPC(): void {
     ROGUE_BACKSTAB_SET_NAME:    Config.ROGUE_BACKSTAB_SET_NAME,
     ROGUE_BACKSTAB_WINDOW_MS:   Config.ROGUE_BACKSTAB_WINDOW_MS,
     ROGUE_MAX_HIT_TRACKING_ENABLED: Config.ROGUE_MAX_HIT_TRACKING_ENABLED,
+    TRIPLE_ATTACK_DETECTION_ENABLED: Config.TRIPLE_ATTACK_DETECTION_ENABLED,
     OFFHAND_CRUSH_ENABLED:        Config.OFFHAND_CRUSH_ENABLED,
     WEAVE_BANDOLIER_OFF_DELAY_MS: Config.WEAVE_BANDOLIER_OFF_DELAY_MS,
     AUDIO_DEBOUNCE_MS:            Config.AUDIO_DEBOUNCE_MS,
@@ -1128,6 +1131,13 @@ function setupIPC(): void {
         Config.ROGUE_BACKSTAB_SET_NAME = value as string
         break
 
+      case 'TRIPLE_ATTACK_DETECTION_ENABLED':
+        if (Config.TRIPLE_ATTACK_DETECTION_ENABLED !== value) {
+          Config.TRIPLE_ATTACK_DETECTION_ENABLED = value as boolean
+          win?.webContents.send(IPC.TOGGLE_TRIPLE_ATTACK_DETECTION, Config.TRIPLE_ATTACK_DETECTION_ENABLED)
+        }
+        break
+
       case 'AUTO_DETECT_LOG':
         Config.AUTO_DETECT_LOG = value as boolean
         if (Config.AUTO_DETECT_LOG) {
@@ -1164,6 +1174,29 @@ function setupIPC(): void {
   ipcMain.on(IPC.OPEN_SETTINGS, () => createSettingsWindow())
   ipcMain.on('close-settings', () => { learnKeyHandler = null; learnKeyHandler2 = null; settingsWin?.close() })
   setupWeaveKeyLearnIPC()
+
+  // Settings-window action buttons that mirror tray one-shot actions.
+  ipcMain.on('settings-action', async (_e, action: string) => {
+    switch (action) {
+      case 'select-log': {
+        const p = await pickLogFile()
+        if (p) handleLogSelected(p)
+        break
+      }
+      case 'reset-track':
+        win?.webContents.send(IPC.RESET_TRACK)
+        break
+      case 'clear-buffs':
+        win?.webContents.send(IPC.CLEAR_BUFFS)
+        break
+      case 'reset-window-position':
+        resetWindowPosition()
+        break
+      case 'open-leaderboard':
+        createLeaderboardWindow()
+        break
+    }
+  })
 
   // ── Leaderboard IPC ───────────────────────────────────────────
 
@@ -1561,6 +1594,9 @@ app.whenReady().then(async () => {
     // it only ever learns otherwise via this TOGGLE_ROGUE_MODE sync, so a fresh
     // window load with Rogue Mode persisted ON needs it pushed explicitly here.
     win!.webContents.send(IPC.TOGGLE_ROGUE_MODE, Config.ROGUE_MODE_ENABLED)
+    // Renderer's Config starts at the TRIPLE_ATTACK_DETECTION_ENABLED default (true) —
+    // push explicitly so a persisted "off" takes effect on a fresh window load.
+    win!.webContents.send(IPC.TOGGLE_TRIPLE_ATTACK_DETECTION, Config.TRIPLE_ATTACK_DETECTION_ENABLED)
     if (!Config.DYNAMIC_WEAVING)    win!.webContents.send(IPC.TOGGLE_DYNAMIC_WEAVING)
     if (!Config.SHOW_OFFHAND_TIMER) win!.webContents.send(IPC.TOGGLE_OFFHAND_TIMER)
 

@@ -50,6 +50,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleRogueMode: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.TOGGLE_ROGUE_MODE, (_e, enabled: boolean) => cb(enabled)),
 
+  onToggleTripleAttackDetection: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.TOGGLE_TRIPLE_ATTACK_DETECTION, (_e, enabled: boolean) => cb(enabled)),
+
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 

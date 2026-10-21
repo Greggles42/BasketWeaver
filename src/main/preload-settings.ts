@@ -54,4 +54,7 @@ contextBridge.exposeInMainWorld('settingsAPI', {
 
   openZealLog: (): Promise<string | null> =>
     ipcRenderer.invoke('zeal-log-open'),
+
+  triggerAction: (action: string): void =>
+    ipcRenderer.send('settings-action', action),
 })
