@@ -61,6 +61,20 @@ export class LogReader {
   private currentTarget   = ''   // most recent mob the player was attacking
   private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
   private lastRiposteTs   = 0    // performance.now() of last "You riposte" line (__DEV__ debug only)
+  // "MOB tries to X YOU, but YOU riposte!" grants a free counter-attack whose
+  // damage line ("You crush MOB for N points of damage.") is otherwise
+  // indistinguishable from a normal swing. Each trigger banks a credit; the
+  // next attack-shaped line consumes one instead of touching the swing timer.
+  // Monk AAs (Double Riposte, Return Kick) can grant >1 credit per mob attack.
+  private pendingRiposteCredits = 0
+  private pendingRiposteExpiry  = 0
+  // ts of the most recent crush-verb line classified as MAINHAND_CRUSH (hit or miss).
+  // OFFHAND_CRUSH_ENABLED's same-type-weapon heuristic can't tell a genuine offhand
+  // swing from a Double/Triple/Quad Attack extra mainhand swing by verb alone — both
+  // use the same crush text. Extra attacks land within the same round as the swing
+  // that triggered them, so a crush-verb line arriving within ROUND_WINDOW_MS of the
+  // last mainhand line must be another mainhand swing, not the offhand weave.
+  private lastMainhandLineTs = 0
   private lastHastePct    = -1   // dedup: last emitted haste value
   private lastHasteEmitTs = 0    // dedup: when it was emitted
   private lastAtkRating   = 0
@@ -324,6 +338,12 @@ export class LogReader {
   private crushHitRe:    RegExp[]
   private crushMissRe:   RegExp[]
   private riposteRe:     RegExp[]
+  // "MOB tries to <verb> YOU, but YOU riposte!" — grants the free-counter-attack credit.
+  private static readonly RIPOSTE_PROC_RE = /\bbut YOU riposte\b/i
+  // Max gap between crush-verb lines belonging to the same attack round (the initial
+  // swing plus any Double/Triple/Quad Attack procs it triggers). Matches the window
+  // the overlay's Triple/Quadruple Attack flash detection uses for the same reason.
+  private static readonly ROUND_WINDOW_MS = 75
   private fistHitRe:     RegExp[]
   private fistMissRe:    RegExp[]
   // Catch-all for non-mainhand non-punch attack types while weave bandolier is active
@@ -630,12 +650,28 @@ export class LogReader {
     }
     if (this.weaponTrackOnly) return
 
+    // ── Riposte proc trigger — tracked in every mode, same as zone/enrage/root ──
+    // The resulting counter-attack line is handled per-mode via consumeRiposteCredit()
+    // since the emitted event type differs between damageOnly/missOnly/normal.
+    if (LogReader.RIPOSTE_PROC_RE.test(content)) {
+      this.pendingRiposteCredits++
+      this.pendingRiposteExpiry = now + 2000
+      return
+    }
+
     // ── damageOnly mode: emit LOG_DAMAGE for hit events; skip all state-machine logic ──
     if (this.damageOnly) {
       // Wu round probe — checked first since generic "strike"/"claw" verbs would
       // otherwise be consumed by the fist-hit branch below before ever being seen.
       const monkDO = this.classifyMonkSpecial(content)
       if (monkDO) this.trackWuRound(monkDO, now)
+
+      // Riposte counter-attack — counts toward damage but must not touch swing-timer state.
+      if (this.consumeRiposteCredit(content)) {
+        const damage = parseDamage(content)
+        if (damage > 0) this.emit({ type: EvType.LOG_DAMAGE, ts: now, data: { damage, source: 'misc' } })
+        return
+      }
 
       // Ripostes → misc damage (player-sourced only)
       if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
@@ -716,6 +752,17 @@ export class LogReader {
         return
       }
 
+      // Riposte counter-attack hits always land (damage > 0), so they'd never match
+      // the miss checks below anyway — just bank the credit consumption for hygiene.
+      if (this.consumeRiposteCredit(content)) return
+
+      // Flying Kick / Round Kick / Eagle Strike (hit or miss) — never a swing-timer
+      // event and never worth a whiff. Mirrors the silent consumption the normal/
+      // damageOnly modes already do; missOnly was missing this check entirely, so a
+      // kick-family miss could otherwise fall through to the generic fist-miss check
+      // below and incorrectly play the offhand whiff sound.
+      if (this.flyingKickRe.some(r => r.test(content))) return
+
       // Track bandolier swaps in missOnly mode only when noBandolier is not set.
       // In hybrid mode the Zeal pipe owns bandolier detection (with off-delay);
       // reading bandolier from the log would immediately clear WEAVE_BANDOLIER_ACTIVE
@@ -745,10 +792,11 @@ export class LogReader {
         (this.crushHitRe.some(r => r.test(content)) && parseDamage(content) === 0))
       if (isMainhandMiss) {
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
-        const offhandWindowActive = this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        const withinRound = this.lastMainhandLineTs > 0 && (now - this.lastMainhandLineTs) < LogReader.ROUND_WINDOW_MS
+        const offhandWindowActive = !withinRound && this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
-          console.debug(`[mainhand][missOnly] miss line="${content}" bandolierWeave=${bandolierWeave} ` +
+          console.debug(`[mainhand][missOnly] miss line="${content}" bandolierWeave=${bandolierWeave} withinRound=${withinRound} ` +
             `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
             `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
         }
@@ -757,6 +805,7 @@ export class LogReader {
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage: 0, hit: false, line: content } })
         } else {
+          this.lastMainhandLineTs = now
           this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
             data: { damage: 0, hit: false, line: content } })
           if (this.cfg.OFFHAND_CRUSH_ENABLED) {
@@ -857,6 +906,15 @@ export class LogReader {
     const monk = this.classifyMonkSpecial(content)
     if (monk) this.trackWuRound(monk, now)
 
+    // ── Riposte counter-attack — counts toward DPS but must never touch swing-timer
+    // state. Consumes a credit banked by the "but YOU riposte!" trigger line above. ──
+    if (this.consumeRiposteCredit(content)) {
+      this.ensureCombat(now)
+      const damage = parseDamage(content)
+      if (damage > 0) this.emit({ type: EvType.MISC_DAMAGE, ts: now, data: { damage } })
+      return
+    }
+
     // ── Standard melee swing (Rogue Mode) — no weave/swing-timer state, just
     // count the damage toward net DPS via MISC_DAMAGE, same bucket as spell procs. ──
     if (this.cfg.ROGUE_MODE_ENABLED) {
@@ -881,10 +939,11 @@ export class LogReader {
         this.ensureCombat(now)
         const tm = LogReader.TARGET_RE.exec(content)
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
-        const offhandWindowActive = this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        const withinRound = this.lastMainhandLineTs > 0 && (now - this.lastMainhandLineTs) < LogReader.ROUND_WINDOW_MS
+        const offhandWindowActive = !withinRound && this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
-          console.debug(`[mainhand] hit line="${content}" bandolierWeave=${bandolierWeave} ` +
+          console.debug(`[mainhand] hit line="${content}" bandolierWeave=${bandolierWeave} withinRound=${withinRound} ` +
             `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
             `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
         }
@@ -896,6 +955,7 @@ export class LogReader {
             data: { damage: parseDamage(content), hit: true, line: content } })
         } else {
           if (tm) { this.currentTarget = tm[1]; this.lastAttackTs = now }
+          this.lastMainhandLineTs = now
           this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
             data: { damage: parseDamage(content), hit: true, line: content, target: this.currentTarget } })
           if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
@@ -910,10 +970,11 @@ export class LogReader {
       if (this.crushMissRe.some(r => r.test(content))) {
         this.ensureCombat(now)
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
-        const offhandWindowActive = this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        const withinRound = this.lastMainhandLineTs > 0 && (now - this.lastMainhandLineTs) < LogReader.ROUND_WINDOW_MS
+        const offhandWindowActive = !withinRound && this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
-          console.debug(`[mainhand] miss line="${content}" bandolierWeave=${bandolierWeave} ` +
+          console.debug(`[mainhand] miss line="${content}" bandolierWeave=${bandolierWeave} withinRound=${withinRound} ` +
             `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
             `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
         }
@@ -922,6 +983,7 @@ export class LogReader {
           this.emit({ type: EvType.FIST_ATTACK, ts: now,
             data: { damage: 0, hit: false, line: content } })
         } else {
+          this.lastMainhandLineTs = now
           this.emit({ type: EvType.MAINHAND_CRUSH, ts: now,
             data: { damage: 0, hit: false, line: content } })
           if (this.cfg.OFFHAND_CRUSH_ENABLED && !bandolierWeave) {
@@ -1136,6 +1198,24 @@ export class LogReader {
         this.emit({ type: EvType.STATS_UPDATE, ts: now, data: { atkRating, hastePct: hastePctNow } })
       }
     }
+  }
+
+  // Consumes one banked riposte-proc credit if `content` looks like the resulting
+  // free counter-attack (a player-sourced attack-verb hit line). Returns false
+  // without side effects if there's no pending credit or the line isn't a match,
+  // so the normal mainhand/fist classification can still run on it.
+  private consumeRiposteCredit(content: string): boolean {
+    if (this.pendingRiposteCredits <= 0) return false
+    if (performance.now() >= this.pendingRiposteExpiry) {
+      this.pendingRiposteCredits = 0
+      return false
+    }
+    if (!content.startsWith('You ')) return false
+    const isAttackHit = this.crushHitRe.some(r => r.test(content)) || this.fistHitRe.some(r => r.test(content)) ||
+      (this.cfg.WEAVE_BANDOLIER_ACTIVE && this.weaveHitRe.test(content))
+    if (!isAttackHit || parseDamage(content) <= 0) return false
+    this.pendingRiposteCredits--
+    return true
   }
 
   private ensureCombat(now: number): void {

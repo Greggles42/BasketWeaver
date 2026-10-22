@@ -69,6 +69,7 @@ export const IPC = {
   TOGGLE_BUFF_SOUND:      'toggle-buff-sound',        // tray → renderer
   TOGGLE_ROGUE_MODE:      'toggle-rogue-mode',        // tray/settings → renderer: Rogue Mode enabled/disabled
   TOGGLE_TRIPLE_ATTACK_DETECTION: 'toggle-triple-attack-detection', // settings → renderer: Triple Attack detection enabled/disabled
+  TOGGLE_WEAVE_EXPLODE:   'toggle-weave-explode',     // settings → renderer: weave-window explode animation enabled/disabled
   FIGHT_HISTORY_UPDATE:   'fight-history-update',    // renderer → main: { label: string, full: string }[]
   SET_OVERLAY_STYLE:      'set-overlay-style',        // tray → main → (reload renderer)
   SET_OFFHAND_DELAY:      'set-offhand-delay',        // tray → renderer: { delay: number, name: string }

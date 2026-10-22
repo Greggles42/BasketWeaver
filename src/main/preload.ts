@@ -53,6 +53,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onToggleTripleAttackDetection: (cb: (enabled: boolean) => void) =>
     ipcRenderer.on(IPC.TOGGLE_TRIPLE_ATTACK_DETECTION, (_e, enabled: boolean) => cb(enabled)),
 
+  onToggleWeaveExplode: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.TOGGLE_WEAVE_EXPLODE, (_e, enabled: boolean) => cb(enabled)),
+
   onSetOffhandDelay: (cb: (delay: number, name: string) => void) =>
     ipcRenderer.on(IPC.SET_OFFHAND_DELAY, (_e, data: { delay: number; name: string }) => cb(data.delay, data.name)),
 

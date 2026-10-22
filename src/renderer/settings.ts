@@ -875,6 +875,7 @@ async function init(): Promise<void> {
   setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
   setupToggle('autoDetectLog',         'AUTO_DETECT_LOG',            s.AUTO_DETECT_LOG            as boolean)
   setupToggle('tripleAttackDetection', 'TRIPLE_ATTACK_DETECTION_ENABLED', s.TRIPLE_ATTACK_DETECTION_ENABLED as boolean)
+  setupToggle('weaveExplode', 'WEAVE_EXPLODE_ENABLED', s.WEAVE_EXPLODE_ENABLED as boolean)
 
   // ── Leaderboard settings ─────────────────────────────────────
   const lbCharName = document.getElementById('lbCharName') as HTMLInputElement | null

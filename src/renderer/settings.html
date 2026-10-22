@@ -539,6 +539,7 @@
         <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
         <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
         <label data-tip="Monk: flag Triple Attack and Quadruple Attack procs with a small icon under the haste% readout when 3 or 4 mainhand crush hits land within 100ms of each other. Ripostes and offhand/dual-wield hits are excluded."><input type="checkbox" id="tripleAttackDetection" /> Triple/Quadruple Attack Detection</label>
+        <label data-tip="Pop the green/cyan weave-window box into shards when a weave lands while the window is on target. Works in both standard and dynamic weaving."><input type="checkbox" id="weaveExplode" /> Weave Window Explode Animation</label>
       </div>
     </div>
 
@@ -741,12 +742,9 @@
 
     <!-- ── Rogue Mode ───────────────────────────────────── -->
     <div class="section">
-      <div class="section-title">Rogue Mode <span style="color:#e0a855;font-size:11px;font-weight:600">(Alpha)</span></div>
-      <div class="row" style="min-height:auto;padding-top:0">
-        <span class="hint" style="margin-left:0">Still under development — expect rough edges and behavior to change.</span>
-      </div>
+      <div class="section-title">Rogue Mode</div>
       <div class="checkbox-grid">
-        <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking) <span style="color:#e0a855;font-size:10px;font-weight:600">(Alpha)</span></label>
+        <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking)</label>
         <label data-tip="Flags a backstab as a new max hit when it's the hardest one landed this session with the currently-equipped weapon, and shows a banner for it. Tracked per weapon name, reset on app restart."><input type="checkbox" id="rogueMaxHitTrackingEnabled" /> Track Max Hit Per Weapon</label>
       </div>
       <div class="row" style="margin-top:6px" data-tip="Bandolier set name (or substring) that identifies your backstab weapon set — must match what you named it via /bandolier. Used to prompt weapon swaps and to know when you've swapped in/out.">

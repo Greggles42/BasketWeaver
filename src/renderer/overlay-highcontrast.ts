@@ -65,6 +65,10 @@ function bestWindowDamage(log: Array<[number, number]>, windowMs = 1000): number
 // combat end so the next encounter's first alert always plays.
 const DEBUFF_ALERT_SOUND_NAMES = ['rooted', 'tashed', 'slowed', 'snared', 'enrage', 'enraged']
 
+// A tumbling rectangular fragment used by the weave-window "explode" animation.
+// `kind` picks the fill/stroke color at draw time (weave cyan vs rogue-mode backstab red).
+interface Shard { x:number; y:number; vx:number; vy:number; life:number; ttl:number; size:number; rot:number; vr:number; kind: 'weave' | 'backstab' }
+
 class Banner {
   static FADE_IN = 300; static FADE_OUT = 500
   text: string; color: string; duration: number; born = now()
@@ -160,6 +164,12 @@ export class HighContrastOverlay {
 
   private hitFlash = 0
   private missFlash = 0
+  private weaveShards: Shard[] = []
+  // Which round's swingTime the fade/explode state below belongs to — lets a new
+  // round's box start fresh (fully visible) without an explicit round-change hook.
+  private weaveFadeAnchorSwingTime = -1
+  private weaveBoxExplodeTs = 0   // performance.now() of explosion; 0 = this round's box hasn't exploded
+  private static readonly WEAVE_FADE_MS = 150   // how fast the exploded box's fill disappears
   private clipWarn = 0
   private dwRollFlash = 0     // DW roll failure: keystroke in window, no fist in log
   private wuProcFlash = 0     // Technique of Master Wu proc indicator, by the target icon
@@ -315,6 +325,56 @@ export class HighContrastOverlay {
     if (this.cfg.ORIENTATION === 'horizontal')
       return [this.hzX + vo, this.highwayY + this.highwayH / 2]
     return [this.hzX, this.hzY + vo]
+  }
+
+  /** Weave-window "explode" animation — the cyan weave box's border breaks apart
+   *  into tumbling fragments that fly out onto the runway track, while the box's
+   *  fill fades out over WEAVE_FADE_MS. Triggered when a weave lands while the
+   *  window is on target. Shares the same trigger point for both standard and
+   *  dynamic weaving since both route through FIST_ATTACK + isInWeaveWindow(). */
+  private spawnWeaveExplosion(): void {
+    const r = this.computeActiveWeaveBoxRect(now())
+    if (!r) return
+    this.weaveFadeAnchorSwingTime = r.swingTime
+    this.weaveBoxExplodeTs = now()
+    this.spawnBoxShards(r, 'weave')
+  }
+
+  /** Rogue Mode equivalent of spawnWeaveExplosion() — pops the backstab-ready
+   *  window box when a backstab lands while the ability was actually ready
+   *  (not during its cooldown window, which the caller must have already ruled out). */
+  private spawnBackstabExplosion(): void {
+    const r = this.computeActiveBackstabBoxRect(now())
+    if (!r) return
+    this.weaveFadeAnchorSwingTime = r.readyAt
+    this.weaveBoxExplodeTs = now()
+    this.spawnBoxShards(r, 'backstab')
+  }
+
+  /** Sample fragments from all 4 edges of a box so it reads as the border
+   *  breaking apart, not a burst from the center. Shared by both the weave
+   *  window and Rogue Mode's backstab window explosions. */
+  private spawnBoxShards(r: { x: number; y: number; w: number; h: number }, kind: 'weave' | 'backstab'): void {
+    const edges: Array<() => { x: number; y: number; nx: number; ny: number }> = [
+      () => ({ x: r.x + Math.random() * r.w, y: r.y,         nx: 0,  ny: -1 }),  // top
+      () => ({ x: r.x + Math.random() * r.w, y: r.y + r.h,   nx: 0,  ny: 1  }),  // bottom
+      () => ({ x: r.x,         y: r.y + Math.random() * r.h, nx: -1, ny: 0  }),  // left
+      () => ({ x: r.x + r.w,   y: r.y + Math.random() * r.h, nx: 1,  ny: 0  }),  // right
+    ]
+    for (let i = 0; i < 18; i++) {
+      const { x, y, nx, ny } = edges[i % 4]()
+      const spd     = 60 + Math.random() * 110
+      const tangent = (Math.random() - 0.5) * 50   // drift along the edge, not just straight out
+      this.weaveShards.push({
+        x, y,
+        vx: nx * spd + -ny * tangent,
+        vy: ny * spd +  nx * tangent,
+        life: 0, ttl: 0.4 + Math.random() * 0.3,
+        size: 3 + Math.random() * 5,
+        rot: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 16,
+        kind,
+      })
+    }
   }
   private projectAt(targetTime: number, t: number): [number, number] {
     const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
@@ -487,13 +547,19 @@ export class HighContrastOverlay {
           this.audio.play('error')
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW && this.rhythm.isInWeaveWindow(adjTs)) {
           this.audio.play('punch')
-          if (hit && damage > 0) { this.hitFlash = 1 } else { this.missFlash = 1 }
+          if (hit && damage > 0) {
+            this.hitFlash = 1
+            // Weave landed while the window was on target — break the cyan box apart.
+            if (this.cfg.WEAVE_EXPLODE_ENABLED) this.spawnWeaveExplosion()
+          } else { this.missFlash = 1 }
         } else if (this.cfg.POSITIVE_AUDIO_IN_WINDOW) {
           this.missFlash = 1
           if (this.cfg.FIST_SOUND_ON_MISS) setTimeout(() => this.audio.play('whiff'), 150)
         } else if (hit) {
           this.audio.play('punch')
           this.hitFlash = 1
+          // Weave landed while the window was on target — break the cyan box apart.
+          if (this.cfg.WEAVE_EXPLODE_ENABLED && this.rhythm.isInWeaveWindow(adjTs)) this.spawnWeaveExplosion()
         } else {
           this.missFlash = 1
           if (this.cfg.FIST_SOUND_ON_MISS) setTimeout(() => this.audio.play('whiff'), 150)
@@ -533,6 +599,10 @@ export class HighContrastOverlay {
             // Hybrid mode's authoritative backstab-landed signal — BACKSTAB_ATTACK(hit:true)
             // never fires here, so the hit count and cooldown reset happen off this event too.
             this.rogueBackstabHits++
+            // Capture readiness before onBackstabAttack() unconditionally flips the
+            // state to 'cooldown' — the explosion only fires for a backstab that
+            // landed while actually ready, not a clipped/early attempt.
+            const wasBackstabReady = this.backstab.state === 'ready'
             this.backstab.onBackstabAttack(lgNow)
             if (damage > 0 && this.cfg.ROGUE_MAX_HIT_TRACKING_ENABLED) {
               const weaponKey = this.lastKnownMainhand || 'Unknown'
@@ -550,6 +620,7 @@ export class HighContrastOverlay {
             this.lastBackstabHitTs = lgNow
             this.hitFlash = 1
             this.audio.play('punch')
+            if (this.cfg.WEAVE_EXPLODE_ENABLED && wasBackstabReady) this.spawnBackstabExplosion()
           }
           if (damage > 0) this.rogueDamageLog.push([lgNow - this.rogueFightStartTs, damage])
           break
@@ -593,6 +664,10 @@ export class HighContrastOverlay {
           this.rogueDamageLog = []
           this.backstab.onCombatStart()
         }
+        // Capture readiness before onBackstabAttack() unconditionally flips the
+        // state to 'cooldown' — the explosion only fires for a backstab that
+        // landed while actually ready, not a clipped/early attempt.
+        const wasBackstabReady = this.backstab.state === 'ready'
         this.backstab.onBackstabAttack(bsNow)
         this.lastCombatActivity = bsNow
         if (hit) {
@@ -625,6 +700,7 @@ export class HighContrastOverlay {
           this.lastBackstabHitTs = bsNow
           this.hitFlash = 1
           this.audio.play('punch')
+          if (this.cfg.WEAVE_EXPLODE_ENABLED && wasBackstabReady) this.spawnBackstabExplosion()
         } else {
           this.rogueBackstabMisses++
           this.missFlash = 1
@@ -1252,6 +1328,14 @@ export class HighContrastOverlay {
     this.wuProcFlash = Math.max(0, this.wuProcFlash - dt * 0.3)
     this.tripleAttackFlash = Math.max(0, this.tripleAttackFlash - dt * 0.5)
     this.quadAttackFlash   = Math.max(0, this.quadAttackFlash   - dt * 0.5)
+    // Weave-explosion shards
+    for (const s of this.weaveShards) {
+      s.life += dt; s.x += s.vx * dt; s.y += s.vy * dt
+      s.vy += 280 * dt; s.vx *= Math.max(0, 1 - 1.6 * dt)
+      s.rot += s.vr * dt
+    }
+    this.weaveShards = this.weaveShards.filter(s => s.life < s.ttl)
+
     this.banners = this.banners.filter(b => !b.expired)
     if (this.bigBannerQueue.length && !this.banners.some(b => b.bigNumber !== undefined)) {
       const next = this.bigBannerQueue.shift()!
@@ -1293,6 +1377,7 @@ export class HighContrastOverlay {
       this.drawHitZone()
       this.drawOffhandSwingTimer()
     }
+    this.drawWeaveExplosion()
     this.drawMissChip()
     this.drawClipWarn()
     this.drawDwRollFail()
@@ -1517,6 +1602,91 @@ export class HighContrastOverlay {
     ctx.strokeRect(4, this.highwayY, w - 8, this.highwayH)
   }
 
+  /** Computes the currently-active weave window box's geometry fresh, independent
+   *  of whatever drawDynamicWeaveWindows() last rendered. Used by spawnWeaveExplosion()
+   *  so the explosion can't go stale or silently no-op if the box wasn't (re)drawn
+   *  on the exact frame before the hit arrived — it mirrors the same math the
+   *  renderer uses for the k=0 / "current round" box, computed on demand. */
+  private computeActiveWeaveBoxRect(t: number): { x: number; y: number; w: number; h: number; swingTime: number } | null {
+    const gliding = !this.rhythm.inCombat && t < this.postCombatGlideUntil
+    if (!this.rhythm.inCombat && !gliding) return null
+    const intervalMs = this.cfg.PUNCH_INTERVAL * 1000
+    const offhandMs  = this.rhythm.effectiveOffhandDelay * 1000
+    const weaveMs    = this.cfg.WEAVE_WINDOW_MS > 0
+      ? this.cfg.WEAVE_WINDOW_MS
+      : Math.max(50, (this.cfg.PUNCH_INTERVAL - this.rhythm.effectiveOffhandDelay) * 1000)
+
+    const nextSwing = gliding
+      ? (this.postCombatRoundOpen ? this.postCombatLastCrush + intervalMs : this.postCombatNextSwing)
+      : (this.rhythm.roundOpen    ? this.rhythm.lastCrushTime + intervalMs : this.rhythm.nextSwingTime)
+    if (nextSwing <= 0) return null
+
+    let swingTime = nextSwing
+    while (swingTime - intervalMs > t - intervalMs) swingTime -= intervalMs
+
+    const safeEnd   = swingTime + weaveMs
+    const windowEnd = swingTime + intervalMs
+
+    let winStart = swingTime
+    if (this.cfg.DYNAMIC_WEAVING && this.cfg.WEAVE_WINDOW_MS <= 0) {
+      const offhandReadyTs = this.lastFistAttackTs > 0 ? this.lastFistAttackTs + offhandMs : 0
+      const nextReady = offhandReadyTs > 0 ? offhandReadyTs : t - 1
+      winStart = Math.max(swingTime, nextReady)
+    }
+    if (winStart >= windowEnd || winStart >= safeEnd) return null
+
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const hy = this.highwayY, hh = this.highwayH
+    const w = this.canvas.width
+
+    if (!vert) {
+      const [wx]  = this.projectAt(winStart, t)
+      const [sfx] = this.projectAt(safeEnd,  t)
+      return { x: wx, y: hy + 6, w: Math.max(3, sfx - wx), h: hh - 12, swingTime }
+    }
+    const [, wy ] = this.projectAt(winStart, t)
+    const [, sfy] = this.projectAt(safeEnd,  t)
+    return { x: 8, y: sfy, w: w - 16, h: Math.max(3, wy - sfy), swingTime }
+  }
+
+  /** Rogue Mode equivalent of computeActiveWeaveBoxRect() — the backstab-ready
+   *  window box, computed fresh (same math as drawRogueTrack()) rather than cached,
+   *  for the same stale-frame reason computeActiveWeaveBoxRect avoids a cache. */
+  private computeActiveBackstabBoxRect(t: number): { x: number; y: number; w: number; h: number; readyAt: number } | null {
+    const bs = this.backstab
+    if (bs.state !== 'ready' && bs.state !== 'cooldown') return null
+    const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
+    const speed    = this.runway / Math.max(1, bs.cooldownMsValue)
+    const readyAt  = bs.readyAtMs
+    const boxEnd   = readyAt + windowMs
+
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const hy = this.highwayY, hh = this.highwayH
+    const w = this.canvas.width
+
+    if (!vert) {
+      const [sx] = this.rogueProjectAt(readyAt, t, speed)
+      const [ex] = this.rogueProjectAt(boxEnd,  t, speed)
+      return { x: sx, y: hy + 16, w: Math.max(3, ex - sx), h: hh - 32, readyAt }
+    }
+    const [, sy] = this.rogueProjectAt(readyAt, t, speed)
+    const [, ey] = this.rogueProjectAt(boxEnd,  t, speed)
+    return { x: 8, y: ey, w: w - 16, h: Math.max(3, sy - ey), readyAt }
+  }
+
+  /** Fade multiplier (1 = fully visible, 0 = gone) for the currently-active weave
+   *  box's fill/stroke. Resets to fully visible whenever `swingTime` changes (a new
+   *  round's box), so an exploded box stays hidden only for the remainder of its own
+   *  round rather than forever. */
+  private weaveBoxFade(swingTime: number, t: number): number {
+    if (this.weaveFadeAnchorSwingTime !== swingTime) {
+      this.weaveFadeAnchorSwingTime = swingTime
+      this.weaveBoxExplodeTs = 0
+    }
+    if (this.weaveBoxExplodeTs <= 0) return 1
+    return Math.max(0, 1 - (t - this.weaveBoxExplodeTs) / HighContrastOverlay.WEAVE_FADE_MS)
+  }
+
   private drawDynamicWeaveWindows(): void {
     const t = now()
     const gliding = !this.rhythm.inCombat && t < this.postCombatGlideUntil
@@ -1565,9 +1735,11 @@ export class HighContrastOverlay {
           const [sfx] = this.projectAt(safeEnd, t)
           if (sfx > sx) {
             const gw = Math.max(3, sfx - sx)
-            ctx.fillStyle   = `${HC.weaveFill}0.85)`
+            let fade = 1
+            if (k === 0) fade = this.weaveBoxFade(swingTime, t)
+            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
             ctx.fillRect(sx, hy + 6, gw, hh - 12)
-            ctx.strokeStyle = `${HC.weaveStrk}1.0)`
+            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
             ctx.lineWidth = 1.5
             ctx.strokeRect(sx + 0.5, hy + 6.5, gw - 1, hh - 13)
           }
@@ -1579,9 +1751,11 @@ export class HighContrastOverlay {
           const [, sfy] = this.projectAt(safeEnd, t)
           if (sfy < sy) {
             const gh = Math.max(3, sy - sfy)
-            ctx.fillStyle   = `${HC.weaveFill}0.85)`
+            let fade = 1
+            if (k === 0) fade = this.weaveBoxFade(swingTime, t)
+            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
             ctx.fillRect(8, sfy, w - 16, gh)
-            ctx.strokeStyle = `${HC.weaveStrk}1.0)`
+            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
             ctx.lineWidth = 1.5
             ctx.strokeRect(8 + 0.5, sfy + 0.5, w - 17, gh - 1)
           }
@@ -1593,6 +1767,7 @@ export class HighContrastOverlay {
 
     // Orange markers: draw every visible swing so they fill the track.
     // Weave windows: draw the next eligible window + anticipated 2nd-round window.
+    const [tzx, tzy] = this.hzCenter()   // swing target line — the discouraged (red) zone must not scroll past it
     let windowsDrawn = 0
     let projectedNextReady = nextReady  // projected offhand ready time for window lookahead
 
@@ -1632,21 +1807,25 @@ export class HighContrastOverlay {
           // Green safe zone (winStart → safeEnd)
           if (winStart < safeEnd) {
             const greenW = Math.max(3, sfx - wx)
-            ctx.fillStyle   = `${HC.weaveFill}0.85)`
+            let fade = 1
+            if (!isAnticipated) fade = this.weaveBoxFade(swingTime, t)
+            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
             ctx.fillRect(wx, hy + 6, greenW, hh - 12)
-            ctx.strokeStyle = `${HC.weaveStrk}1.0)`
+            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
             ctx.lineWidth = 1.5
             ctx.strokeRect(wx + 0.5, hy + 6.5, greenW - 1, hh - 13)
           }
 
-          // Discouraged zone (safeEnd → windowEnd)
-          if (orderSet) {
-            const discW = Math.max(2, wndx - sfx)
+          // Discouraged zone (safeEnd → windowEnd) — clamped so it never scrolls
+          // past the swing target once safeEnd itself has already passed it.
+          if (orderSet && wndx > tzx) {
+            const clampedSfx = Math.max(sfx, tzx)
+            const discW = Math.max(2, wndx - clampedSfx)
             ctx.fillStyle   = 'rgba(200,40,20,0.30)'
-            ctx.fillRect(sfx, hy + 6, discW, hh - 12)
+            ctx.fillRect(clampedSfx, hy + 6, discW, hh - 12)
             ctx.strokeStyle = 'rgba(255,60,40,0.60)'
             ctx.lineWidth = 1.5
-            ctx.strokeRect(sfx + 0.5, hy + 6.5, discW - 1, hh - 13)
+            ctx.strokeRect(clampedSfx + 0.5, hy + 6.5, discW - 1, hh - 13)
           }
 
           // Cyan ready-line
@@ -1688,16 +1867,20 @@ export class HighContrastOverlay {
           // Green safe zone (winStart → safeEnd)
           if (winStart < safeEnd) {
             const greenH = Math.max(3, wy - sfy)
-            ctx.fillStyle   = `${HC.weaveFill}0.85)`
+            let fade = 1
+            if (!isAnticipated) fade = this.weaveBoxFade(swingTime, t)
+            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
             ctx.fillRect(8, sfy, w - 16, greenH)
-            ctx.strokeStyle = `${HC.weaveStrk}1.0)`
+            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
             ctx.lineWidth = 1.5
             ctx.strokeRect(8 + 0.5, sfy + 0.5, w - 17, greenH - 1)
           }
 
-          // Discouraged zone (safeEnd → windowEnd)
-          if (orderSet) {
-            const discH = Math.max(2, sfy - wndy)
+          // Discouraged zone (safeEnd → windowEnd) — clamped so it never scrolls
+          // past the swing target once safeEnd itself has already passed it.
+          if (orderSet && wndy < tzy) {
+            const clampedSfy = Math.min(sfy, tzy)
+            const discH = Math.max(2, clampedSfy - wndy)
             ctx.fillStyle   = 'rgba(200,40,20,0.30)'
             ctx.fillRect(8, wndy, w - 16, discH)
             ctx.strokeStyle = 'rgba(255,60,40,0.60)'
@@ -1784,6 +1967,37 @@ export class HighContrastOverlay {
         ctx.fillRect(6, y1 - 2, w - 12, 5)
       }
       rank++
+    }
+    ctx.restore()
+  }
+
+  /** Tumbling border fragments from spawnWeaveExplosion(), clipped to the runway
+   *  track so they visually break apart on the highway rather than flying over
+   *  the header/footer chrome. */
+  private drawWeaveExplosion(): void {
+    if (this.weaveShards.length === 0) return
+    const ctx = this.ctx
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const w = this.canvas.width
+    const hy = this.highwayY, hh = this.highwayH
+    ctx.save()
+    ctx.beginPath()
+    if (!vert) ctx.rect(5, hy, w - 10, hh)
+    else        ctx.rect(0, hy + 1, w, hh - 2)
+    ctx.clip()
+    for (const s of this.weaveShards) {
+      const a = Math.max(0, 1 - s.life / s.ttl)
+      const fill   = s.kind === 'backstab' ? HC.backstabFill   : HC.weaveFill
+      const stroke = s.kind === 'backstab' ? HC.backstabStroke : HC.weaveStrk
+      ctx.save()
+      ctx.translate(s.x, s.y)
+      ctx.rotate(s.rot)
+      ctx.fillStyle = `${fill}${a})`
+      ctx.strokeStyle = `${stroke}${a})`
+      ctx.lineWidth = 1
+      ctx.fillRect(-s.size / 2, -s.size / 2, s.size, s.size)
+      ctx.strokeRect(-s.size / 2, -s.size / 2, s.size, s.size)
+      ctx.restore()
     }
     ctx.restore()
   }
@@ -2070,22 +2284,23 @@ export class HighContrastOverlay {
     if (bs.state === 'cooldown' || bs.state === 'ready') {
       const readyAt = bs.readyAtMs
       const boxEnd  = readyAt + windowMs
+      const fade = this.weaveBoxFade(readyAt, t)
       const [sx, sy] = this.rogueProjectAt(readyAt, t, speed)
       const [ex, ey] = this.rogueProjectAt(boxEnd, t, speed)
       if (!vert) {
         const bw = Math.max(3, ex - sx)
-        ctx.fillStyle   = `${HC.backstabFill}0.9)`
+        ctx.fillStyle   = `${HC.backstabFill}${0.9 * fade})`
         ctx.fillRect(sx, hy + 16, bw, hh - 32)
-        ctx.strokeStyle = `${HC.backstabStroke}1.0)`
+        ctx.strokeStyle = `${HC.backstabStroke}${1.0 * fade})`
         ctx.lineWidth = 1.5
         ctx.strokeRect(sx + 0.5, hy + 16.5, bw - 1, hh - 33)
         ctx.fillStyle = `${HC.swingBar}1.0)`
         ctx.fillRect(sx - 1.5, hy - 2, 4, hh + 4)
       } else {
         const bh = Math.max(3, sy - ey)
-        ctx.fillStyle   = `${HC.backstabFill}0.9)`
+        ctx.fillStyle   = `${HC.backstabFill}${0.9 * fade})`
         ctx.fillRect(8, ey, w - 16, bh)
-        ctx.strokeStyle = `${HC.backstabStroke}1.0)`
+        ctx.strokeStyle = `${HC.backstabStroke}${1.0 * fade})`
         ctx.lineWidth = 1.5
         ctx.strokeRect(8.5, ey + 0.5, w - 17, bh - 1)
         ctx.fillStyle = `${HC.swingBar}1.0)`

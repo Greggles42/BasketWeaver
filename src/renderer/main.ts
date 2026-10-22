@@ -164,6 +164,10 @@ window.electronAPI.onToggleTripleAttackDetection((enabled: boolean) => {
   Config.TRIPLE_ATTACK_DETECTION_ENABLED = enabled
 })
 
+window.electronAPI.onToggleWeaveExplode((enabled: boolean) => {
+  Config.WEAVE_EXPLODE_ENABLED = enabled
+})
+
 window.electronAPI.onTogglePin(() => {
   overlay.pinned = !overlay.pinned
   if (overlay.pinned) {
