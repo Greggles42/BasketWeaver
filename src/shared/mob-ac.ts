@@ -4,7 +4,7 @@ interface HighHpMob { id: number; name: string; hp: number; ac: number }
 
 const acsByName = new Map<string, Set<number>>()
 for (const m of highHpMobs as HighHpMob[]) {
-  const key = m.name.toLowerCase().replace(/_/g, ' ').trim()
+  const key = m.name.toLowerCase().replace(/^#/, '').replace(/_/g, ' ').trim()
   if (!acsByName.has(key)) acsByName.set(key, new Set())
   acsByName.get(key)!.add(m.ac)
 }
