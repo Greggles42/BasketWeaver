@@ -2131,7 +2131,11 @@ export class RefinedOverlay {
   private drawHitZone(): void {
     const ctx = this.ctx
     const [hzx, hzy] = this.hzCenter()
-    const hy = this.highwayY, hh = this.highwayH
+    // Rogue mode reserves a band at the top of the highway for the evade/hide
+    // strip (drawn separately in drawEvadeStrip()) — keep the marker below it
+    // so it never visually overlaps/obscures that strip.
+    const topOffset = (this.cfg.ROGUE_MODE_ENABLED && this.cfg.ROGUE_EVADE_TRACKING_ENABLED) ? EVADE_STRIP_H : 0
+    const hy = this.highwayY + topOffset, hh = this.highwayH - topOffset
     const flash = this.hitFlash
     const w = this.canvas.width
 
@@ -2483,7 +2487,7 @@ export class RefinedOverlay {
     const pct = ev.progressPct
     const fill   = ready ? PAL.evadeReadyFill   : PAL.evadeFill
     const stroke = ready ? PAL.evadeReadyStroke : PAL.evadeStroke
-    ctx.fillStyle = `${fill}${ready ? 0.9 : 0.55})`
+    ctx.fillStyle = `${fill}${ready ? 1 : 0.55})`
     ctx.fillRect(0, hy, w * pct, EVADE_STRIP_H)
     ctx.strokeStyle = `${stroke}1)`
     ctx.lineWidth = 1
