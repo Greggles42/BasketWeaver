@@ -27,7 +27,7 @@ import { exec } from 'child_process'
 import { performance } from 'perf_hooks'
 import { EvType, type GameEvent } from '../shared/events'
 import { type ConfigType } from '../shared/config'
-import { type EventCallback } from './log-reader'
+import { type EventCallback, savageryVariant } from './log-reader'
 import { parseHaste, calcInterval, parseAtkRating } from './haste-calc'
 
 const MAX_LOG_BYTES = 512 * 1024   // truncate diagnostic log once it exceeds this size
@@ -211,6 +211,10 @@ export class ZealReader {
   private innerflamLostRe:    RegExp[]
   private whirlwindGainedRe:  RegExp[]
   private whirlwindLostRe:    RegExp[]
+  private hideSuccessRe:   RegExp[]
+  private hideFailRe:      RegExp[]
+  private evadeSuccessRe:  RegExp[]
+  private evadeFailRe:     RegExp[]
 
   constructor(cfg: ConfigType, onEvent: EventCallback, onCharacterDetected?: (name: string) => void, logDir?: string) {
     this.cfg     = cfg
@@ -229,6 +233,10 @@ export class ZealReader {
     this.innerflamLostRe    = compile(cfg.INNERFLAME_LOST_PATTERNS)
     this.whirlwindGainedRe  = compile(cfg.WHIRLWIND_GAINED_PATTERNS)
     this.whirlwindLostRe    = compile(cfg.WHIRLWIND_LOST_PATTERNS)
+    this.hideSuccessRe      = compile(cfg.HIDE_SUCCESS_PATTERNS)
+    this.hideFailRe         = compile(cfg.HIDE_FAIL_PATTERNS)
+    this.evadeSuccessRe     = compile(cfg.EVADE_SUCCESS_PATTERNS)
+    this.evadeFailRe        = compile(cfg.EVADE_FAIL_PATTERNS)
     this.weaponRe       = Object.entries(cfg.WEAPON_PRESETS).map(([name, { delay, attackType }]) => ({
       re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
       name,
@@ -657,7 +665,7 @@ export class ZealReader {
 
     // Savagery buff tracking
     if (this.savageryGainedRe.some(r => r.test(text))) {
-      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true } })
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'savagery', active: true, variant: savageryVariant(text) } })
       return
     }
     if (this.savageryLostRe.some(r => r.test(text))) {
@@ -680,6 +688,24 @@ export class ZealReader {
     }
     if (this.whirlwindLostRe.some(r => r.test(text))) {
       this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
+      return
+    }
+
+    // ── Rogue Hide / in-combat Evade reuse tracking ─────────────
+    if (this.hideSuccessRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: true } })
+      return
+    }
+    if (this.hideFailRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: false } })
+      return
+    }
+    if (this.evadeSuccessRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'evade', success: true } })
+      return
+    }
+    if (this.evadeFailRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'evade', success: false } })
       return
     }
 

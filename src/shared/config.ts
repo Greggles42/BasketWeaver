@@ -220,6 +220,17 @@ export const Config = {
   ROGUE_BACKSTAB_WINDOW_MS:  300,        // width (ms) of the red backstab weave-window box, user-adjustable 100-800
   ROGUE_MAX_HIT_TRACKING_ENABLED: true,  // show/track a "new max hit" banner per weapon for landed backstabs
 
+  // Evade/Hide reuse tracking — server reuse timer is HideReuseTime (8s base)
+  // minus GetAA(209), minus a further 1s server-side quirk (see changelog.txt),
+  // so the real reuse is (8 - AA209) - 1 seconds. The live server code reads
+  // AA id 209 for that reduction, which is actually aaDeathPeace (Necromancer),
+  // not Hastened Stealth (622, Shaman) despite the latter's "reduces hide/evade
+  // reuse by 1s/rank" description — likely a server data/code bug. Either way,
+  // the net effect at live is -1s of reuse per rank, which is what this setting
+  // models; not detectable from the log, so it's user-selectable here (0-3).
+  ROGUE_EVADE_TRACKING_ENABLED:  true,   // show the evade/hide cooldown strip alongside the backstab track
+  ROGUE_HASTENED_STEALTH_RANK:  0,       // 0 (None) - 3 (max rank); each rank shaves 1s off the 8s base reuse
+
   // Mainhand 2H weapons — used for swing interval detection via /mystats
   WEAPON_PRESETS: {
     "Fiery Staff of Zha":                      { delay: 20, attackType: 'crush' },
@@ -519,6 +530,21 @@ export const Config = {
   ],
   WHIRLWIND_LOST_PATTERNS: [
     'Your fury fades\\.',
+  ],
+
+  // Rogue Hide / in-combat Evade — both put the same reuse timer on cooldown
+  // whether they land or fail, so success and fail each start the countdown.
+  HIDE_SUCCESS_PATTERNS: [
+    '^You have hidden yourself from view\\.',
+  ],
+  HIDE_FAIL_PATTERNS: [
+    '^You failed to hide yourself\\.',
+  ],
+  EVADE_SUCCESS_PATTERNS: [
+    '^You have momentarily ducked away from the main combat\\.',
+  ],
+  EVADE_FAIL_PATTERNS: [
+    '^Your attempts at ducking clear of combat fail\\.',
   ],
 
   // ── Auto-detect active log ────────────────────────────────────

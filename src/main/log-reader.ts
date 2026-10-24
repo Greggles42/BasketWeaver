@@ -44,7 +44,7 @@ function parseDamage(content: string): number {
  *  fade lines) for what the overlay tracks as one internal buff flag — this
  *  reports which wording actually landed so the UI can label it correctly
  *  instead of always showing "Ferocity" regardless of which one fired. */
-function savageryVariant(content: string): 'savagery' | 'ferocity' {
+export function savageryVariant(content: string): 'savagery' | 'ferocity' {
   return /savagery/i.test(content) ? 'savagery' : 'ferocity'
 }
 
@@ -368,6 +368,10 @@ export class LogReader {
   private innerflamLostRe:     RegExp[]
   private whirlwindGainedRe:   RegExp[]
   private whirlwindLostRe:     RegExp[]
+  private hideSuccessRe:   RegExp[]
+  private hideFailRe:      RegExp[]
+  private evadeSuccessRe:  RegExp[]
+  private evadeFailRe:     RegExp[]
   private critHitRe:    RegExp[]
   private missOnly:        boolean
   private weaponTrackOnly: boolean
@@ -425,6 +429,10 @@ export class LogReader {
     this.innerflamLostRe    = compile(cfg.INNERFLAME_LOST_PATTERNS)
     this.whirlwindGainedRe  = compile(cfg.WHIRLWIND_GAINED_PATTERNS)
     this.whirlwindLostRe    = compile(cfg.WHIRLWIND_LOST_PATTERNS)
+    this.hideSuccessRe      = compile(cfg.HIDE_SUCCESS_PATTERNS)
+    this.hideFailRe         = compile(cfg.HIDE_FAIL_PATTERNS)
+    this.evadeSuccessRe     = compile(cfg.EVADE_SUCCESS_PATTERNS)
+    this.evadeFailRe        = compile(cfg.EVADE_FAIL_PATTERNS)
     this.critHitRe          = compile(cfg.CRIT_HIT_PATTERNS)
 
     this.weaponRe = Object.entries(cfg.WEAPON_PRESETS).map(([name, { delay, attackType }]) => ({
@@ -837,6 +845,14 @@ export class LogReader {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: true } })
       } else if (this.whirlwindLostRe.some(r => r.test(content))) {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
+      } else if (this.hideSuccessRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: true } })
+      } else if (this.hideFailRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: false } })
+      } else if (this.evadeSuccessRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'evade', success: true } })
+      } else if (this.evadeFailRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'evade', success: false } })
       }
       return
     }
@@ -1145,6 +1161,24 @@ export class LogReader {
     }
     if (this.whirlwindLostRe.some(r => r.test(content))) {
       this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
+      return
+    }
+
+    // ── Rogue Hide / in-combat Evade reuse tracking ─────────────
+    if (this.hideSuccessRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: true } })
+      return
+    }
+    if (this.hideFailRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: false } })
+      return
+    }
+    if (this.evadeSuccessRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'evade', success: true } })
+      return
+    }
+    if (this.evadeFailRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'evade', success: false } })
       return
     }
 

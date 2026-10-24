@@ -900,6 +900,18 @@ async function init(): Promise<void> {
   // ── Rogue Mode ───────────────────────────────────────────────
   setupToggle('rogueModeEnabled', 'ROGUE_MODE_ENABLED', s.ROGUE_MODE_ENABLED as boolean)
   setupToggle('rogueMaxHitTrackingEnabled', 'ROGUE_MAX_HIT_TRACKING_ENABLED', s.ROGUE_MAX_HIT_TRACKING_ENABLED as boolean)
+  setupToggle('rogueEvadeTrackingEnabled', 'ROGUE_EVADE_TRACKING_ENABLED', s.ROGUE_EVADE_TRACKING_ENABLED as boolean)
+  const hastenedStealthGroup = document.getElementById('rogueHastenedStealthRank')
+  if (hastenedStealthGroup) {
+    const radios = hastenedStealthGroup.querySelectorAll<HTMLInputElement>('input[type="radio"]')
+    const rank = String(s.ROGUE_HASTENED_STEALTH_RANK ?? 0)
+    for (const r of radios) {
+      if (r.value === rank) r.checked = true
+      r.addEventListener('change', () => {
+        if (r.checked) window.settingsAPI.setSetting('ROGUE_HASTENED_STEALTH_RANK', parseInt(r.value, 10))
+      })
+    }
+  }
   const rogueBackstabSetNameEl = document.getElementById('rogueBackstabSetName') as HTMLInputElement | null
   if (rogueBackstabSetNameEl) {
     rogueBackstabSetNameEl.value = (s.ROGUE_BACKSTAB_SET_NAME as string) ?? 'backstab'

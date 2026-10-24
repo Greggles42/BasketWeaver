@@ -746,6 +746,7 @@
       <div class="checkbox-grid">
         <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking)</label>
         <label data-tip="Flags a backstab as a new max hit when it's the hardest one landed this session with the currently-equipped weapon, and shows a banner for it. Tracked per weapon name, reset on app restart."><input type="checkbox" id="rogueMaxHitTrackingEnabled" /> Track Max Hit Per Weapon</label>
+        <label data-tip="Shows a cyan cooldown strip above the backstab track for the Hide/in-combat-Evade reuse timer, so you know when the macro is off cooldown again."><input type="checkbox" id="rogueEvadeTrackingEnabled" /> Track Evade/Hide Cooldown</label>
       </div>
       <div class="row" style="margin-top:6px" data-tip="Bandolier set name (or substring) that identifies your backstab weapon set — must match what you named it via /bandolier. Used to prompt weapon swaps and to know when you've swapped in/out.">
         <label for="rogueBackstabSetName">Backstab Set Name</label>
@@ -754,6 +755,15 @@
       <div class="row" style="margin-top:6px" data-tip="Width of the red backstab weave-window box drawn around the target marker — how wide the 'use it now' timing window appears.">
         <label for="rogueBackstabWindowMs">Backstab Weave Window <span class="hint">(ms)</span></label>
         <input type="number" id="rogueBackstabWindowMs" min="100" max="800" step="25" style="width:80px" />
+      </div>
+      <div class="row" style="margin-top:6px" data-tip="Each rank shaves 1 second off the 8s base Hide/Evade reuse timer. Not detectable from the log, so set it to match your trained rank.">
+        <label>Hastened Stealth</label>
+        <div class="radio-group" id="rogueHastenedStealthRank">
+          <label><input type="radio" name="hastenedStealth" value="0" /> None</label>
+          <label><input type="radio" name="hastenedStealth" value="1" /> Rank 1</label>
+          <label><input type="radio" name="hastenedStealth" value="2" /> Rank 2</label>
+          <label><input type="radio" name="hastenedStealth" value="3" /> Rank 3</label>
+        </div>
       </div>
     </div>
 

@@ -32,6 +32,7 @@ export enum EvType {
   MOB_TASHED         = 'MOB_TASHED',         // data: { mobName: string } — "X glances nervously about." (Tash line)
   MOB_SLOWED         = 'MOB_SLOWED',         // data: { mobName: string } — target landed a slow-effect emote
   MOB_SNARED         = 'MOB_SNARED',         // data: { mobName: string } — target landed a snare-effect emote
+  EVADE_USED         = 'EVADE_USED',         // data: { kind: 'hide'|'evade', success: boolean } — Rogue Hide or in-combat Evade triggered (success or fail), reuse timer starts either way
 }
 
 export interface GameEvent {

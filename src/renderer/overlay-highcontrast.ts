@@ -18,9 +18,11 @@ import { RhythmEngine, type GradeResult } from './rhythm-engine'
 import { AudioManager } from './audio-manager'
 import type { EncounterRecord } from '../shared/leaderboard-types'
 import { BackstabTimer } from './backstab-timer'
+import { EvadeTimer } from './evade-timer'
 import { lookupMobAc } from '../shared/mob-ac'
 
 const COMBAT_IDLE_TIMEOUT_MS = 10_000
+const EVADE_STRIP_H = 20      // height (px) of the Rogue Mode evade/hide cooldown strip, pinned to the top of the highway
 
 // HC palette
 const HC = {
@@ -35,6 +37,11 @@ const HC = {
   weaveStrk: 'rgba(150,240,255,',
   backstabFill:   'rgba(255,30,30,',   // rogue-mode backstab weave window
   backstabStroke: 'rgba(255,120,100,',
+  evadeFill:   'rgba(0,160,255,',     // rogue-mode evade/hide cooldown strip, kept visually distinct from backstab's red
+  evadeStroke: 'rgba(130,220,255,',
+  evadeText:   '#5ad4ff',
+  evadeReadyFill:   'rgba(0,230,120,',   // rogue-mode evade/hide strip once off cooldown and ready to use
+  evadeReadyStroke: 'rgba(150,255,190,',
   swingBar:  'rgba(255,120,0,',
   hitZone:   '#ffee00',
   weaveDps:  '#ff7800',
@@ -67,7 +74,7 @@ const DEBUFF_ALERT_SOUND_NAMES = ['rooted', 'tashed', 'slowed', 'snared', 'enrag
 
 // A tumbling rectangular fragment used by the weave-window "explode" animation.
 // `kind` picks the fill/stroke color at draw time (weave cyan vs rogue-mode backstab red).
-interface Shard { x:number; y:number; vx:number; vy:number; life:number; ttl:number; size:number; rot:number; vr:number; kind: 'weave' | 'backstab' }
+interface Shard { x:number; y:number; vx:number; vy:number; life:number; ttl:number; size:number; rot:number; vr:number; kind: 'weave' | 'backstab' | 'evade' }
 
 class Banner {
   static FADE_IN = 300; static FADE_OUT = 500
@@ -189,6 +196,16 @@ export class HighContrastOverlay {
   private fightHistory: GradeResult[] = []
   // ── Rogue Mode ────────────────────────────────────────────────
   private backstab: BackstabTimer
+  private evade: EvadeTimer
+  // Backstab/evade flashes are deliberately NOT anchored to readyAt like
+  // weaveFadeAnchorSwingTime/weaveBoxExplodeTs are for the (short-cycle)
+  // mainhand weave window — on Rogue Mode's much longer cooldowns that anchor
+  // pattern left the box/strip fill invisible for the rest of the cycle after
+  // every explosion. These are simple one-shot timestamps instead: the box is
+  // always drawn at full opacity, and the flash is a separate decaying overlay.
+  private backstabFlashT = 0
+  private backstabFlashRect: { x: number; y: number; w: number; h: number } | null = null
+  private evadeFlashT = 0
   private rogueInCombat = false
   private rogueFightStartTs = 0
   private rogueDamageTotal = 0
@@ -276,6 +293,7 @@ export class HighContrastOverlay {
     this.audio = new AudioManager(Config)
     this.audio.preload()
     this.backstab = new BackstabTimer(this.cfg.ROGUE_SWAP_WARN_MS)
+    this.evade = new EvadeTimer()
     this.computeLayout()
   }
 
@@ -342,19 +360,42 @@ export class HighContrastOverlay {
 
   /** Rogue Mode equivalent of spawnWeaveExplosion() — pops the backstab-ready
    *  window box when a backstab lands while the ability was actually ready
-   *  (not during its cooldown window, which the caller must have already ruled out). */
+   *  (not during its cooldown window, which the caller must have already ruled out).
+   *  Anchored to the fixed hit-zone position rather than computeActiveBackstabBoxRect(),
+   *  because by the time this runs the caller has already called onBackstabAttack(),
+   *  which resets backstab.readyAt to the *next* cycle — recomputing the box from
+   *  that mutated state would spawn the explosion off at the next cycle's starting
+   *  position (the far edge of the track) instead of where the box actually was. */
   private spawnBackstabExplosion(): void {
-    const r = this.computeActiveBackstabBoxRect(now())
-    if (!r) return
-    this.weaveFadeAnchorSwingTime = r.readyAt
-    this.weaveBoxExplodeTs = now()
+    const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
+    const speed = this.runway / Math.max(1, this.backstab.cooldownMsValue)
+    const bw = Math.max(3, speed * windowMs)
+    const vert = this.cfg.ORIENTATION === 'vertical'
+    const hy = this.highwayY, hh = this.highwayH, w = this.canvas.width
+    const topOffset = this.cfg.ROGUE_EVADE_TRACKING_ENABLED ? EVADE_STRIP_H : 0
+    const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
+    const r = vert
+      ? { x: 8, y: this.hzY + vo, w: w - 16, h: bw }
+      : { x: this.hzX + vo, y: hy + 16 + topOffset, w: bw, h: hh - 32 - topOffset }
+    this.backstabFlashT = now()
+    this.backstabFlashRect = r
     this.spawnBoxShards(r, 'backstab')
+  }
+
+  /** Evade-strip equivalent of spawnBackstabExplosion() — pops the evade/hide
+   *  cooldown strip when the ability is used while it was actually ready. */
+  private spawnEvadeExplosion(): void {
+    const w = this.canvas.width
+    const hy = this.highwayY
+    const r = { x: 0, y: hy, w, h: EVADE_STRIP_H }
+    this.evadeFlashT = now()
+    this.spawnBoxShards(r, 'evade')
   }
 
   /** Sample fragments from all 4 edges of a box so it reads as the border
    *  breaking apart, not a burst from the center. Shared by both the weave
-   *  window and Rogue Mode's backstab window explosions. */
-  private spawnBoxShards(r: { x: number; y: number; w: number; h: number }, kind: 'weave' | 'backstab'): void {
+   *  window and Rogue Mode's backstab/evade window explosions. */
+  private spawnBoxShards(r: { x: number; y: number; w: number; h: number }, kind: 'weave' | 'backstab' | 'evade'): void {
     const edges: Array<() => { x: number; y: number; nx: number; ny: number }> = [
       () => ({ x: r.x + Math.random() * r.w, y: r.y,         nx: 0,  ny: -1 }),  // top
       () => ({ x: r.x + Math.random() * r.w, y: r.y + r.h,   nx: 0,  ny: 1  }),  // bottom
@@ -837,6 +878,21 @@ export class HighContrastOverlay {
         }
         break
       }
+      case EvType.EVADE_USED: {
+        const kind    = (ev.data?.kind as 'hide' | 'evade') ?? 'hide'
+        const success = (ev.data?.success as boolean) ?? false
+        const wasReady = this.evade.state === 'ready'
+        const cooldownMs = Math.max(1000, (7 - this.cfg.ROGUE_HASTENED_STEALTH_RANK) * 1000)
+        this.evade.onAbilityUsed(ts, cooldownMs)
+        if (this.cfg.ROGUE_MODE_ENABLED && this.cfg.ROGUE_EVADE_TRACKING_ENABLED) {
+          const label = kind === 'hide'
+            ? (success ? 'Hidden' : 'Hide Failed')
+            : (success ? 'Evaded' : 'Evade Failed')
+          this.banners.push(new Banner(label, success ? HC.evadeText : HC.textDim, 2000))
+          if (this.cfg.WEAVE_EXPLODE_ENABLED && wasReady) this.spawnEvadeExplosion()
+        }
+        break
+      }
       case EvType.STATS_UPDATE: {
         const atk = ev.data?.atkRating as number | undefined
         if (atk != null) this.lastKnownAtkRating = atk
@@ -1257,6 +1313,7 @@ export class HighContrastOverlay {
         this.lastCombatActivity = 0
       }
       this.backstab.update(t)
+      this.evade.update(t)
       if (this.backstab.shouldPromptSwapIn && !this.backstab.swapInPromptShown) {
         this.backstab.swapInPromptShown = true
         this.banners.push(new Banner('SWAP TO BACKSTAB WEAPON!', HC.accent, 2500))
@@ -1371,6 +1428,7 @@ export class HighContrastOverlay {
     this.drawHeader()
     if (this.cfg.ROGUE_MODE_ENABLED) {
       this.drawRogueTrack()
+      if (this.cfg.ROGUE_EVADE_TRACKING_ENABLED) this.drawEvadeStrip()
     } else {
       this.drawHighwayBox()
       this.drawDynamicWeaveWindows()
@@ -1647,31 +1705,6 @@ export class HighContrastOverlay {
     const [, wy ] = this.projectAt(winStart, t)
     const [, sfy] = this.projectAt(safeEnd,  t)
     return { x: 8, y: sfy, w: w - 16, h: Math.max(3, wy - sfy), swingTime }
-  }
-
-  /** Rogue Mode equivalent of computeActiveWeaveBoxRect() — the backstab-ready
-   *  window box, computed fresh (same math as drawRogueTrack()) rather than cached,
-   *  for the same stale-frame reason computeActiveWeaveBoxRect avoids a cache. */
-  private computeActiveBackstabBoxRect(t: number): { x: number; y: number; w: number; h: number; readyAt: number } | null {
-    const bs = this.backstab
-    if (bs.state !== 'ready' && bs.state !== 'cooldown') return null
-    const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
-    const speed    = this.runway / Math.max(1, bs.cooldownMsValue)
-    const readyAt  = bs.readyAtMs
-    const boxEnd   = readyAt + windowMs
-
-    const vert = this.cfg.ORIENTATION === 'vertical'
-    const hy = this.highwayY, hh = this.highwayH
-    const w = this.canvas.width
-
-    if (!vert) {
-      const [sx] = this.rogueProjectAt(readyAt, t, speed)
-      const [ex] = this.rogueProjectAt(boxEnd,  t, speed)
-      return { x: sx, y: hy + 16, w: Math.max(3, ex - sx), h: hh - 32, readyAt }
-    }
-    const [, sy] = this.rogueProjectAt(readyAt, t, speed)
-    const [, ey] = this.rogueProjectAt(boxEnd,  t, speed)
-    return { x: 8, y: ey, w: w - 16, h: Math.max(3, sy - ey), readyAt }
   }
 
   /** Fade multiplier (1 = fully visible, 0 = gone) for the currently-active weave
@@ -1987,8 +2020,8 @@ export class HighContrastOverlay {
     ctx.clip()
     for (const s of this.weaveShards) {
       const a = Math.max(0, 1 - s.life / s.ttl)
-      const fill   = s.kind === 'backstab' ? HC.backstabFill   : HC.weaveFill
-      const stroke = s.kind === 'backstab' ? HC.backstabStroke : HC.weaveStrk
+      const fill   = s.kind === 'backstab' ? HC.backstabFill   : s.kind === 'evade' ? HC.evadeFill   : HC.weaveFill
+      const stroke = s.kind === 'backstab' ? HC.backstabStroke : s.kind === 'evade' ? HC.evadeStroke : HC.weaveStrk
       ctx.save()
       ctx.translate(s.x, s.y)
       ctx.rotate(s.rot)
@@ -2270,6 +2303,9 @@ export class HighContrastOverlay {
     const t = now()
     const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
     const vert = this.cfg.ORIENTATION === 'vertical'
+    // Reserve a band at the top of the highway for the evade/hide strip (drawn
+    // separately, after this) so the two tracks never visually overlap.
+    const topOffset = this.cfg.ROGUE_EVADE_TRACKING_ENABLED ? EVADE_STRIP_H : 0
     // Scale the whole highway to the current (haste-adjusted) cooldown length,
     // so the next backstab's timing is visible across the full track, not just
     // a short lookahead — the window then keeps scrolling past the marker at
@@ -2284,27 +2320,39 @@ export class HighContrastOverlay {
     if (bs.state === 'cooldown' || bs.state === 'ready') {
       const readyAt = bs.readyAtMs
       const boxEnd  = readyAt + windowMs
-      const fade = this.weaveBoxFade(readyAt, t)
       const [sx, sy] = this.rogueProjectAt(readyAt, t, speed)
       const [ex, ey] = this.rogueProjectAt(boxEnd, t, speed)
       if (!vert) {
         const bw = Math.max(3, ex - sx)
-        ctx.fillStyle   = `${HC.backstabFill}${0.9 * fade})`
-        ctx.fillRect(sx, hy + 16, bw, hh - 32)
-        ctx.strokeStyle = `${HC.backstabStroke}${1.0 * fade})`
+        ctx.fillStyle   = `${HC.backstabFill}0.9)`
+        ctx.fillRect(sx, hy + 16 + topOffset, bw, hh - 32 - topOffset)
+        ctx.strokeStyle = `${HC.backstabStroke}1.0)`
         ctx.lineWidth = 1.5
-        ctx.strokeRect(sx + 0.5, hy + 16.5, bw - 1, hh - 33)
+        ctx.strokeRect(sx + 0.5, hy + 16.5 + topOffset, bw - 1, hh - 33 - topOffset)
         ctx.fillStyle = `${HC.swingBar}1.0)`
-        ctx.fillRect(sx - 1.5, hy - 2, 4, hh + 4)
+        ctx.fillRect(sx - 1.5, hy + topOffset - 2, 4, hh - topOffset + 4)
       } else {
         const bh = Math.max(3, sy - ey)
-        ctx.fillStyle   = `${HC.backstabFill}${0.9 * fade})`
+        ctx.fillStyle   = `${HC.backstabFill}0.9)`
         ctx.fillRect(8, ey, w - 16, bh)
-        ctx.strokeStyle = `${HC.backstabStroke}${1.0 * fade})`
+        ctx.strokeStyle = `${HC.backstabStroke}1.0)`
         ctx.lineWidth = 1.5
         ctx.strokeRect(8.5, ey + 0.5, w - 17, bh - 1)
         ctx.fillStyle = `${HC.swingBar}1.0)`
         ctx.fillRect(8 - 2, sy - 1.5, w - 16 + 4, 4)
+      }
+    }
+    // Brief white flash at the point of impact — decoupled from the box's own
+    // opacity (see backstabFlashT comment) so it doesn't leave the box hidden
+    // for the rest of the cooldown after it fires.
+    if (this.backstabFlashRect) {
+      const flashA = Math.max(0, 1 - (t - this.backstabFlashT) / HighContrastOverlay.WEAVE_FADE_MS)
+      if (flashA > 0) {
+        const r = this.backstabFlashRect
+        ctx.fillStyle = `rgba(255,255,255,${0.65 * flashA})`
+        ctx.fillRect(r.x, r.y, r.w, r.h)
+      } else {
+        this.backstabFlashRect = null
       }
     }
     ctx.restore()
@@ -2318,13 +2366,66 @@ export class HighContrastOverlay {
     ctx.textBaseline = 'middle'
     ctx.font = ready ? '800 14px "Archivo Narrow", "Archivo", sans-serif' : '800 16px "Archivo Narrow", "Archivo", sans-serif'
     ctx.fillStyle = ready ? HC.hitZone : HC.text
-    ctx.fillText(label, w / 2, hy + 12)
+    ctx.fillText(label, w / 2, hy + 12 + topOffset)
 
     if (bs.isReadyButNotSwapped) {
       ctx.font = '700 9px "Archivo", sans-serif'
       ctx.fillStyle = HC.accent
       ctx.fillText('SWAP TO BACKSTAB WEAPON', w / 2, hy + hh - 10)
     }
+    ctx.textAlign = 'left'
+  }
+
+  /** Evade/Hide cooldown strip — pinned to the top of the Rogue Mode highway,
+   *  deliberately a different shape (fixed left-to-right fill bar, not a
+   *  scrolling box) and color (cyan vs. backstab's red) from drawRogueTrack()
+   *  so the two are never confused at a glance. Fixed-duration cooldown, not
+   *  haste-scaled, so a simple fill fraction is all that's needed — there's no
+   *  landing-timing precision to visualize like the backstab weave window.
+   *  Turns solid green once ready, so "online again" reads at a glance, and
+   *  stays green until the next Hide/Evade attempt consumes it. */
+  private drawEvadeStrip(): void {
+    const ctx = this.ctx
+    const w = this.canvas.width
+    const hy = this.highwayY
+    const ev = this.evade
+    const ready = ev.state === 'ready' || ev.state === 'idle'
+    const t = now()
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, hy, w, EVADE_STRIP_H)
+    ctx.clip()
+
+    ctx.fillStyle = HC.bg
+    ctx.fillRect(0, hy, w, EVADE_STRIP_H)
+
+    const pct = ev.progressPct
+    const fill   = ready ? HC.evadeReadyFill   : HC.evadeFill
+    const stroke = ready ? HC.evadeReadyStroke : HC.evadeStroke
+    ctx.fillStyle = `${fill}${ready ? 0.95 : 0.6})`
+    ctx.fillRect(0, hy, w * pct, EVADE_STRIP_H)
+    ctx.strokeStyle = `${stroke}1)`
+    ctx.lineWidth = 1.5
+    ctx.strokeRect(0.5, hy + 0.5, w - 1, EVADE_STRIP_H - 1)
+
+    // Brief white flash at the moment the ability is used — decoupled from the
+    // strip's own opacity (see evadeFlashT comment) so it doesn't go dark for
+    // the rest of the cooldown after it fires.
+    const flashA = this.evadeFlashT > 0 ? Math.max(0, 1 - (t - this.evadeFlashT) / HighContrastOverlay.WEAVE_FADE_MS) : 0
+    if (flashA > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${0.6 * flashA})`
+      ctx.fillRect(0, hy, w, EVADE_STRIP_H)
+    }
+
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = '800 10px "Archivo Narrow", "Archivo", sans-serif'
+    ctx.fillStyle = ready ? '#00210f' : HC.text
+    const seconds = ev.remainingMs / 1000
+    const label = ready ? 'EVADE/HIDE READY' : `EVADE/HIDE ${seconds.toFixed(1)}S`
+    ctx.fillText(label, w / 2, hy + EVADE_STRIP_H / 2)
+    ctx.restore()
     ctx.textAlign = 'left'
   }
 
