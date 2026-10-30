@@ -195,6 +195,7 @@ function loadSettings(): void {
       }
       if (typeof saved.AUDIO_ENABLED              === 'boolean') Config.AUDIO_ENABLED              = saved.AUDIO_ENABLED
       if (typeof saved.WINDOW_PINNED              === 'boolean') Config.WINDOW_PINNED              = saved.WINDOW_PINNED
+      if (typeof saved.CLICK_THROUGH_ENABLED      === 'boolean') Config.CLICK_THROUGH_ENABLED      = saved.CLICK_THROUGH_ENABLED
       if (saved.ALWAYS_ON_TOP_MODE === 'standard' || saved.ALWAYS_ON_TOP_MODE === 'elevated' || saved.ALWAYS_ON_TOP_MODE === 'aggressive') {
         Config.ALWAYS_ON_TOP_MODE = saved.ALWAYS_ON_TOP_MODE
       }
@@ -259,6 +260,7 @@ export function saveSettings(): void {
       ENRAGE_AUDIO_DEBOUNCE_MS:  Config.ENRAGE_AUDIO_DEBOUNCE_MS,
       AUDIO_ENABLED:             Config.AUDIO_ENABLED,
       WINDOW_PINNED:             Config.WINDOW_PINNED,
+      CLICK_THROUGH_ENABLED:     Config.CLICK_THROUGH_ENABLED,
       ALWAYS_ON_TOP_MODE:        Config.ALWAYS_ON_TOP_MODE,
       POSITIVE_AUDIO_IN_WINDOW:  Config.POSITIVE_AUDIO_IN_WINDOW,
       LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
@@ -860,6 +862,7 @@ function setupIPC(): void {
     BASE_WEAPON_DELAY:        Config.BASE_WEAPON_DELAY,
     BASE_WEAPON_NAME:         Config.BASE_WEAPON_NAME,
     OFFHAND_WEAPON_DELAY:     Config.OFFHAND_WEAPON_DELAY,
+    OFFHAND_WEAPON_NAME:      Config.OFFHAND_WEAPON_NAME,
     PUNCH_INTERVAL:           Config.PUNCH_INTERVAL,
     TARGET_POSITION_PCT:      Config.TARGET_POSITION_PCT,
     TARGET_OFFSET:            Config.TARGET_OFFSET,
@@ -886,6 +889,7 @@ function setupIPC(): void {
     ENRAGE_AUDIO_DEBOUNCE_MS: Config.ENRAGE_AUDIO_DEBOUNCE_MS,
     AUDIO_ENABLED:            Config.AUDIO_ENABLED,
     WINDOW_PINNED:            Config.WINDOW_PINNED,
+    CLICK_THROUGH_ENABLED:    Config.CLICK_THROUGH_ENABLED,
     ALWAYS_ON_TOP_MODE:       Config.ALWAYS_ON_TOP_MODE,
     AUTO_DETECT_LOG:          Config.AUTO_DETECT_LOG,
     LEADERBOARD_CHARACTER_NAME: Config.LEADERBOARD_CHARACTER_NAME,
@@ -1010,6 +1014,13 @@ function setupIPC(): void {
         if (Config.WINDOW_PINNED !== value) {
           Config.WINDOW_PINNED = value as boolean
           win?.webContents.send(IPC.TOGGLE_PIN)
+        }
+        break
+
+      case 'CLICK_THROUGH_ENABLED':
+        if (Config.CLICK_THROUGH_ENABLED !== value) {
+          Config.CLICK_THROUGH_ENABLED = value as boolean
+          win?.webContents.send(IPC.SET_CLICK_THROUGH, value)
         }
         break
 
@@ -1634,6 +1645,8 @@ app.whenReady().then(async () => {
     })
     // Sync pinned state
     if (!Config.WINDOW_PINNED) win!.webContents.send(IPC.TOGGLE_PIN)
+    // Sync click-through state
+    if (Config.CLICK_THROUGH_ENABLED) win!.webContents.send(IPC.SET_CLICK_THROUGH, true)
     // Sync show-all-crits and positive-audio-in-window states
     if (Config.SHOW_ALL_CRITS)           win!.webContents.send(IPC.SET_SHOW_ALL_CRITS, true)
     if (Config.POSITIVE_AUDIO_IN_WINDOW) win!.webContents.send(IPC.SET_POSITIVE_AUDIO_IN_WINDOW, true)

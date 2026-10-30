@@ -1672,7 +1672,7 @@ export class RefinedOverlay {
       buffX += bw + 4
     }
     if (this.savageryActive) {
-      const label = this.savageryVariant === 'ferocity' ? 'Fero' : 'Sav'
+      const label = this.savageryVariant === 'ferocity' ? 'FERO' : 'SAV'
       const bw = ctx.measureText(label).width + 10
       ctx.fillStyle = this.rgba('#f97316', 0.18)
       this.roundRect(buffX, 5, bw, 14, 7); ctx.fill()

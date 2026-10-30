@@ -22,6 +22,7 @@ declare global {
       onToggleOffhandTimer:     (cb: () => void) => void
       onToggleLaneLines:        (cb: () => void) => void
       onTogglePin:              (cb: () => void) => void
+      onSetClickThrough:        (cb: (enabled: boolean) => void) => void
       onClearBuffs:             (cb: () => void) => void
       onToggleBuffSound:        (cb: () => void) => void
       onToggleRogueMode:        (cb: (enabled: boolean) => void) => void
@@ -176,6 +177,18 @@ window.electronAPI.onTogglePin(() => {
     window.electronAPI.captureMouse()
   }
 })
+
+// Click-through: lets clicks pass straight to the game instead of being
+// captured by the overlay. Only meaningful while the window is pinned —
+// an unpinned overlay always keeps full mouse capture so it stays draggable.
+let clickThroughEnabled = false
+
+window.electronAPI.onSetClickThrough((enabled) => {
+  clickThroughEnabled = enabled
+  if (!overlay.pinned) return
+  if (enabled) window.electronAPI.releaseMouse()
+  else window.electronAPI.captureMouse()
+})
 window.electronAPI.onSetOffhandDelay((delay, name) => {
   overlay.applyDynamicWeaveWindow(delay, name)
 })
@@ -305,6 +318,7 @@ let clickDownClientY = 0
 // the canvas, and release immediately after mouseup or mouseleave.
 
 canvas.addEventListener('mouseenter', () => {
+  if (overlay.pinned && clickThroughEnabled) return
   window.electronAPI.captureMouse()
 })
 

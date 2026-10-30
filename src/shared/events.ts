@@ -66,6 +66,7 @@ export const IPC = {
   TOGGLE_OFFHAND_TIMER:     'toggle-offhand-timer',      // tray → renderer
   TOGGLE_LANE_LINES:      'toggle-lane-lines',        // tray → renderer
   TOGGLE_PIN:             'toggle-pin',               // tray → renderer
+  SET_CLICK_THROUGH:      'set-click-through',        // settings → renderer: boolean (only takes effect while pinned)
   CLEAR_BUFFS:            'clear-buffs',              // tray → renderer
   TOGGLE_BUFF_SOUND:      'toggle-buff-sound',        // tray → renderer
   TOGGLE_ROGUE_MODE:      'toggle-rogue-mode',        // tray/settings → renderer: Rogue Mode enabled/disabled

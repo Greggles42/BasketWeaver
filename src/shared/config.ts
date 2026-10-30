@@ -151,6 +151,8 @@ export const Config = {
   ENRAGE_AUDIO_DEBOUNCE_MS: 3000,
   AUDIO_ENABLED:      true,
   WINDOW_PINNED:      true,
+  // Only takes effect while WINDOW_PINNED is also true — see onSetClickThrough in main.ts.
+  CLICK_THROUGH_ENABLED: false,
 
   // ── Mainhand attack type ──────────────────────────────────────
   // Controls which EQ log verb triggers MAINHAND_CRUSH events.

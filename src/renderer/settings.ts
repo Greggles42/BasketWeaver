@@ -871,6 +871,15 @@ async function init(): Promise<void> {
     })
   }
   setupToggle('windowPinned',       'WINDOW_PINNED',       s.WINDOW_PINNED      as boolean)
+  setupToggle('clickThrough',       'CLICK_THROUGH_ENABLED', s.CLICK_THROUGH_ENABLED as boolean)
+  // Click-through only takes effect while the window is frozen in place — reflect that in the UI.
+  const windowPinnedEl = document.getElementById('windowPinned') as HTMLInputElement | null
+  const clickThroughEl = document.getElementById('clickThrough') as HTMLInputElement | null
+  if (windowPinnedEl && clickThroughEl) {
+    const syncClickThroughEnabled = () => { clickThroughEl.disabled = !windowPinnedEl.checked }
+    syncClickThroughEnabled()
+    windowPinnedEl.addEventListener('change', syncClickThroughEnabled)
+  }
   setupToggle('showAllCrits',          'SHOW_ALL_CRITS',             s.SHOW_ALL_CRITS             as boolean)
   setupToggle('positiveAudioInWindow', 'POSITIVE_AUDIO_IN_WINDOW',   s.POSITIVE_AUDIO_IN_WINDOW   as boolean)
   setupToggle('autoDetectLog',         'AUTO_DETECT_LOG',            s.AUTO_DETECT_LOG            as boolean)

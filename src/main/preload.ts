@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTogglePin: (cb: () => void) =>
     ipcRenderer.on(IPC.TOGGLE_PIN, () => cb()),
 
+  onSetClickThrough: (cb: (enabled: boolean) => void) =>
+    ipcRenderer.on(IPC.SET_CLICK_THROUGH, (_e, enabled: boolean) => cb(enabled)),
+
   onClearBuffs: (cb: () => void) =>
     ipcRenderer.on(IPC.CLEAR_BUFFS, () => cb()),
 
