@@ -18,6 +18,15 @@
  *   LogType 266 (OtherHitsYou): "YOU are pierced by thorns!"
  *
  * We dispatch on LogType first and parse the short text only where needed.
+ *
+ * PipeCmd messages (type=4) carry whatever text the player sends via Zeal's
+ * own `/pipe <text>` command — `{ text: string }`, no LogType. This is a
+ * silent, chat-free channel (nothing is printed anywhere), unlike BW2H/BWOH/
+ * weave weapon-track macros, which have to rely on the text showing up
+ * somewhere in chat for the LogText channel to carry it. We run that text
+ * through the same processTextPatterns() matching used for chat text, so a
+ * macro built on `/pipe BW2H <name>` / `/pipe BWOH <name>` / `/pipe weave N`
+ * works identically but without spamming chat.
  */
 
 import * as net from 'net'
@@ -27,13 +36,15 @@ import { exec } from 'child_process'
 import { performance } from 'perf_hooks'
 import { EvType, type GameEvent } from '../shared/events'
 import { type ConfigType } from '../shared/config'
-import { type EventCallback, savageryVariant } from './log-reader'
+import { type EventCallback, savageryVariant, isWeaveSetName } from './log-reader'
 import { parseHaste, calcInterval, parseAtkRating } from './haste-calc'
+import { debugMonitor } from './debug-monitor'
+import { appendCappedLog } from './capped-log'
 
-const MAX_LOG_BYTES = 512 * 1024   // truncate diagnostic log once it exceeds this size
 
-// PipeMessageType.LogText = 0
+// PipeMessageType.LogText = 0, PipeMessageType.PipeCmd = 4 (Zeal's "/pipe <text>" command)
 const PIPE_MSG_LOGTEXT = 0
+const PIPE_MSG_CUSTOM  = 4
 
 // Zeal LogType constants (from ZealPipes.Common.Enums)
 const LOG = {
@@ -67,6 +78,8 @@ export interface ZealStatus {
   lastPipeError: string | null
   /** message from the most recent `tasklist` scan failure, or null if none this session. */
   scanError: string | null
+  /** Zeal version string parsed from "/zeal version" chat output, or null if not yet seen. */
+  zealVersion: string | null
 }
 
 // "VERB TARGET for DAMAGE" — Zeal's abbreviated hit format for YouHitOther
@@ -86,6 +99,8 @@ const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
 // Prevents linked weapons in raid/group/party/whisper/say chat from
 // updating the equipped weapon.
 const MELEE_PRIMARY_LINE_RE = /\bMelee Primary\s*:/i
+// Same guard for the offhand/secondary slot, e.g. "---- Melee Secondary: Ribcracker ----".
+const MELEE_SECONDARY_LINE_RE = /\bMelee Secondary\s*:/i
 
 function parseDamageShort(text: string): number {
   const m = /for\s+(\d+)/i.exec(text)
@@ -144,6 +159,17 @@ export class ZealReader {
   private lastPipeError: string | null = null
   private scanError: string | null = null
   private readonly logFilePath: string | null
+  // Counts consecutive connect failures per PID (reset on a successful 'connect').
+  // scan() retries every 2s, so this never fires on an ordinary transient failure
+  // (e.g. Zeal's pipe thread not up yet in the first second after character login)
+  // — only once a PID has failed to connect several times in a row, meaning the
+  // problem is persistent, not a timing fluke.
+  private pipeConnectFailures = new Map<number, number>()
+  private pipeRetryAfter = new Map<number, number>()   // pid -> Date.now() before which scan() won't retry
+  private readonly PIPE_FAILURE_ANNOUNCE_THRESHOLD = 3
+  // Announce each distinct failure category once per session (not once per PID —
+  // multiboxing could otherwise re-trigger the same banner per character window).
+  private announcedPipeFailureKinds = new Set<string>()
 
   /**
    * Persist a one-line diagnostic to disk. console.log is invisible for a
@@ -155,14 +181,13 @@ export class ZealReader {
    */
   private log(message: string, level: 'INFO' | 'ERROR' = 'INFO'): void {
     console.log(message)
+    if (level === 'ERROR') debugMonitor.logAnomaly('error', 'zeal', message)
     if (!this.logFilePath) return
     try {
-      if (fs.existsSync(this.logFilePath) && fs.statSync(this.logFilePath).size > MAX_LOG_BYTES) {
-        fs.writeFileSync(this.logFilePath, '', 'utf8')
-      }
-      fs.appendFileSync(this.logFilePath, `[${new Date().toISOString()}] ${level}  ${message}\n`, 'utf8')
+      appendCappedLog(this.logFilePath, `[${new Date().toISOString()}] ${level}  ${message}\n`)
     } catch (err) {
       console.error('[ZealReader] Failed to write diagnostic log:', err)
+      debugMonitor.logAnomaly('warn', 'zeal', 'Failed to write diagnostic log', { err: String(err) })
     }
   }
 
@@ -188,6 +213,7 @@ export class ZealReader {
   private lastCrushHitTs = 0  // last YouHitOther crush hit (ms)
   private lastFistHitTs  = 0  // last YouHitOther punch/strike hit (ms)
   private lastRiposteTs  = 0  // last riposte-classified event (ms, __DEV__ debug only)
+  private currentBandolierSetName = ''  // see LogReader's field of the same name
 
   // ── Haste / ATK dedup ────────────────────────────────────────
   private lastHastePct = -1
@@ -200,7 +226,10 @@ export class ZealReader {
   private weaponTrack2H     = ''
   private weaponTrackOH     = ''
 
+  private zealVersion: string | null = null
+
   private weaponRe: Array<{ re: RegExp; name: string; delay: number; attackType: string }>
+  private offhandWeaponRe: Array<{ re: RegExp; name: string; delay: number }>
   private oorRe: RegExp[]
   private cursorBlockedRe: RegExp[]
   private avatarGainedRe: RegExp[]
@@ -211,6 +240,10 @@ export class ZealReader {
   private innerflamLostRe:    RegExp[]
   private whirlwindGainedRe:  RegExp[]
   private whirlwindLostRe:    RegExp[]
+  private stonestanceGainedRe: RegExp[]
+  private stonestanceLostRe:   RegExp[]
+  private discTimerRe:         RegExp[]
+  private discReadyRe:         RegExp[]
   private hideSuccessRe:   RegExp[]
   private hideFailRe:      RegExp[]
   private evadeSuccessRe:  RegExp[]
@@ -233,6 +266,10 @@ export class ZealReader {
     this.innerflamLostRe    = compile(cfg.INNERFLAME_LOST_PATTERNS)
     this.whirlwindGainedRe  = compile(cfg.WHIRLWIND_GAINED_PATTERNS)
     this.whirlwindLostRe    = compile(cfg.WHIRLWIND_LOST_PATTERNS)
+    this.stonestanceGainedRe = compile(cfg.STONESTANCE_GAINED_PATTERNS)
+    this.stonestanceLostRe   = compile(cfg.STONESTANCE_LOST_PATTERNS)
+    this.discTimerRe         = compile(cfg.DISC_TIMER_PATTERNS)
+    this.discReadyRe         = compile(cfg.DISC_READY_PATTERNS)
     this.hideSuccessRe      = compile(cfg.HIDE_SUCCESS_PATTERNS)
     this.hideFailRe         = compile(cfg.HIDE_FAIL_PATTERNS)
     this.evadeSuccessRe     = compile(cfg.EVADE_SUCCESS_PATTERNS)
@@ -242,6 +279,11 @@ export class ZealReader {
       name,
       delay,
       attackType,
+    }))
+    this.offhandWeaponRe = Object.entries(cfg.OFFHAND_PRESETS).map(([name, delay]) => ({
+      re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+      name,
+      delay,
     }))
   }
 
@@ -253,6 +295,41 @@ export class ZealReader {
     return () => this.stop()
   }
 
+  /** Surfaces a persistent (non-transient) Zeal pipe connect failure as an on-screen
+   *  banner — not just a log line or Settings-window status text, since most users
+   *  never open either and will otherwise just report "it doesn't work" with no
+   *  detail. Classifies by Win32/libuv error code so the message tells them what to
+   *  actually try, instead of a raw errno. Fires once per distinct cause per session
+   *  (see announcedPipeFailureKinds) so a persistently-retrying failure doesn't spam
+   *  a new banner every 2s. */
+  private maybeAnnouncePipeFailure(errCode: string | null): void {
+    const kind = errCode ?? 'UNKNOWN'
+    if (this.announcedPipeFailureKinds.has(kind)) return
+    this.announcedPipeFailureKinds.add(kind)
+
+    let message: string
+    if (errCode === 'ENOENT') {
+      // CreateNamedPipeA is called with NULL security attributes (see Zeal's
+      // named_pipe.cpp), which per MSDN grants Everyone read access — so an elevation mismatch
+      // is not the likely cause
+      // here. ENOENT means the pipe simply never existed at that path: either this
+      // Zeal build predates named-pipe support, or the player hasn't run /zeal yet.
+      message = 'Could not find Zeal\'s data pipe — hybrid tracking will use chat-log parsing only. ' +
+        'Make sure Zeal is loaded (type /zeal in-game) and that you\'re on a Zeal build that includes named-pipe support.'
+    } else if (errCode === 'EACCES') {
+      message = 'Access denied connecting to Zeal\'s data pipe. Try closing EverQuest and Basketweaver and ' +
+        'relaunching Basketweaver as Administrator, or check if antivirus/firewall software is blocking it.'
+    } else {
+      message = `Could not connect to Zeal's data pipe (${kind}). Basketweaver will keep retrying automatically — ` +
+        'if this never connects, please send zeal-reader.log (Settings > Open Log File) to the developer.'
+    }
+    this.logError(`[ZealReader] Persistent pipe failure after ${this.PIPE_FAILURE_ANNOUNCE_THRESHOLD}+ attempts: ${message}`)
+    this.emit({
+      type: EvType.WARNING_BANNER, ts: performance.now(),
+      data: { message, code: 'zeal-pipe-failure', level: 'info' },
+    })
+  }
+
   private scan(): void {
     if (this.stopped) return
     findEQProcessIds((message) => {
@@ -261,14 +338,27 @@ export class ZealReader {
     }).then(pids => {
       if (this.stopped) return
       this.eqProcessFound = pids.length > 0
+      // Forget retry state for processes that have exited.
+      for (const known of [...this.pipeConnectFailures.keys()]) {
+        if (!pids.includes(known)) { this.pipeConnectFailures.delete(known); this.pipeRetryAfter.delete(known) }
+      }
       for (const pid of pids) {
         if (!this.connectedPids.has(pid)) {
-          this.log(`[ZealReader] Found new EQ process PID ${pid}, connecting…`)
+          if (Date.now() < (this.pipeRetryAfter.get(pid) ?? 0)) continue
+          if (this.shouldLogPipeRetry(pid)) this.log(`[ZealReader] Found new EQ process PID ${pid}, connecting…`)
           this.connectedPids.add(pid)
           this.connectToPipe(pid)
         }
       }
     })
+  }
+
+  /** A client with no Zeal pipe (login screen, Zeal not loaded) fails every attempt, so
+   *  retries back off exponentially (2s, 4s, 8s … capped at 30s) instead of hammering
+   *  every scan, and only the first few attempts plus every 10th are logged. */
+  private shouldLogPipeRetry(pid: number): boolean {
+    const n = this.pipeConnectFailures.get(pid) ?? 0
+    return n <= 3 || n % 10 === 0
   }
 
   private connectToPipe(pid: number): void {
@@ -281,6 +371,8 @@ export class ZealReader {
 
     socket.on('connect', () => {
       this.log(`[ZealReader] Connected to Zeal pipe for PID ${pid}`)
+      this.pipeConnectFailures.delete(pid)
+      this.pipeRetryAfter.delete(pid)
     })
 
     socket.on('data', (chunk: Buffer) => {
@@ -303,17 +395,26 @@ export class ZealReader {
     })
 
     socket.on('error', (err) => {
-      const code = (err as NodeJS.ErrnoException).code ? ` (${(err as NodeJS.ErrnoException).code})` : ''
+      const errCode = (err as NodeJS.ErrnoException).code ?? null
+      const code = errCode ? ` (${errCode})` : ''
       this.lastPipeError = `${err.message}${code}`
-      this.logError(`[ZealReader] Pipe error for PID ${pid}: ${err.message}${code}`)
       this.connectedPids.delete(pid)
       const idx = this.sockets.indexOf(socket)
       if (idx !== -1) this.sockets.splice(idx, 1)
       socket.destroy()
+
+      const failures = (this.pipeConnectFailures.get(pid) ?? 0) + 1
+      this.pipeConnectFailures.set(pid, failures)
+      this.pipeRetryAfter.set(pid, Date.now() + Math.min(30_000, 2000 * 2 ** (failures - 1)))
+      if (this.shouldLogPipeRetry(pid)) {
+        this.logError(`[ZealReader] Pipe error for PID ${pid}: ${err.message}${code}` +
+          (failures > 3 ? ` (attempt ${failures}; retries backed off, logging every 10th)` : ''))
+      }
+      if (failures >= this.PIPE_FAILURE_ANNOUNCE_THRESHOLD) this.maybeAnnouncePipeFailure(errCode)
     })
 
     socket.on('close', () => {
-      this.log(`[ZealReader] Pipe closed for PID ${pid}`)
+      if (this.shouldLogPipeRetry(pid)) this.log(`[ZealReader] Pipe closed for PID ${pid}`)
       this.connectedPids.delete(pid)
       const idx = this.sockets.indexOf(socket)
       if (idx !== -1) this.sockets.splice(idx, 1)
@@ -326,7 +427,7 @@ export class ZealReader {
       this.logError(`[ZealReader] Outer JSON parse failed: ${(err as Error).message} — raw: ${json.slice(0, 200)}`)
       return
     }
-    if (outer.type !== PIPE_MSG_LOGTEXT || !outer.data) return
+    if ((outer.type !== PIPE_MSG_LOGTEXT && outer.type !== PIPE_MSG_CUSTOM) || !outer.data) return
 
     const inner = parseInnerData(outer.data)
     if (!inner || !inner.text) {
@@ -346,8 +447,20 @@ export class ZealReader {
       this.onCharacterDetected?.(this.characterName)
     }
 
+    const text = inner.text
+
+    // PipeCmd (type=4): no LogType — just run the text through the same
+    // matching used for chat text (weapon track, weave macro, etc.) directly.
+    if (outer.type === PIPE_MSG_CUSTOM) {
+      if (!this.seenLogTypes.has(-2)) {
+        this.seenLogTypes.add(-2)
+        this.log(`[ZealReader] NEW type=custom(/pipe) text=${text.slice(0, 120)}`)
+      }
+      this.processTextPatterns(text, performance.now())
+      return
+    }
+
     const logType = inner.type ?? -1
-    const text    = inner.text
 
     if (!this.seenLogTypes.has(logType)) {
       this.seenLogTypes.add(logType)
@@ -380,6 +493,7 @@ export class ZealReader {
         // "strike" and "(riposte)" in the text.  Either way, "riposte" always appears in
         // the text — catching it here before verb dispatch is the safe guard.
         if (/riposte/i.test(text)) {
+          debugMonitor.logClassify('riposte', `YouHitOther text="${text}" -> riposte`, { text })
           if (__DEV__) {
             const sinceLastCrush = this.lastCrushHitTs > 0 ? ((now - this.lastCrushHitTs) / 1000).toFixed(3) : 'n/a'
             console.debug(`[riposte][zeal] YouHitOther text="${text}" sinceLastMainhandHit=${sinceLastCrush}s`)
@@ -410,6 +524,8 @@ export class ZealReader {
           (mainhandVerb === 'punch' && (verb === 'punch' || verb === 'strike' || verb === 'hit'))
         const isFist = (verb === 'punch' || verb === 'strike' || verb === 'hit') && !isMainhand
 
+        debugMonitor.logClassify('mainhand', `YouHitOther verb=${verb} -> ${isMainhand ? 'MAINHAND_CRUSH' : isFist ? 'FIST_ATTACK' : 'other'}`,
+          { verb, damage, isMainhand, isFist, weaveBandolier: this.cfg.WEAVE_BANDOLIER_ACTIVE })
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
           console.debug(`[mainhand][zeal] YouHitOther verb=${verb} damage=${damage} isMainhand=${isMainhand} isFist=${isFist} ` +
@@ -478,6 +594,9 @@ export class ZealReader {
           }
         }
         const damage = parseDamageShort(text)
+        if (/riposte/i.test(text)) {
+          debugMonitor.logClassify('riposte', `SpecialAbilities text="${text}" damage=${damage} -> riposte`, { text, damage })
+        }
         if (__DEV__ && /riposte/i.test(text)) {
           const sinceLastCrush = this.lastCrushHitTs > 0 ? ((now - this.lastCrushHitTs) / 1000).toFixed(3) : 'n/a'
           console.debug(`[riposte][zeal] SpecialAbilities text="${text}" damage=${damage} sinceLastMainhandHit=${sinceLastCrush}s`)
@@ -596,6 +715,17 @@ export class ZealReader {
    *  handler: OOR, cursor blocked, haste, and weapon detection. */
   private processTextPatterns(text: string, now: number): void {
 
+    // ── Zeal version detection (printed by the user running "/zeal version") ──
+    const zealVerM = /^Zeal version:\s*([\d.]+)/i.exec(text)
+    if (zealVerM) {
+      const version = zealVerM[1]
+      if (version !== this.zealVersion) {
+        this.zealVersion = version
+        this.log(`[ZealReader] Detected Zeal version: ${version}`)
+      }
+      return
+    }
+
     // ── Weapon track (/say command sequence) ──────────────────
     // ── Weapon track — BW2H / BWOH work standalone in any channel ──
     const m2h = /\bBW2H\s+(.+)/i.exec(text)
@@ -616,7 +746,7 @@ export class ZealReader {
       const bm = /^Loading bandolier set (.+?)\.?\s*$/i.exec(text)
       if (bm) {
         const setName = bm[1].trim().replace(/^\[|\]$/g, '')
-        const isWeaveSet = setName.toLowerCase().includes('weave')
+        const isWeaveSet = isWeaveSetName(setName)
         const isBackstabSet = setName.toLowerCase().includes(this.cfg.ROGUE_BACKSTAB_SET_NAME.toLowerCase())
         this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = isBackstabSet
         // Emit BANDOLIER_CHANGED immediately (before any delayed deactivation)
@@ -691,6 +821,29 @@ export class ZealReader {
       return
     }
 
+    // Stonestance discipline tracking
+    if (this.stonestanceGainedRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'stonestance', active: true } })
+      return
+    }
+    if (this.stonestanceLostRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'stonestance', active: false } })
+      return
+    }
+
+    // /disc output — shared discipline reuse timer (never names the discipline)
+    for (const re of this.discTimerRe) {
+      const m = re.exec(text)
+      if (m) {
+        this.emit({ type: EvType.DISC_TIMER, ts: now, data: { remainingSec: parseInt(m[1], 10) * 60 + parseInt(m[2], 10) } })
+        return
+      }
+    }
+    if (this.discReadyRe.some(r => r.test(text))) {
+      this.emit({ type: EvType.DISC_TIMER, ts: now, data: { remainingSec: 0 } })
+      return
+    }
+
     // ── Rogue Hide / in-combat Evade reuse tracking ─────────────
     if (this.hideSuccessRe.some(r => r.test(text))) {
       this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: true } })
@@ -720,6 +873,19 @@ export class ZealReader {
           this.cfg.BASE_WEAPON_NAME     = name
           this.cfg.MAINHAND_ATTACK_TYPE = attackType as 'crush' | 'slash' | 'pierce' | 'punch'
           this.emit({ type: EvType.WEAPON_DETECTED, ts: now, data: { name, delay } })
+          return
+        }
+      }
+    }
+
+    // ── Offhand weapon preset detection ─────────────────────
+    // Only fire on /mystats secondary lines ("Melee Secondary: ...").
+    if (MELEE_SECONDARY_LINE_RE.test(text)) {
+      for (const { re, name, delay } of this.offhandWeaponRe) {
+        if (re.test(text)) {
+          this.cfg.OFFHAND_WEAPON_DELAY = delay
+          this.cfg.OFFHAND_WEAPON_NAME  = name
+          this.emit({ type: EvType.OFFHAND_WEAPON_DETECTED, ts: now, data: { name, delay } })
           return
         }
       }
@@ -805,6 +971,15 @@ export class ZealReader {
   }
 
   private emit(ev: GameEvent): void {
+    if (ev.type === EvType.BANDOLIER_CHANGED) {
+      const { setName, isWeaveSet, isBackstabSet } = ev.data as { setName: string; isWeaveSet: boolean; isBackstabSet: boolean }
+      this.currentBandolierSetName = setName
+      debugMonitor.logClassify('bandolier', `Loading bandolier set "${setName}" — isWeaveSet=${isWeaveSet} isBackstabSet=${isBackstabSet}`,
+        { setName, isWeaveSet, isBackstabSet })
+    } else if (ev.type === EvType.FIST_ATTACK) {
+      debugMonitor.logClassify('bandolier-weave', `Weave attempt (hit=${ev.data?.hit}) while bandolier set was "${this.currentBandolierSetName}"`,
+        { setName: this.currentBandolierSetName, hit: ev.data?.hit })
+    }
     this.onEvent(ev)
   }
 
@@ -817,6 +992,7 @@ export class ZealReader {
       eqProcessFound: this.eqProcessFound,
       lastPipeError: this.lastPipeError,
       scanError: this.scanError,
+      zealVersion: this.zealVersion,
     }
   }
 

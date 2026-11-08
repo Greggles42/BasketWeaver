@@ -5,6 +5,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron'
 import { IPC, type GameEvent, type HitRecord } from '../shared/events'
+import type { DebugEntryInput } from '../shared/debug-monitor-types'
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── Main → renderer ─────────────────────────────────────
@@ -103,6 +104,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSetBaseWeaponDelay: (cb: (delay: number) => void) =>
     ipcRenderer.on(IPC.SET_BASE_WEAPON_DELAY, (_e, delay: number) => cb(delay)),
 
+  onSetCharacterLevel: (cb: (level: number) => void) =>
+    ipcRenderer.on(IPC.SET_CHARACTER_LEVEL, (_e, level: number) => cb(level)),
+
   onWeaveKeyPressed: (cb: (ts: number) => void) =>
     ipcRenderer.on('weave-key-pressed', (_e, ts: number) => cb(ts)),
 
@@ -142,6 +146,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   captureMouse: () => ipcRenderer.send(IPC.CAPTURE_MOUSE),
   releaseMouse: () => ipcRenderer.send(IPC.RELEASE_MOUSE),
+})
+
+// Separate namespace (not electronAPI) so it's easy to tell apart from the
+// game-event bridge above — purely diagnostic, fire-and-forget.
+contextBridge.exposeInMainWorld('debugAPI', {
+  logEvent: (entry: DebugEntryInput) => ipcRenderer.send(IPC.DEBUG_LOG_EVENT, entry),
 })
 
 // Listen for status requests from tray

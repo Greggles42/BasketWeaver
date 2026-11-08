@@ -15,6 +15,7 @@ import { performance } from 'perf_hooks'
 import { EvType, type GameEvent } from '../shared/events'
 import { type ConfigType } from '../shared/config'
 import { parseHaste, calcInterval, parseAtkRating } from './haste-calc'
+import { debugMonitor } from './debug-monitor'
 
 const PREFIX_RE = /^\[.+?\]\s*/
 const DAMAGE_RE = /for\s+(\d+)\s+point/i
@@ -28,6 +29,9 @@ const OFFHAND_LINE_RE = /^(?:secondary|off[\s\-]?(?:hand|weapon)|offhand)[\s:]/i
 // which always starts with "Melee Primary:".  Prevents chat messages (including
 // linked items that also show a Delay field) from updating the equipped weapon.
 const MYSTATS_WEAPON_LINE_RE = /\bMelee Primary\s*:/i
+
+// Same guard for the offhand/secondary slot, e.g. "---- Melee Secondary: Ribcracker ----".
+const MYSTATS_OFFHAND_LINE_RE = /\bMelee Secondary\s*:/i
 
 function stripPrefix(line: string): string {
   const m = PREFIX_RE.exec(line)
@@ -44,6 +48,13 @@ function parseDamage(content: string): number {
  *  fade lines) for what the overlay tracks as one internal buff flag — this
  *  reports which wording actually landed so the UI can label it correctly
  *  instead of always showing "Ferocity" regardless of which one fired. */
+/** A bandolier set is the offhand "weave" set if its name contains "weave" — unless it
+ *  also names a two-hander (e.g. "weave2h"), which is the baseline set, not the weave set. */
+export function isWeaveSetName(setName: string): boolean {
+  const n = setName.toLowerCase()
+  return n.includes("weave") && !/2h|2-hand|two.?hand/.test(n)
+}
+
 export function savageryVariant(content: string): 'savagery' | 'ferocity' {
   return /savagery/i.test(content) ? 'savagery' : 'ferocity'
 }
@@ -57,6 +68,12 @@ export class LogReader {
   private stopped = false
 
   private inCombat = false
+
+  // Tracks the active bandolier set name so weave-attempt debug entries can record
+  // which set was loaded at the time — surfaces naming mismatches (e.g. a set that
+  // doesn't match isWeaveSet's "weave" substring check) that would otherwise look
+  // like a silent, unexplained loss of weave credit.
+  private currentBandolierSetName = ''
 
   private currentTarget   = ''   // most recent mob the player was attacking
   private lastAttackTs    = 0    // performance.now() of last attack on currentTarget
@@ -360,6 +377,7 @@ export class LogReader {
   private startRe:      RegExp[]
   private endRe:        RegExp[]
   private weaponRe:     Array<{ re: RegExp; name: string; delay: number; attackType: string }>
+  private offhandRe:    Array<{ re: RegExp; name: string; delay: number }>
   private avatarGainedRe: RegExp[]
   private avatarLostRe:   RegExp[]
   private savageryGainedRe: RegExp[]
@@ -368,6 +386,10 @@ export class LogReader {
   private innerflamLostRe:     RegExp[]
   private whirlwindGainedRe:   RegExp[]
   private whirlwindLostRe:     RegExp[]
+  private stonestanceGainedRe: RegExp[]
+  private stonestanceLostRe:   RegExp[]
+  private discTimerRe:         RegExp[]
+  private discReadyRe:         RegExp[]
   private hideSuccessRe:   RegExp[]
   private hideFailRe:      RegExp[]
   private evadeSuccessRe:  RegExp[]
@@ -429,6 +451,10 @@ export class LogReader {
     this.innerflamLostRe    = compile(cfg.INNERFLAME_LOST_PATTERNS)
     this.whirlwindGainedRe  = compile(cfg.WHIRLWIND_GAINED_PATTERNS)
     this.whirlwindLostRe    = compile(cfg.WHIRLWIND_LOST_PATTERNS)
+    this.stonestanceGainedRe = compile(cfg.STONESTANCE_GAINED_PATTERNS)
+    this.stonestanceLostRe   = compile(cfg.STONESTANCE_LOST_PATTERNS)
+    this.discTimerRe         = compile(cfg.DISC_TIMER_PATTERNS)
+    this.discReadyRe         = compile(cfg.DISC_READY_PATTERNS)
     this.hideSuccessRe      = compile(cfg.HIDE_SUCCESS_PATTERNS)
     this.hideFailRe         = compile(cfg.HIDE_FAIL_PATTERNS)
     this.evadeSuccessRe     = compile(cfg.EVADE_SUCCESS_PATTERNS)
@@ -440,6 +466,11 @@ export class LogReader {
       name,
       delay,
       attackType,
+    }))
+    this.offhandRe = Object.entries(cfg.OFFHAND_PRESETS).map(([name, delay]) => ({
+      re: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+      name,
+      delay,
     }))
   }
 
@@ -463,6 +494,7 @@ export class LogReader {
       fileSize = fs.fstatSync(fd).size
     } catch (e) {
       console.error(`[LogReader] Cannot open ${this.path}: ${e}`)
+      debugMonitor.logAnomaly('error', 'log-file', `Cannot open log file: ${e}`, { path: this.path })
       return () => {}
     }
 
@@ -485,6 +517,7 @@ export class LogReader {
         }
       } catch (e) {
         console.error(`[LogReader] Read error: ${e}`)
+        debugMonitor.logAnomaly('error', 'log-file', `Log file read error: ${e}`, { path: this.path })
       }
     }
 
@@ -589,10 +622,16 @@ export class LogReader {
     } })
   }
 
+  private lastActivityEmit = 0
+
   private processLine(line: string): void {
     if (!line) return
     const content = stripPrefix(line)
     const now = performance.now()
+    if (now - this.lastActivityEmit > 5000) {
+      this.lastActivityEmit = now
+      this.onEvent({ type: EvType.LOG_ACTIVITY, ts: now })
+    }
 
     // ── Zone transitions — tracked in every mode so ambiguous same-name
     // raid bosses can be disambiguated by zone at upload time. ──
@@ -753,6 +792,8 @@ export class LogReader {
       // Ripostes must never affect the swing timer — drop them before the miss checks
       // so a riposte miss with a slash/pierce weapon doesn't look like a mainhand miss.
       if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
+        debugMonitor.logClassify('riposte', `line="${content}" -> riposte (missOnly)`,
+          { content, offhandCrushPending: this.offhandCrushPending })
         if (__DEV__) {
           console.debug(`[riposte][missOnly] line="${content}" offhandCrushPending=${this.offhandCrushPending}`)
           this.lastRiposteTs = now
@@ -779,7 +820,7 @@ export class LogReader {
         const bm = /^Loading bandolier set (.+?)\.?\s*$/i.exec(content)
         if (bm) {
           const setName = bm[1].trim().replace(/^\[|\]$/g, '')
-          const isWeaveSet = setName.toLowerCase().includes('weave')
+          const isWeaveSet = isWeaveSetName(setName)
           const isBackstabSet = setName.toLowerCase().includes(this.cfg.ROGUE_BACKSTAB_SET_NAME.toLowerCase())
           this.cfg.WEAVE_BANDOLIER_ACTIVE = isWeaveSet
           this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = isBackstabSet
@@ -802,11 +843,14 @@ export class LogReader {
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
         const withinRound = this.lastMainhandLineTs > 0 && (now - this.lastMainhandLineTs) < LogReader.ROUND_WINDOW_MS
         const offhandWindowActive = !withinRound && this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        const classifiedAs = bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'
+        debugMonitor.logClassify('mainhand', `line="${content}" (missOnly, miss) -> ${classifiedAs}`,
+          { content, bandolierWeave, withinRound, offhandWindowActive })
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
           console.debug(`[mainhand][missOnly] miss line="${content}" bandolierWeave=${bandolierWeave} withinRound=${withinRound} ` +
             `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
-            `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
+            `-> classified as ${classifiedAs}`)
         }
         if (bandolierWeave || offhandWindowActive) {
           this.offhandCrushPending = false
@@ -845,6 +889,12 @@ export class LogReader {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: true } })
       } else if (this.whirlwindLostRe.some(r => r.test(content))) {
         this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
+      } else if (this.stonestanceGainedRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'stonestance', active: true } })
+      } else if (this.stonestanceLostRe.some(r => r.test(content))) {
+        this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'stonestance', active: false } })
+      } else if (this.tryEmitDiscReadout(content, now)) {
+        // handled
       } else if (this.hideSuccessRe.some(r => r.test(content))) {
         this.emit({ type: EvType.EVADE_USED, ts: now, data: { kind: 'hide', success: true } })
       } else if (this.hideFailRe.some(r => r.test(content))) {
@@ -862,7 +912,7 @@ export class LogReader {
       const bm = /^Loading bandolier set (.+?)\.?\s*$/i.exec(content)
       if (bm) {
         const setName = bm[1].trim().replace(/^\[|\]$/g, '')
-        const isWeaveSet = setName.toLowerCase().includes('weave')
+        const isWeaveSet = isWeaveSetName(setName)
         const isBackstabSet = setName.toLowerCase().includes(this.cfg.ROGUE_BACKSTAB_SET_NAME.toLowerCase())
         this.cfg.WEAVE_BANDOLIER_ACTIVE = isWeaveSet
         this.cfg.ROGUE_BACKSTAB_SET_ACTIVE = isBackstabSet
@@ -898,6 +948,8 @@ export class LogReader {
     // for lines starting with "You " to prevent mob-riposte lines
     // ("NAME ripostes your slash!") from being credited as player damage.
     if (this.riposteRe.some(r => r.test(content)) || /\briposte/i.test(content)) {
+      debugMonitor.logClassify('riposte', `line="${content}" -> riposte`,
+        { content, playerSourced: content.startsWith('You '), offhandCrushPending: this.offhandCrushPending })
       if (__DEV__) {
         const sinceLastCrush = this.lastAttackTs > 0 ? ((now - this.lastAttackTs) / 1000).toFixed(3) : 'n/a'
         console.debug(`[riposte] line="${content}" playerSourced=${content.startsWith('You ')} ` +
@@ -957,11 +1009,14 @@ export class LogReader {
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
         const withinRound = this.lastMainhandLineTs > 0 && (now - this.lastMainhandLineTs) < LogReader.ROUND_WINDOW_MS
         const offhandWindowActive = !withinRound && this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        const classifiedAsHit = bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'
+        debugMonitor.logClassify('mainhand', `line="${content}" (hit) -> ${classifiedAsHit}`,
+          { content, bandolierWeave, withinRound, offhandWindowActive })
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
           console.debug(`[mainhand] hit line="${content}" bandolierWeave=${bandolierWeave} withinRound=${withinRound} ` +
             `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
-            `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
+            `-> classified as ${classifiedAsHit}`)
         }
         if (bandolierWeave || offhandWindowActive) {
           // Offhand weave — classified by bandolier state or timing window
@@ -988,11 +1043,14 @@ export class LogReader {
         const bandolierWeave = this.cfg.WEAVE_BANDOLIER_ACTIVE
         const withinRound = this.lastMainhandLineTs > 0 && (now - this.lastMainhandLineTs) < LogReader.ROUND_WINDOW_MS
         const offhandWindowActive = !withinRound && this.cfg.OFFHAND_CRUSH_ENABLED && this.offhandCrushPending && now < this.offhandCrushExpiry
+        const classifiedAsMiss = bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'
+        debugMonitor.logClassify('mainhand', `line="${content}" (miss) -> ${classifiedAsMiss}`,
+          { content, bandolierWeave, withinRound, offhandWindowActive })
         if (__DEV__) {
           const sinceRiposte = this.lastRiposteTs > 0 ? ((now - this.lastRiposteTs) / 1000).toFixed(3) : 'n/a'
           console.debug(`[mainhand] miss line="${content}" bandolierWeave=${bandolierWeave} withinRound=${withinRound} ` +
             `offhandCrushPending=${this.offhandCrushPending} offhandWindowActive=${offhandWindowActive} sinceLastRiposte=${sinceRiposte}s ` +
-            `-> classified as ${bandolierWeave || offhandWindowActive ? 'FIST_ATTACK (offhand)' : 'MAINHAND_CRUSH'}`)
+            `-> classified as ${classifiedAsMiss}`)
         }
         if (bandolierWeave || offhandWindowActive) {
           this.offhandCrushPending = false
@@ -1163,6 +1221,15 @@ export class LogReader {
       this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'whirlwind', active: false } })
       return
     }
+    if (this.stonestanceGainedRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'stonestance', active: true } })
+      return
+    }
+    if (this.stonestanceLostRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.BUFF_CHANGED, ts: now, data: { buff: 'stonestance', active: false } })
+      return
+    }
+    if (this.tryEmitDiscReadout(content, now)) return
 
     // ── Rogue Hide / in-combat Evade reuse tracking ─────────────
     if (this.hideSuccessRe.some(r => r.test(content))) {
@@ -1182,7 +1249,21 @@ export class LogReader {
       return
     }
 
-    // Offhand/secondary slot lines from /mystats — skip weapon and haste detection
+    // ── Offhand weapon preset detection ─────────────────────
+    // Only fire on /mystats secondary lines ("Melee Secondary: ...").
+    if (MYSTATS_OFFHAND_LINE_RE.test(content)) {
+      for (const { re, name, delay } of this.offhandRe) {
+        if (re.test(content)) {
+          this.cfg.OFFHAND_WEAPON_DELAY = delay
+          this.cfg.OFFHAND_WEAPON_NAME  = name
+          this.emit({ type: EvType.OFFHAND_WEAPON_DETECTED, ts: now, data: { name, delay } })
+          return
+        }
+      }
+    }
+
+    // Remaining offhand/secondary slot lines from /mystats (no preset match, or the
+    // breakdown lines under the secondary header) — skip weapon and haste detection
     // so only the mainhand weapon delay and the character haste value are extracted.
     if (OFFHAND_LINE_RE.test(content)) return
 
@@ -1260,7 +1341,32 @@ export class LogReader {
     }
   }
 
+  /** /disc output: emits DISC_TIMER { remainingSec } (0 = ready). Returns true if the line matched. */
+  private tryEmitDiscReadout(content: string, now: number): boolean {
+    for (const re of this.discTimerRe) {
+      const m = re.exec(content)
+      if (m) {
+        this.emit({ type: EvType.DISC_TIMER, ts: now, data: { remainingSec: parseInt(m[1], 10) * 60 + parseInt(m[2], 10) } })
+        return true
+      }
+    }
+    if (this.discReadyRe.some(r => r.test(content))) {
+      this.emit({ type: EvType.DISC_TIMER, ts: now, data: { remainingSec: 0 } })
+      return true
+    }
+    return false
+  }
+
   private emit(ev: GameEvent): void {
+    if (ev.type === EvType.BANDOLIER_CHANGED) {
+      const { setName, isWeaveSet, isBackstabSet } = ev.data as { setName: string; isWeaveSet: boolean; isBackstabSet: boolean }
+      this.currentBandolierSetName = setName
+      debugMonitor.logClassify('bandolier', `Loading bandolier set "${setName}" — isWeaveSet=${isWeaveSet} isBackstabSet=${isBackstabSet}`,
+        { setName, isWeaveSet, isBackstabSet })
+    } else if (ev.type === EvType.FIST_ATTACK) {
+      debugMonitor.logClassify('bandolier-weave', `Weave attempt (hit=${ev.data?.hit}) while bandolier set was "${this.currentBandolierSetName}"`,
+        { setName: this.currentBandolierSetName, hit: ev.data?.hit, line: ev.data?.line })
+    }
     this.onEvent(ev)
   }
 

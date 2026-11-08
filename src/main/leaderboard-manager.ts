@@ -10,9 +10,10 @@ import * as fs   from 'fs'
 import * as path from 'path'
 import * as https from 'https'
 import type { EncounterRecord } from '../shared/leaderboard-types'
+import { debugMonitor } from './debug-monitor'
+import { appendCappedLog } from './capped-log'
 
 const MAX_PER_MOB = 100
-const MAX_LOG_BYTES = 512 * 1024   // truncate upload log once it exceeds this size
 
 /**
  * Mobs whose kills may be uploaded to the online leaderboard.
@@ -164,12 +165,10 @@ export class LeaderboardManager {
     const line = `[${new Date().toISOString()}] ${message}\n`
     console.log(message)
     try {
-      if (fs.existsSync(this.logFilePath) && fs.statSync(this.logFilePath).size > MAX_LOG_BYTES) {
-        fs.writeFileSync(this.logFilePath, '', 'utf8')
-      }
-      fs.appendFileSync(this.logFilePath, line, 'utf8')
+      appendCappedLog(this.logFilePath, line)
     } catch (err) {
       console.error('[Leaderboard] Failed to write upload log:', err)
+      debugMonitor.logAnomaly('warn', 'leaderboard', 'Failed to write upload log', { err: String(err) })
     }
   }
 
@@ -190,6 +189,7 @@ export class LeaderboardManager {
       fs.writeFileSync(this.filePath, JSON.stringify(this.records), 'utf8')
     } catch (err) {
       console.error('[Leaderboard] Failed to save:', err)
+      debugMonitor.logAnomaly('warn', 'leaderboard', 'Failed to save leaderboard records', { err: String(err) })
     }
   }
 

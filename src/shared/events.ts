@@ -14,10 +14,11 @@ export enum EvType {
   CURSOR_BLOCKED  = 'CURSOR_BLOCKED',  // data: { line }
   HASTE_DETECTED  = 'HASTE_DETECTED',   // data: { haste_pct, interval, source }
   WEAPON_DETECTED  = 'WEAPON_DETECTED',   // data: { name, delay }
+  OFFHAND_WEAPON_DETECTED = 'OFFHAND_WEAPON_DETECTED',  // data: { name, delay } — from /mystats "Melee Secondary:" line
   MOUSE_CLICK     = 'MOUSE_CLICK',      // data: { x, y }
   MISC_DAMAGE     = 'MISC_DAMAGE',      // data: { damage } — flying kick, item procs, etc.
   WEAVE_SIGNAL    = 'WEAVE_SIGNAL',     // data: { offhandDelay: number } — Zeal /pipe "weave X" macro
-  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame'|'whirlwind', active: boolean, variant?: 'savagery'|'ferocity' }
+  BUFF_CHANGED    = 'BUFF_CHANGED',     // data: { buff: 'avatar'|'savagery'|'innerflame'|'whirlwind'|'stonestance', active: boolean, variant?: 'savagery'|'ferocity' }
   CRIT_HIT        = 'CRIT_HIT',        // data: { damage: number }
   STATS_UPDATE    = 'STATS_UPDATE',    // data: { atkRating?: number, hastePct?: number }
   WEAPON_TRACK       = 'WEAPON_TRACK',       // data: { mainhand: string, offhand: string }
@@ -33,6 +34,9 @@ export enum EvType {
   MOB_SLOWED         = 'MOB_SLOWED',         // data: { mobName: string } — target landed a slow-effect emote
   MOB_SNARED         = 'MOB_SNARED',         // data: { mobName: string } — target landed a snare-effect emote
   EVADE_USED         = 'EVADE_USED',         // data: { kind: 'hide'|'evade', success: boolean } — Rogue Hide or in-combat Evade triggered (success or fail), reuse timer starts either way
+  DISC_TIMER         = 'DISC_TIMER',         // data: { remainingSec: number } — from the /disc command ("You can use a new discipline in X minutes Y seconds." / "You are ready to use a new discipline now." => 0); the message never names a discipline
+  LOG_ACTIVITY       = 'LOG_ACTIVITY',      // no data — heartbeat (throttled) emitted when any non-empty log line is read, so the overlay's "Log not updating" check isn't fooled by quiet non-combat periods
+  WARNING_BANNER     = 'WARNING_BANNER',    // data: { message: string, code?: string, level?: 'warning'|'info' } — generic user-facing banner; `code` lets main/index.ts react to specific ones (e.g. 'memory-detection-disabled') without string-matching the message; `level` picks banner color (default 'warning')
 }
 
 export interface GameEvent {
@@ -92,6 +96,7 @@ export const IPC = {
   SET_INFERRED_DW_CHECKS:      'set-inferred-dw-checks',
   SET_PUNCH_INTERVAL:           'set-punch-interval',
   SET_BASE_WEAPON_DELAY:        'set-base-weapon-delay',
+  SET_CHARACTER_LEVEL:          'set-character-level',  // main → renderer: number — live push so an open overlay recomputes discipline reuse timers without restart
   LEADERBOARD_RECORD:  'leaderboard-record',   // renderer → main: EncounterRecord
   LEADERBOARD_UPLOAD_MANUAL: 'leaderboard-upload-manual', // leaderboard renderer → main (invoke): re-upload an existing local record, returns { ok, rank?, error? }
   LEADERBOARD_GET:     'leaderboard-get',       // renderer → main: request records
@@ -101,7 +106,10 @@ export const IPC = {
   GET_LOG_CHARACTERS:  'get-log-characters',    // settings renderer → main: string[] of chars detected in log dir
   ZEAL_STATUS_GET:     'zeal-status-get',       // settings renderer → main: request ZealStatus snapshot
   ZEAL_LOG_OPEN:       'zeal-log-open',         // settings renderer → main: open zeal-reader.log in default editor
+  ZEAL_DIAGNOSTICS_COPY: 'zeal-diagnostics-copy', // settings renderer → main: copy a connection-diagnostics summary to clipboard
   CHARACTER_DETECTED:  'character-detected',    // main → renderer/settings: string (auto-detected char name)
   SET_DEBUFF_ALERTS: 'set-debuff-alerts',   // main → renderer: { root, tash, slow, snare: 'off'|'on'; enrage: 'off'|'voice'|'beep' }
   SET_DEBUFF_AUDIO_DEBOUNCE: 'set-debuff-audio-debounce',   // main → renderer: { root, tash, slow, snare, enrage } ms
+  DEBUG_LOG_EVENT:     'debug-log-event',   // renderer → main (fire-and-forget): DebugEntryInput — forwarded into the main-process debug ring buffer
+  DEBUG_EXPORT:        'debug-export',      // settings renderer → main (invoke): write a debug report to disk, returns { ok, path?, error? }
 } as const

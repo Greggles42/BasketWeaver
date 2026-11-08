@@ -410,6 +410,43 @@
       z-index: 9999;
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     }
+
+    .tab-bar {
+      display: flex;
+      gap: 2px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text);
+      opacity: 0.6;
+      font: inherit;
+      font-weight: 600;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+    .tab-btn:hover { opacity: 0.9; }
+    .tab-btn.active { opacity: 1; color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    details.collapsible > summary.section-title {
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+    details.collapsible > summary.section-title::-webkit-details-marker { display: none; }
+    details.collapsible > summary.section-title::before {
+      content: "▸";
+      display: inline-block;
+      width: 14px;
+    }
+    details.collapsible[open] > summary.section-title::before { content: "▾"; }
+    details.collapsible:not([open]) > summary.section-title { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -419,7 +456,16 @@
     <span id="appVersion"></span>
   </div>
 
+  <div class="tab-bar" role="tablist">
+    <button class="tab-btn active" data-tab="tracking" role="tab">Tracking</button>
+    <button class="tab-btn" data-tab="display" role="tab">Display</button>
+    <button class="tab-btn" data-tab="audio" role="tab">Audio</button>
+    <button class="tab-btn" data-tab="debuffs" role="tab">Debuffs</button>
+  </div>
+
   <div class="scroll-body">
+
+    <div class="tab-panel active" data-tab="tracking">
 
     <!-- ── Quick Actions ──────────────────────────────── -->
     <div class="section">
@@ -432,6 +478,241 @@
         <button class="btn-learn-key" id="btnOpenLeaderboard" data-tip="Open the community leaderboard window.">Open Leaderboard…</button>
       </div>
     </div>
+
+    <!-- ── Tracking Source ───────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Tracking Source</div>
+
+      <div class="row" data-tip="Log File: reads hit timing and damage from the EQ log. Hybrid: Zeal provides swing timing while the log provides damage values (requires the Zeal pipe).">
+        <label>Source</label>
+        <div class="radio-group" id="trackingSource">
+          <label><input type="radio" name="tracking" value="log" /> Log File</label>
+          <label><input type="radio" name="tracking" value="hybrid" /> Hybrid (Zeal + Log)</label>
+        </div>
+      </div>
+      <div class="row" id="zealStatusRow" style="display:none" data-tip="Confirms the Zeal pipe is connected and actually delivering your swing hit/miss data — useful for troubleshooting a player whose hybrid-mode tracking looks stuck.">
+        <label>Zeal Pipe Status</label>
+        <span id="zealStatusDot" style="width:9px;height:9px;border-radius:50%;display:inline-block;background:#666;flex-shrink:0"></span>
+        <span id="zealStatusText" class="hint" style="margin-left:6px">Checking…</span>
+      </div>
+      <div class="row" id="zealLogRow" style="display:none" data-tip="Opens zeal-reader.log in your default text editor. Copy/paste its contents when reporting a hybrid-mode issue — lines starting with ERROR are the ones that matter.">
+        <label>Diagnostic Log</label>
+        <button class="btn-learn-key" id="btnOpenZealLog">Open Log File</button>
+        <button class="btn-learn-key" id="btnCopyZealDiagnostics" style="margin-left:6px">Copy Diagnostics</button>
+      </div>
+      <div class="row" id="debugExportRow" data-tip="Saves a JSON file with your current settings and a rolling log of recent classification decisions and detected issues. Attach this when reporting a problem (e.g. 'my weave timing is correct but I'm graded F').">
+        <label>Debug Report</label>
+        <button class="btn-learn-key" id="btnExportDebug">Export Debug Report</button>
+      </div>
+      <div class="row" id="zealUpdateRow" style="display:none" data-tip="Checked against github.com/CoastalRedwood/Zeal releases.">
+        <label>Zeal Update</label>
+        <span id="zealUpdateText" class="hint" style="color:#5aa8eb"></span>
+      </div>
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="Automatically switch to the most recently updated EQ log file in your log directory when multiple characters are active."><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
+      </div>
+    </div>
+
+    <!-- ── Monk / Weave Combat Detection ──────────────── -->
+    <div class="section">
+      <div class="section-title">Monk / Weave Combat Detection</div>
+
+      <div class="checkbox-grid">
+        <label data-tip="Automatically adjusts the weave window timing based on your observed hit patterns."><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
+        <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
+        <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
+        <label data-tip="Monk: flag Triple Attack and Quadruple Attack procs with a small icon under the haste% readout when 3 or 4 mainhand crush hits land within 100ms of each other. Ripostes and offhand/dual-wield hits are excluded."><input type="checkbox" id="tripleAttackDetection" /> Triple/Quadruple Attack Detection</label>
+        <label data-tip="Pop the green/cyan weave-window box into shards when a weave lands while the window is on target. Works in both standard and dynamic weaving."><input type="checkbox" id="weaveExplode" /> Weave Window Explode Animation</label>
+      </div>
+    </div>
+
+    <!-- ── Weapon & Timing ───────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Weapon &amp; Timing</div>
+
+      <div class="row" data-tip="The attack verb your mainhand weapon uses (e.g. crush, slash). Must match what appears in your EQ combat log so your hits are recognized.">
+        <label for="mainhandAttackType">Mainhand Attack Type</label>
+        <select id="mainhandAttackType">
+          <option value="crush">Crush (blunt)</option>
+          <option value="slash">Slash</option>
+          <option value="pierce">Pierce</option>
+          <option value="punch">Punch / Strike (hand-to-hand)</option>
+        </select>
+      </div>
+
+      <div class="row" data-tip="Your mainhand weapon — selecting one sets the base swing delay and attack type automatically.">
+        <label>Mainhand Weapon</label>
+        <div class="weapon-search-wrap">
+          <input type="text" id="mainhandSearch" placeholder="Search weapon…" autocomplete="off" />
+          <div class="weapon-dropdown" id="mainhandDropdown"></div>
+        </div>
+        <span class="weapon-current" id="mainhandCurrent"></span>
+      </div>
+      <div class="row row-sub" id="mainhandCustomRow" style="display:none" data-tip="Enter a custom mainhand weapon delay in EverQuest tenths-of-a-second (e.g. 28 = 2.8s swing speed).">
+        <label for="mainhandCustom">Custom (EQ tenths)</label>
+        <input type="number" id="mainhandCustom" min="1" max="99" step="1" placeholder="e.g. 28" />
+        <span class="sec-hint" id="mainhandCustomSec"></span>
+      </div>
+
+      <div class="row" data-tip="Your offhand/secondary weapon — sets the offhand swing interval used for weave timing.">
+        <label>Offhand Weapon</label>
+        <div class="weapon-search-wrap">
+          <input type="text" id="offhandSearch" placeholder="Search weapon…" autocomplete="off" />
+          <div class="weapon-dropdown" id="offhandDropdown"></div>
+        </div>
+        <span class="weapon-current" id="offhandCurrent"></span>
+      </div>
+      <div class="row row-sub" id="offhandCustomRow" style="display:none" data-tip="Enter a custom offhand weapon delay in EverQuest tenths-of-a-second (e.g. 14 = 1.4s swing speed).">
+        <label for="offhandCustom">Custom (EQ tenths)</label>
+        <input type="number" id="offhandCustom" min="1" max="99" step="1" placeholder="e.g. 14" />
+        <span class="sec-hint" id="offhandCustomSec"></span>
+      </div>
+
+      <div class="row" data-tip="How often your mainhand swings. Auto derives the interval from the selected weapon's delay. Override manually if needed.">
+        <label for="punchInterval">Mainhand Swing Interval</label>
+        <select id="punchInterval"></select>
+      </div>
+
+      <div class="row" data-tip="Shifts the swing window target later to account for server-side processing delay. Increase if your hits land slightly after the predicted window.">
+        <label for="targetOffset">Target Offset</label>
+        <select id="targetOffset"></select>
+      </div>
+
+      <div class="row" data-tip="Shifts the swing window earlier to account for your network latency. Match this to your average ping for more accurate weave timing.">
+        <label for="latencyComp">Latency Comp.</label>
+        <select id="latencyComp"></select>
+      </div>
+
+      <div class="row" data-tip="Duration after a mainhand swing during which an offhand hit is considered to have clipped (overlapped) the weave window. Auto uses the offhand weapon delay.">
+        <label for="clipWindow">Clip Window</label>
+        <select id="clipWindow"></select>
+      </div>
+
+      <div class="row" data-tip="How many milliseconds before the next swing you must press your weave key to get credit. 0 = auto-calculated from your offhand weapon delay.">
+        <label for="weaveWindowMs">Weave Window <span class="hint">(ms, 0=auto)</span></label>
+        <input type="number" id="weaveWindowMs" min="0" max="2000" step="50" style="width:80px" />
+      </div>
+
+      <div class="row" data-tip="Your character's level. Used only to compute the real discipline reuse/recast cooldown shown for Stonestance, Whirlwind, and Innerflame — the reuse timer shrinks the further above each discipline's minimum level you are.">
+        <label for="characterLevel">Character Level</label>
+        <input type="number" id="characterLevel" min="1" max="65" step="1" style="width:80px" />
+      </div>
+
+      <div class="row" data-tip="Extra delay (ms) added when the dual-wield roll fails, preventing false missed-weave detections when the offhand doesn't swing.">
+        <label for="dwRollFailDelayMs">DW No-Roll Delay <span class="hint">(ms)</span></label>
+        <input type="number" id="dwRollFailDelayMs" min="0" max="2000" step="50" style="width:80px" />
+      </div>
+
+      <div class="row" data-tip="Milliseconds to wait after a bandolier swap before resuming weave key detection. Prevents false triggers during the swap animation.">
+        <label for="weaveBandolierOffDelay">Weave Off Delay <span class="hint">(ms)</span></label>
+        <input type="number" id="weaveBandolierOffDelay" min="0" max="2000" step="50" style="width:80px" />
+      </div>
+    </div>
+
+    <!-- ── Leaderboard ──────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Leaderboard</div>
+
+      <div class="row" data-tip="Name used when submitting fight records to the leaderboard. Leave blank to auto-detect from the log or Zeal.">
+        <label>Character Name</label>
+        <input type="text" id="lbCharName" placeholder="auto-detected from log / Zeal" style="flex:1" />
+      </div>
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="When enabled, your fight results are kept locally but never uploaded to the community leaderboard."><input type="checkbox" id="leaderboardOptOut" /> Opt Out of Leaderboard</label>
+      </div>
+    </div>
+
+    <!-- ── Ignored Characters ──────────────────────────── -->
+    <details class="section collapsible">
+      <summary class="section-title">Ignored Characters</summary>
+      <div class="row" style="min-height:auto;padding-top:0">
+        <span class="hint" style="margin-left:0">While logged in as an ignored character, the overlay will not stay on top of the game window.</span>
+      </div>
+
+      <div id="detectedCharsList" class="checkbox-grid" style="margin-top:6px"></div>
+
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="ignoredCharInput" placeholder="Type a character name" style="flex:1" />
+        <button class="btn-learn-key" id="btnAddIgnoredChar">Add</button>
+      </div>
+
+      <div id="ignoredCharsChips" class="ignored-chars-chips"></div>
+    </details>
+
+    <!-- ── Rogue Mode ───────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Rogue Mode</div>
+      <div class="checkbox-grid">
+        <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking)</label>
+        <label data-tip="Flags a backstab as a new max hit when it's the hardest one landed this session with the currently-equipped weapon, and shows a banner for it. Tracked per weapon name, reset on app restart."><input type="checkbox" id="rogueMaxHitTrackingEnabled" /> Track Max Hit Per Weapon</label>
+        <label data-tip="Shows a cyan cooldown strip above the backstab track for the Hide/in-combat-Evade reuse timer, so you know when the macro is off cooldown again."><input type="checkbox" id="rogueEvadeTrackingEnabled" /> Track Evade/Hide Cooldown</label>
+      </div>
+      <div class="row" style="margin-top:6px" data-tip="Bandolier set name (or substring) that identifies your backstab weapon set — must match what you named it via /bandolier. Used to prompt weapon swaps and to know when you've swapped in/out.">
+        <label for="rogueBackstabSetName">Backstab Set Name</label>
+        <input type="text" id="rogueBackstabSetName" placeholder="backstab" style="flex:1" />
+      </div>
+      <div class="row" style="margin-top:6px" data-tip="Width of the red backstab weave-window box drawn around the target marker — how wide the 'use it now' timing window appears.">
+        <label for="rogueBackstabWindowMs">Backstab Weave Window <span class="hint">(ms)</span></label>
+        <input type="number" id="rogueBackstabWindowMs" min="100" max="800" step="25" style="width:80px" />
+      </div>
+      <div class="row" style="margin-top:6px" data-tip="Each rank shaves 1 second off the 8s base Hide/Evade reuse timer. Not detectable from the log, so set it to match your trained rank.">
+        <label>Hastened Stealth</label>
+        <div class="radio-group" id="rogueHastenedStealthRank">
+          <label><input type="radio" name="hastenedStealth" value="0" /> None</label>
+          <label><input type="radio" name="hastenedStealth" value="1" /> Rank 1</label>
+          <label><input type="radio" name="hastenedStealth" value="2" /> Rank 2</label>
+          <label><input type="radio" name="hastenedStealth" value="3" /> Rank 3</label>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+    <div class="tab-panel" data-tab="display">
+
+    <!-- ── Display ────────────────────────────────────── -->
+    <div class="section">
+      <div class="section-title">Display</div>
+
+      <div class="row" data-tip="Visual style of the combat overlay window. Refined is cleaner; High Contrast uses bolder colors for visibility.">
+        <label>Overlay Style</label>
+        <div class="radio-group" id="overlayStyle">
+          <label><input type="radio" name="style" value="refined" /> Refined</label>
+          <label><input type="radio" name="style" value="highcontrast" /> High Contrast</label>
+        </div>
+      </div>
+
+      <div class="row" data-tip="Vertical position of the target indicator on the overlay, expressed as a percentage of overlay height.">
+        <label for="targetPosition">Target Position</label>
+        <select id="targetPosition"></select>
+      </div>
+
+      <div class="row" data-tip="Transparency level of the overlay window. Lower values make the overlay more see-through.">
+        <label for="opacity">Opacity</label>
+        <input type="range" id="opacity" min="50" max="100" step="1" />
+        <span class="val" id="opacityVal">88</span>
+      </div>
+
+      <div class="row" data-tip="How the overlay competes with other always-on-top apps (GINA, Discord overlay, etc). Standard: default OS topmost. Elevated: requests a higher topmost band, less likely to be covered. Aggressive: elevated band plus periodically re-asserting topmost — can cause visible flicker if another app does the same.">
+        <label>Always-on-Top Mode</label>
+        <div class="radio-group" id="alwaysOnTopMode">
+          <label><input type="radio" name="aot" value="standard" /> Standard</label>
+          <label><input type="radio" name="aot" value="elevated" /> Elevated</label>
+          <label><input type="radio" name="aot" value="aggressive" /> Aggressive</label>
+        </div>
+      </div>
+
+      <div class="checkbox-grid" style="margin-top:6px">
+        <label data-tip="Lock the overlay window in place so it cannot be moved by dragging."><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
+        <label data-tip="Let clicks pass through the overlay to the game underneath. Only works while Freeze Window Position is also enabled."><input type="checkbox" id="clickThrough" /> Click-Through Overlay</label>
+        <label data-tip="Display a countdown swing timer for the offhand weapon on the overlay."><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
+        <label data-tip="Show every critical hit on the DPS track. When off, only the highest crit per round is shown."><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
+      </div>
+    </div>
+
+    </div>
+
+    <div class="tab-panel" data-tab="audio">
 
     <!-- ── Audio Volumes ─────────────────────────────── -->
     <div class="section">
@@ -505,161 +786,9 @@
       </div>
     </div>
 
-    <!-- ── Tracking Source ───────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Tracking Source</div>
-
-      <div class="row" data-tip="Log File: reads hit timing and damage from the EQ log. Hybrid: Zeal provides swing timing while the log provides damage values (requires the Zeal pipe).">
-        <label>Source</label>
-        <div class="radio-group" id="trackingSource">
-          <label><input type="radio" name="tracking" value="log" /> Log File</label>
-          <label><input type="radio" name="tracking" value="hybrid" /> Hybrid (Zeal + Log)</label>
-        </div>
-      </div>
-      <div class="row" id="zealStatusRow" style="display:none" data-tip="Confirms the Zeal pipe is connected and actually delivering your swing hit/miss data — useful for troubleshooting a player whose hybrid-mode tracking looks stuck.">
-        <label>Zeal Pipe Status</label>
-        <span id="zealStatusDot" style="width:9px;height:9px;border-radius:50%;display:inline-block;background:#666;flex-shrink:0"></span>
-        <span id="zealStatusText" class="hint" style="margin-left:6px">Checking…</span>
-      </div>
-      <div class="row" id="zealLogRow" style="display:none" data-tip="Opens zeal-reader.log in your default text editor. Copy/paste its contents when reporting a hybrid-mode issue — lines starting with ERROR are the ones that matter.">
-        <label>Diagnostic Log</label>
-        <button class="btn-learn-key" id="btnOpenZealLog">Open Log File</button>
-      </div>
-      <div class="checkbox-grid" style="margin-top:6px">
-        <label data-tip="Automatically switch to the most recently updated EQ log file in your log directory when multiple characters are active."><input type="checkbox" id="autoDetectLog" /> Auto-detect Active Log (monitor log directory)</label>
-      </div>
     </div>
 
-    <!-- ── Monk / Weave Combat Detection ──────────────── -->
-    <div class="section">
-      <div class="section-title">Monk / Weave Combat Detection</div>
-
-      <div class="checkbox-grid">
-        <label data-tip="Automatically adjusts the weave window timing based on your observed hit patterns."><input type="checkbox" id="dynamicWeaving" /> Dynamic Weaving</label>
-        <label data-tip="Infer dual-wield roll results from log patterns when Zeal is not running."><input type="checkbox" id="inferredDwChecks" /> Inferred DW Checks</label>
-        <label data-tip="Treat offhand hits as the same attack type as mainhand for timing purposes (e.g. both appear as crush)."><input type="checkbox" id="offhandCrush" /> Offhand Same Attack Type (timing)</label>
-        <label data-tip="Monk: flag Triple Attack and Quadruple Attack procs with a small icon under the haste% readout when 3 or 4 mainhand crush hits land within 100ms of each other. Ripostes and offhand/dual-wield hits are excluded."><input type="checkbox" id="tripleAttackDetection" /> Triple/Quadruple Attack Detection</label>
-        <label data-tip="Pop the green/cyan weave-window box into shards when a weave lands while the window is on target. Works in both standard and dynamic weaving."><input type="checkbox" id="weaveExplode" /> Weave Window Explode Animation</label>
-      </div>
-    </div>
-
-    <!-- ── Display ────────────────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Display</div>
-
-      <div class="row" data-tip="Visual style of the combat overlay window. Refined is cleaner; High Contrast uses bolder colors for visibility.">
-        <label>Overlay Style</label>
-        <div class="radio-group" id="overlayStyle">
-          <label><input type="radio" name="style" value="refined" /> Refined</label>
-          <label><input type="radio" name="style" value="highcontrast" /> High Contrast</label>
-        </div>
-      </div>
-
-      <div class="row" data-tip="Vertical position of the target indicator on the overlay, expressed as a percentage of overlay height.">
-        <label for="targetPosition">Target Position</label>
-        <select id="targetPosition"></select>
-      </div>
-
-      <div class="row" data-tip="Transparency level of the overlay window. Lower values make the overlay more see-through.">
-        <label for="opacity">Opacity</label>
-        <input type="range" id="opacity" min="50" max="100" step="1" />
-        <span class="val" id="opacityVal">88</span>
-      </div>
-
-      <div class="row" data-tip="How the overlay competes with other always-on-top apps (GINA, Discord overlay, etc). Standard: default OS topmost. Elevated: requests a higher topmost band, less likely to be covered. Aggressive: elevated band plus periodically re-asserting topmost — can cause visible flicker if another app does the same.">
-        <label>Always-on-Top Mode</label>
-        <div class="radio-group" id="alwaysOnTopMode">
-          <label><input type="radio" name="aot" value="standard" /> Standard</label>
-          <label><input type="radio" name="aot" value="elevated" /> Elevated</label>
-          <label><input type="radio" name="aot" value="aggressive" /> Aggressive</label>
-        </div>
-      </div>
-
-      <div class="checkbox-grid" style="margin-top:6px">
-        <label data-tip="Lock the overlay window in place so it cannot be moved by dragging."><input type="checkbox" id="windowPinned" /> Freeze Window Position</label>
-        <label data-tip="Let clicks pass through the overlay to the game underneath. Only works while Freeze Window Position is also enabled."><input type="checkbox" id="clickThrough" /> Click-Through Overlay</label>
-        <label data-tip="Display a countdown swing timer for the offhand weapon on the overlay."><input type="checkbox" id="offhandTimer" /> Offhand Swing Timer</label>
-        <label data-tip="Show every critical hit on the DPS track. When off, only the highest crit per round is shown."><input type="checkbox" id="showAllCrits" /> Show All Crits on Track</label>
-      </div>
-    </div>
-
-    <!-- ── Weapon & Timing ───────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Weapon &amp; Timing</div>
-
-      <div class="row" data-tip="The attack verb your mainhand weapon uses (e.g. crush, slash). Must match what appears in your EQ combat log so your hits are recognized.">
-        <label for="mainhandAttackType">Mainhand Attack Type</label>
-        <select id="mainhandAttackType">
-          <option value="crush">Crush (blunt)</option>
-          <option value="slash">Slash</option>
-          <option value="pierce">Pierce</option>
-          <option value="punch">Punch / Strike (hand-to-hand)</option>
-        </select>
-      </div>
-
-      <div class="row" data-tip="Your mainhand weapon — selecting one sets the base swing delay and attack type automatically.">
-        <label>Mainhand Weapon</label>
-        <div class="weapon-search-wrap">
-          <input type="text" id="mainhandSearch" placeholder="Search weapon…" autocomplete="off" />
-          <div class="weapon-dropdown" id="mainhandDropdown"></div>
-        </div>
-        <span class="weapon-current" id="mainhandCurrent"></span>
-      </div>
-      <div class="row row-sub" id="mainhandCustomRow" style="display:none" data-tip="Enter a custom mainhand weapon delay in EverQuest tenths-of-a-second (e.g. 28 = 2.8s swing speed).">
-        <label for="mainhandCustom">Custom (EQ tenths)</label>
-        <input type="number" id="mainhandCustom" min="1" max="99" step="1" placeholder="e.g. 28" />
-        <span class="sec-hint" id="mainhandCustomSec"></span>
-      </div>
-
-      <div class="row" data-tip="Your offhand/secondary weapon — sets the offhand swing interval used for weave timing.">
-        <label>Offhand Weapon</label>
-        <div class="weapon-search-wrap">
-          <input type="text" id="offhandSearch" placeholder="Search weapon…" autocomplete="off" />
-          <div class="weapon-dropdown" id="offhandDropdown"></div>
-        </div>
-        <span class="weapon-current" id="offhandCurrent"></span>
-      </div>
-      <div class="row row-sub" id="offhandCustomRow" style="display:none" data-tip="Enter a custom offhand weapon delay in EverQuest tenths-of-a-second (e.g. 14 = 1.4s swing speed).">
-        <label for="offhandCustom">Custom (EQ tenths)</label>
-        <input type="number" id="offhandCustom" min="1" max="99" step="1" placeholder="e.g. 14" />
-        <span class="sec-hint" id="offhandCustomSec"></span>
-      </div>
-
-      <div class="row" data-tip="How often your mainhand swings. Auto derives the interval from the selected weapon's delay. Override manually if needed.">
-        <label for="punchInterval">Mainhand Swing Interval</label>
-        <select id="punchInterval"></select>
-      </div>
-
-      <div class="row" data-tip="Shifts the swing window target later to account for server-side processing delay. Increase if your hits land slightly after the predicted window.">
-        <label for="targetOffset">Target Offset</label>
-        <select id="targetOffset"></select>
-      </div>
-
-      <div class="row" data-tip="Shifts the swing window earlier to account for your network latency. Match this to your average ping for more accurate weave timing.">
-        <label for="latencyComp">Latency Comp.</label>
-        <select id="latencyComp"></select>
-      </div>
-
-      <div class="row" data-tip="Duration after a mainhand swing during which an offhand hit is considered to have clipped (overlapped) the weave window. Auto uses the offhand weapon delay.">
-        <label for="clipWindow">Clip Window</label>
-        <select id="clipWindow"></select>
-      </div>
-
-      <div class="row" data-tip="How many milliseconds before the next swing you must press your weave key to get credit. 0 = auto-calculated from your offhand weapon delay.">
-        <label for="weaveWindowMs">Weave Window <span class="hint">(ms, 0=auto)</span></label>
-        <input type="number" id="weaveWindowMs" min="0" max="2000" step="50" style="width:80px" />
-      </div>
-
-      <div class="row" data-tip="Extra delay (ms) added when the dual-wield roll fails, preventing false missed-weave detections when the offhand doesn't swing.">
-        <label for="dwRollFailDelayMs">DW No-Roll Delay <span class="hint">(ms)</span></label>
-        <input type="number" id="dwRollFailDelayMs" min="0" max="2000" step="50" style="width:80px" />
-      </div>
-
-      <div class="row" data-tip="Milliseconds to wait after a bandolier swap before resuming weave key detection. Prevents false triggers during the swap animation.">
-        <label for="weaveBandolierOffDelay">Weave Off Delay <span class="hint">(ms)</span></label>
-        <input type="number" id="weaveBandolierOffDelay" min="0" max="2000" step="50" style="width:80px" />
-      </div>
-    </div>
+    <div class="tab-panel" data-tab="debuffs">
 
     <!-- ── Debuff Tracking ──────────────────────────────── -->
     <div class="section">
@@ -711,61 +840,6 @@
       </div>
     </div>
 
-    <!-- ── Leaderboard ──────────────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Leaderboard</div>
-
-      <div class="row" data-tip="Name used when submitting fight records to the leaderboard. Leave blank to auto-detect from the log or Zeal.">
-        <label>Character Name</label>
-        <input type="text" id="lbCharName" placeholder="auto-detected from log / Zeal" style="flex:1" />
-      </div>
-      <div class="checkbox-grid" style="margin-top:6px">
-        <label data-tip="When enabled, your fight results are kept locally but never uploaded to the community leaderboard."><input type="checkbox" id="leaderboardOptOut" /> Opt Out of Leaderboard</label>
-      </div>
-    </div>
-
-    <!-- ── Ignored Characters ──────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Ignored Characters</div>
-      <div class="row" style="min-height:auto;padding-top:0">
-        <span class="hint" style="margin-left:0">While logged in as an ignored character, the overlay will not stay on top of the game window.</span>
-      </div>
-
-      <div id="detectedCharsList" class="checkbox-grid" style="margin-top:6px"></div>
-
-      <div class="row" style="margin-top:8px">
-        <input type="text" id="ignoredCharInput" placeholder="Type a character name" style="flex:1" />
-        <button class="btn-learn-key" id="btnAddIgnoredChar">Add</button>
-      </div>
-
-      <div id="ignoredCharsChips" class="ignored-chars-chips"></div>
-    </div>
-
-    <!-- ── Rogue Mode ───────────────────────────────────── -->
-    <div class="section">
-      <div class="section-title">Rogue Mode</div>
-      <div class="checkbox-grid">
-        <label data-tip="Tracks backstab cooldown instead of normal mainhand/offhand swing timing. Suppresses the normal swing track while active; shows a net/backstab DPS summary at the end of each fight instead of a grade."><input type="checkbox" id="rogueModeEnabled" /> Rogue Mode (Backstab Tracking)</label>
-        <label data-tip="Flags a backstab as a new max hit when it's the hardest one landed this session with the currently-equipped weapon, and shows a banner for it. Tracked per weapon name, reset on app restart."><input type="checkbox" id="rogueMaxHitTrackingEnabled" /> Track Max Hit Per Weapon</label>
-        <label data-tip="Shows a cyan cooldown strip above the backstab track for the Hide/in-combat-Evade reuse timer, so you know when the macro is off cooldown again."><input type="checkbox" id="rogueEvadeTrackingEnabled" /> Track Evade/Hide Cooldown</label>
-      </div>
-      <div class="row" style="margin-top:6px" data-tip="Bandolier set name (or substring) that identifies your backstab weapon set — must match what you named it via /bandolier. Used to prompt weapon swaps and to know when you've swapped in/out.">
-        <label for="rogueBackstabSetName">Backstab Set Name</label>
-        <input type="text" id="rogueBackstabSetName" placeholder="backstab" style="flex:1" />
-      </div>
-      <div class="row" style="margin-top:6px" data-tip="Width of the red backstab weave-window box drawn around the target marker — how wide the 'use it now' timing window appears.">
-        <label for="rogueBackstabWindowMs">Backstab Weave Window <span class="hint">(ms)</span></label>
-        <input type="number" id="rogueBackstabWindowMs" min="100" max="800" step="25" style="width:80px" />
-      </div>
-      <div class="row" style="margin-top:6px" data-tip="Each rank shaves 1 second off the 8s base Hide/Evade reuse timer. Not detectable from the log, so set it to match your trained rank.">
-        <label>Hastened Stealth</label>
-        <div class="radio-group" id="rogueHastenedStealthRank">
-          <label><input type="radio" name="hastenedStealth" value="0" /> None</label>
-          <label><input type="radio" name="hastenedStealth" value="1" /> Rank 1</label>
-          <label><input type="radio" name="hastenedStealth" value="2" /> Rank 2</label>
-          <label><input type="radio" name="hastenedStealth" value="3" /> Rank 3</label>
-        </div>
-      </div>
     </div>
 
   </div>

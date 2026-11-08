@@ -23,9 +23,23 @@ export class AudioManager {
   private fileGains:   Map<string, number>      = new Map()
   private lastPlayTime: Map<string, number>     = new Map()
   private static readonly DEBOUNCED_SOUNDS = new Set(['crush', 'punch', 'whiff'])
+  private lastAudioFailureReportTs = 0
 
   constructor(cfg: ConfigType) {
     this.cfg = cfg
+  }
+
+  /** Forwards an audio failure into the main-process debug ring buffer, throttled
+   *  to one report per 5s so a repeating failure (e.g. a dead AudioContext) doesn't
+   *  flood the buffer. */
+  private reportAudioFailure(message: string, err: unknown): void {
+    const now = performance.now()
+    if (now - this.lastAudioFailureReportTs < 5000) return
+    this.lastAudioFailureReportTs = now
+    window.debugAPI.logEvent({
+      kind: 'anomaly', level: 'warn', category: 'audio',
+      message: `${message}: ${String(err)}`,
+    })
   }
 
   private getCtx(): AudioContext {
@@ -410,6 +424,7 @@ export class AudioManager {
       src.start(when ?? ctx.currentTime)
     } catch (e) {
       console.warn(`[Audio] play(${name}) failed:`, e)
+      this.reportAudioFailure(`play(${name}) failed`, e)
     }
   }
 
@@ -483,6 +498,7 @@ export class AudioManager {
       this.fileGains.set(name, gain)
     } catch (e) {
       console.warn(`[Audio] loadFile(${name}) failed:`, e)
+      this.reportAudioFailure(`loadFile(${name}) failed`, e)
     }
   }
 
@@ -510,6 +526,7 @@ export class AudioManager {
       src.start(ctx.currentTime)
     } catch (e) {
       console.warn(`[Audio] playFileSound(${name}) failed:`, e)
+      this.reportAudioFailure(`playFileSound(${name}) failed`, e)
     }
   }
 
@@ -529,6 +546,7 @@ export class AudioManager {
       this.play('tick', audioWhen)
     } catch (e) {
       console.warn('[Audio] scheduleTick failed:', e)
+      this.reportAudioFailure('scheduleTick failed', e)
     }
   }
 

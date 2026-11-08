@@ -5,6 +5,7 @@
 
 import { Config } from '../shared/config'
 import type { GameEvent, HitRecord } from '../shared/events'
+import type { DebugEntryInput } from '../shared/debug-monitor-types'
 import { RefinedOverlay } from './overlay-refined'
 import { HighContrastOverlay } from './overlay-highcontrast'
 
@@ -26,6 +27,8 @@ declare global {
       onClearBuffs:             (cb: () => void) => void
       onToggleBuffSound:        (cb: () => void) => void
       onToggleRogueMode:        (cb: (enabled: boolean) => void) => void
+      onToggleTripleAttackDetection: (cb: (enabled: boolean) => void) => void
+      onToggleWeaveExplode:          (cb: (enabled: boolean) => void) => void
       onSetOffhandDelay:      (cb: (delay: number, name: string) => void) => void
       onSetVolumes:           (cb: (master: number, proc: number, epic: number, wu: number, debounceMs: number) => void) => void
       onSetThresholds:        (cb: (critDamage: number, hugeRound: number, wuChance: number, wuDamageThreshold: number) => void) => void
@@ -41,8 +44,11 @@ declare global {
       onSetDwRollFailDelayMs:        (cb: (ms: number) => void) => void
       onSetInferredDwChecks:         (cb: (enabled: boolean) => void) => void
       onSetPunchInterval:            (cb: (interval: number) => void) => void
+      onSetBaseWeaponDelay:          (cb: (delay: number) => void) => void
+      onSetCharacterLevel:           (cb: (level: number) => void) => void
       onWeaveKeyPressed:             (cb: (ts: number) => void) => void
       onLeaderboardRank:             (cb: (mobName: string, rank: number) => void) => void
+      sendLeaderboardRecord:  (record: unknown) => void
       quit:               () => void
       selectLog:          () => void
       resizeWindow:       (w: number, h: number) => void
@@ -51,6 +57,9 @@ declare global {
       saveSettings:       () => void
       captureMouse:       () => void
       releaseMouse:       () => void
+    }
+    debugAPI: {
+      logEvent: (entry: DebugEntryInput) => void
     }
   }
 }
@@ -258,6 +267,10 @@ window.electronAPI.onSetPunchInterval((interval) => {
 
 window.electronAPI.onSetBaseWeaponDelay((delay) => {
   Config.BASE_WEAPON_DELAY = delay
+})
+
+window.electronAPI.onSetCharacterLevel((level) => {
+  Config.CHARACTER_LEVEL = level
 })
 
 window.electronAPI.onWeaveKeyPressed((ts: number) => {

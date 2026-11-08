@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld('settingsAPI', {
     ipcRenderer.on('character-detected', (_e, name) => cb(name))
   },
 
+  onZealUpdateAvailable: (cb: (info: { installed: string; latest: string }) => void): void => {
+    ipcRenderer.on('zeal-update-available', (_e, info) => cb(info))
+  },
+
   startWeaveKeyLearn: (): void =>
     ipcRenderer.send('weave-key-learn-start'),
 
@@ -54,6 +58,12 @@ contextBridge.exposeInMainWorld('settingsAPI', {
 
   openZealLog: (): Promise<string | null> =>
     ipcRenderer.invoke('zeal-log-open'),
+
+  copyZealDiagnostics: (): Promise<boolean> =>
+    ipcRenderer.invoke('zeal-diagnostics-copy'),
+
+  exportDebugReport: (): Promise<{ ok: boolean; path?: string; error?: string }> =>
+    ipcRenderer.invoke('debug-export'),
 
   triggerAction: (action: string): void =>
     ipcRenderer.send('settings-action', action),

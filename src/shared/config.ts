@@ -159,16 +159,11 @@ export const Config = {
   // Auto-set when a weapon is selected from the mainhand preset list.
   MAINHAND_ATTACK_TYPE: 'crush' as 'crush' | 'slash' | 'pierce' | 'punch',
 
-  // ── Orientation ──────────────────────────────────────────────
-  ORIENTATION: 'horizontal' as 'horizontal',
   LANE_LINES: false,
   DYNAMIC_WEAVING: true,
   SHOW_OFFHAND_TIMER: true,
   OVERLAY_STYLE: 'refined' as 'refined' | 'highcontrast',
   TRACKING_SOURCE: 'log' as 'log' | 'hybrid',
-
-  VERT_WINDOW_WIDTH:   86,
-  VERT_WINDOW_HEIGHT: 386,
 
   // ── Timing offsets ────────────────────────────────────────────
   TARGET_OFFSET:         0.000,
@@ -209,7 +204,7 @@ export const Config = {
   OFFHAND_CRUSH_ENABLED: false,  // treat 2nd crush in a round as offhand (blunt OH weapons like Ribcracker)
   TRIPLE_ATTACK_DETECTION_ENABLED: true,  // Monk: flag 3 mainhand crush hits landing within 100ms as a Triple Attack proc
   WEAVE_EXPLODE_ENABLED: true,  // pop the weave-window box into shards when a weave lands on target
-  WEAVE_BANDOLIER_ACTIVE:       false, // runtime: true while a weave bandolier set is loaded (set name contains "weave")
+  WEAVE_BANDOLIER_ACTIVE:       false, // runtime: true while a weave bandolier set is loaded (set name contains "weave" but not "2h"/"two hand")
   WEAVE_BANDOLIER_OFF_DELAY_MS: 400,   // ms to keep weave active after swap-back message (Zeal pipe arrives before hit)
 
   // ── Rogue Mode ──────────────────────────────────────────────
@@ -533,6 +528,28 @@ export const Config = {
   WHIRLWIND_LOST_PATTERNS: [
     'Your fury fades\\.',
   ],
+
+  // Stonestance (Monk discipline)
+  STONESTANCE_GAINED_PATTERNS: [
+    'Your body becomes one with the earth\\.',
+  ],
+  STONESTANCE_LOST_PATTERNS: [
+    'You are no longer one with the earth\\.',
+  ],
+
+  // /disc command output (server strings 504 / 393 in eqstr_en.txt). The message
+  // reports the shared discipline reuse timer without naming a discipline.
+  DISC_TIMER_PATTERNS: [
+    '^You can use a new discipline in (\\d+) minutes? (\\d+) seconds?\\.',
+  ],
+  DISC_READY_PATTERNS: [
+    '^You are ready to use a new discipline now\\.',
+  ],
+
+  // Character level — used only to compute the real server-side discipline
+  // reuse/recast cooldown (see shared/discipline-timers.ts); nothing else in
+  // the app tracks level/class.
+  CHARACTER_LEVEL: 65,
 
   // Rogue Hide / in-combat Evade — both put the same reuse timer on cooldown
   // whether they land or fail, so success and fail each start the countdown.

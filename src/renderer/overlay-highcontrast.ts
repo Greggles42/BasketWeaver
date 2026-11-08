@@ -20,6 +20,7 @@ import type { EncounterRecord } from '../shared/leaderboard-types'
 import { BackstabTimer } from './backstab-timer'
 import { EvadeTimer } from './evade-timer'
 import { lookupMobAc } from '../shared/mob-ac'
+import { DISCIPLINE_COLORS, computeDiscReuseSeconds, formatCooldown } from '../shared/discipline-timers'
 
 const COMBAT_IDLE_TIMEOUT_MS = 10_000
 const EVADE_STRIP_H = 20      // height (px) of the Rogue Mode evade/hide cooldown strip, pinned to the top of the highway
@@ -254,6 +255,10 @@ export class HighContrastOverlay {
   private innerflameFlightMs = 0; private innerflameFlightStart: number | null = null
   private innerflameUntil  = 0   // performance.now() expiry; 0 = inactive
   private whirlwindUntil   = 0   // performance.now() expiry; 0 = inactive
+  private stonestanceUntil = 0   // performance.now() expiry; 0 = inactive
+  // The server uses ONE shared reuse timer for all disciplines: performance.now()
+  // timestamp when any discipline becomes usable again. Persists through death/zone.
+  private discReadyAt = 0
   // ── Time-weighted average haste% across the fight ─────────────
   // Haste can change mid-fight (clicky, disc, or auto-calibration correcting a
   // wrong initial read) — track how long each value held so the displayed and
@@ -315,8 +320,6 @@ export class HighContrastOverlay {
 
   // ── Layout ──────────────────────────────────────────────────
   private windowSize(): [number, number] {
-    if (this.cfg.ORIENTATION === 'vertical')
-      return [this.cfg.VERT_WINDOW_WIDTH, this.cfg.VERT_WINDOW_HEIGHT]
     return [this.cfg.WINDOW_WIDTH, this.cfg.WINDOW_HEIGHT]
   }
   private resizeCanvas(): void {
@@ -327,22 +330,14 @@ export class HighContrastOverlay {
     const [w, h] = this.windowSize()
     this.highwayY = 30
     this.highwayH = h - 30 - 30
-    if (this.cfg.ORIENTATION === 'horizontal') {
-      this.hzX = Math.max(10, Math.trunc(w * this.cfg.TARGET_POSITION_PCT / 100))
-      this.hzY = 0
-      this.runway = w - this.hzX - 10
-    } else {
-      this.hzX = Math.trunc(w / 2)
-      this.hzY = this.highwayY + Math.trunc(this.highwayH * (1 - this.cfg.TARGET_POSITION_PCT / 100))
-      this.runway = this.hzY - this.highwayY
-    }
+    this.hzX = Math.max(10, Math.trunc(w * this.cfg.TARGET_POSITION_PCT / 100))
+    this.hzY = 0
+    this.runway = w - this.hzX - 10
     this.speed = this.runway / (4 * this.cfg.PUNCH_INTERVAL * 1000)
   }
   private hzCenter(): [number, number] {
     const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
-    if (this.cfg.ORIENTATION === 'horizontal')
-      return [this.hzX + vo, this.highwayY + this.highwayH / 2]
-    return [this.hzX, this.hzY + vo]
+    return [this.hzX + vo, this.highwayY + this.highwayH / 2]
   }
 
   /** Weave-window "explode" animation — the cyan weave box's border breaks apart
@@ -370,13 +365,10 @@ export class HighContrastOverlay {
     const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
     const speed = this.runway / Math.max(1, this.backstab.cooldownMsValue)
     const bw = Math.max(3, speed * windowMs)
-    const vert = this.cfg.ORIENTATION === 'vertical'
-    const hy = this.highwayY, hh = this.highwayH, w = this.canvas.width
+    const hy = this.highwayY, hh = this.highwayH
     const topOffset = this.cfg.ROGUE_EVADE_TRACKING_ENABLED ? EVADE_STRIP_H : 0
     const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
-    const r = vert
-      ? { x: 8, y: this.hzY + vo, w: w - 16, h: bw }
-      : { x: this.hzX + vo, y: hy + 16 + topOffset, w: bw, h: hh - 32 - topOffset }
+    const r = { x: this.hzX + vo, y: hy + 16 + topOffset, w: bw, h: hh - 32 - topOffset }
     this.backstabFlashT = now()
     this.backstabFlashRect = r
     this.spawnBoxShards(r, 'backstab')
@@ -419,11 +411,8 @@ export class HighContrastOverlay {
   }
   private projectAt(targetTime: number, t: number): [number, number] {
     const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
-    if (this.cfg.ORIENTATION === 'horizontal')
-      return [Math.trunc(this.hzX + vo + (targetTime - t) * this.speed),
-              this.highwayY + this.highwayH / 2]
-    return [this.hzX,
-            Math.trunc(this.hzY + vo - (targetTime - t) * this.speed)]
+    return [Math.trunc(this.hzX + vo + (targetTime - t) * this.speed),
+            this.highwayY + this.highwayH / 2]
   }
 
   showBanner(text: string, color: string, duration?: number, large = false): void {
@@ -569,6 +558,11 @@ export class HighContrastOverlay {
             && this.combatFistCount >= HighContrastOverlay.FIST_ONLY_THRESHOLD) {
           this.fistOnlyMode = true
           this.banners.push(new Banner('SWING TIMER MODE', HC.accent, 4000))
+          window.debugAPI.logEvent({
+            kind: 'anomaly', level: 'warn', category: 'swing-timer-mode',
+            message: `Swing Timer Mode entered — ${this.combatFistCount} fist attacks with 0 mainhand crushes seen; ` +
+              `no mainhand weapon detected, weave credit is suspended and fist swings are being treated as the primary attack`,
+          })
         }
 
         if (this.fistOnlyMode) {
@@ -764,16 +758,35 @@ export class HighContrastOverlay {
         break
       }
       case EvType.WEAPON_DETECTED: {
-        const name  = (ev.data?.name  as string) ?? ''
-        const delay = (ev.data?.delay as number) ?? 20
+        const name     = (ev.data?.name     as string)  ?? ''
+        const delay    = (ev.data?.delay    as number)  ?? 20
+        const announce = (ev.data?.announce as boolean) ?? true
         this.lastKnownMainhand = name
         this.cfg.BASE_WEAPON_DELAY = delay
+        // Always recompute (see overlay-refined.ts's identical comment) — only the
+        // banner + calibration reset are announce-gated, not the delay/window math.
         const newInterval = this.rhythm.predictedInterval
         const fistDelay   = this.rhythm.effectiveOffhandDelay
         this.cfg.GOOD_WINDOW    = Math.max(0.2, newInterval - fistDelay) / 2
         this.cfg.PUNCH_INTERVAL = newInterval
-        this.rhythm.resetCalibration()
-        this.banners.push(new Banner(`WEAPON: ${name.toUpperCase()}`, HC.accent, 4000))
+        if (announce) {
+          this.rhythm.resetCalibration()
+          this.banners.push(new Banner(`WEAPON: ${name.toUpperCase()}`, HC.accent, 4000))
+        }
+        break
+      }
+      case EvType.OFFHAND_WEAPON_DETECTED: {
+        const name     = (ev.data?.name     as string)  ?? ''
+        const delay    = (ev.data?.delay    as number)  ?? this.cfg.OFFHAND_WEAPON_DELAY
+        const announce = (ev.data?.announce as boolean) ?? true
+        this.applyDynamicWeaveWindow(delay, name)
+        if (announce) this.banners.push(new Banner(`OFFHAND: ${name.toUpperCase()}`, HC.accent, 4000))
+        break
+      }
+      case EvType.WARNING_BANNER: {
+        const message = (ev.data?.message as string) ?? ''
+        const color = (ev.data?.level as string) === 'info' ? '#5aa8eb' : '#eb5a5a'
+        this.banners.push(new Banner(message.toUpperCase(), color, 6000))
         break
       }
       case EvType.HASTE_DETECTED: {
@@ -813,6 +826,11 @@ export class HighContrastOverlay {
         }
         break
       }
+      case EvType.DISC_TIMER: {
+        const rem = (ev.data?.remainingSec as number) ?? 0
+        this.discReadyAt = rem > 0 ? now() + rem * 1000 : 0
+        break
+      }
       case EvType.BUFF_CHANGED: {
         const buff   = ev.data?.buff   as string
         const active = ev.data?.active as boolean
@@ -843,6 +861,7 @@ export class HighContrastOverlay {
         if (buff === 'innerflame') {
           const t = now()
           this.innerflameUntil = active ? t + 12000 : 0
+          if (active) { this.discReadyAt = t + computeDiscReuseSeconds('innerflame', this.cfg.CHARACTER_LEVEL) * 1000 }
           if (this.rhythm.inCombat) {
             if (active) {
               if (this.innerflameFlightStart === null) this.innerflameFlightStart = t
@@ -855,8 +874,18 @@ export class HighContrastOverlay {
           const t = now()
           this.whirlwindUntil = active ? t + 12000 : 0
           if (active) {
+            this.discReadyAt = t + computeDiscReuseSeconds('whirlwind', this.cfg.CHARACTER_LEVEL) * 1000
             this.banners.push(new Banner('WHIRLWIND', '#c084fc', 3000))
             if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('whirlwind')
+          }
+        }
+        if (buff === 'stonestance') {
+          const t = now()
+          this.stonestanceUntil = active ? t + 12000 : 0
+          if (active) {
+            this.discReadyAt = t + computeDiscReuseSeconds('stonestance', this.cfg.CHARACTER_LEVEL) * 1000
+            this.banners.push(new Banner('STONESTANCE', '#9ca3af', 3000))
+            if (this.rhythm.inCombat) this.rhythm.disciplinesUsed.add('stonestance')
           }
         }
         break
@@ -1164,6 +1193,7 @@ export class HighContrastOverlay {
       if (this.innerflameFlightStart !== null) { this.innerflameFlightMs += t - this.innerflameFlightStart; this.innerflameFlightStart = null }
     }
     this.whirlwindUntil = 0
+    this.stonestanceUntil = 0
   }
 
   private flushBuffs(fightDuration: number): { avatar: number; savagery: number; innerflame: number } {
@@ -1454,7 +1484,7 @@ export class HighContrastOverlay {
   private drawNoLogNotice(): void {
     if (this.rhythm.inCombat || this.gradeScreen || this.rogueInCombat || this.rogueSummaryScreen) return
     const t = now()
-    const stale = this.logSelected && (t - this.lastLogActivityTs) > 60_000
+    const stale = this.logSelected && (t - this.lastLogActivityTs) > 15_000
     if (!this.logSelected || stale) {
       const line1 = this.logSelected ? 'Log not updating' : 'No log file selected'
       const line2 = this.logSelected ? 'Is EQ running?' : 'Right-click tray → Select Log'
@@ -1529,6 +1559,41 @@ export class HighContrastOverlay {
     this.ctx.fillRect(0, y, Math.trunc(w * frac), h)
   }
 
+  private drawStonestanceBar(y: number, h: number): void {
+    const frac = this.stonestanceUntil > 0 ? Math.max(0, (this.stonestanceUntil - now()) / 12000) : 0
+    if (frac <= 0) return
+    const w = this.canvas.width
+    const alpha = 0.65 + frac * 0.30
+    this.ctx.fillStyle = `rgba(150,150,160,${alpha.toFixed(2)})`
+    this.ctx.fillRect(0, y, Math.trunc(w * frac), h)
+  }
+
+  /** Header chip for a tracked discipline: solid block while the short
+   *  active-buff window runs, then — instead of disappearing — a dimmer
+   *  translucent block showing the remaining reuse/recast cooldown (mm:ss)
+   *  until it's usable again. Returns the advanced buffX for the next chip,
+   *  unchanged if this one drew nothing (discipline ready / never used). */
+  private drawDisciplineChip(ctx: CanvasRenderingContext2D, buffX: number, name: string, color: string, until: number, readyAt: number): number {
+    const t = now()
+    let label: string; let dim: boolean
+    if (until > 0 && t < until) {
+      label = name; dim = false
+    } else if (readyAt > t) {
+      label = `${name} ${formatCooldown(readyAt - t)}`; dim = true
+    } else {
+      return buffX
+    }
+    ctx.font = '800 9px "Archivo", sans-serif'
+    const lw = ctx.measureText(label).width + 10
+    ctx.fillStyle = dim ? this.rgba(color, 0.35) : color
+    ctx.fillRect(buffX, 8, lw, 16)
+    ctx.fillStyle = dim ? this.rgba('#ffffff', 0.85) : '#000'
+    ctx.textAlign = 'center'
+    ctx.fillText(label, buffX + lw / 2, 20)
+    ctx.textAlign = 'left'
+    return buffX + lw + 4
+  }
+
   private drawHeader(): void {
     const ctx = this.ctx
     const w = this.canvas.width
@@ -1591,28 +1656,12 @@ export class HighContrastOverlay {
       ctx.textAlign = 'left'
       buffX += 36
     }
-    if (this.innerflameUntil > 0 && now() < this.innerflameUntil) {
-      const label = 'INNERFLAME'
-      ctx.font = '800 9px "Archivo", sans-serif'
-      const lw = ctx.measureText(label).width + 10
-      ctx.fillStyle = '#e89020'
-      ctx.fillRect(buffX, 8, lw, 16)
-      ctx.fillStyle = '#000'
-      ctx.textAlign = 'center'
-      ctx.fillText(label, buffX + lw / 2, 20)
-      ctx.textAlign = 'left'
-      buffX += lw + 4
-    }
-    if (this.whirlwindUntil > 0 && now() < this.whirlwindUntil) {
-      const label = 'WHIRLWIND'
-      ctx.font = '800 9px "Archivo", sans-serif'
-      const lw = ctx.measureText(label).width + 10
-      ctx.fillStyle = '#c084fc'
-      ctx.fillRect(buffX, 8, lw, 16)
-      ctx.fillStyle = '#000'
-      ctx.textAlign = 'center'
-      ctx.fillText(label, buffX + lw / 2, 20)
-      ctx.textAlign = 'left'
+    buffX = this.drawDisciplineChip(ctx, buffX, 'INNERFLAME', DISCIPLINE_COLORS.innerflame, this.innerflameUntil, 0)
+    buffX = this.drawDisciplineChip(ctx, buffX, 'WHIRLWIND',  DISCIPLINE_COLORS.whirlwind, this.whirlwindUntil, 0)
+    buffX = this.drawDisciplineChip(ctx, buffX, 'STONESTANCE', DISCIPLINE_COLORS.stonestance, this.stonestanceUntil, 0)
+    // One shared cooldown chip, shown once no discipline's active window is running.
+    if (now() >= Math.max(this.innerflameUntil, this.whirlwindUntil, this.stonestanceUntil)) {
+      buffX = this.drawDisciplineChip(ctx, buffX, 'DISC', '#94a3b8', 0, this.discReadyAt)
     }
 
     // Stats right
@@ -1626,6 +1675,7 @@ export class HighContrastOverlay {
 
     this.drawInnerflameBar(27, 3)
     this.drawWhirlwindBar(24, 3)
+    this.drawStonestanceBar(21, 3)
   }
 
   /** Small, independent top-right icon for Triple/Quadruple Attack procs — drawn
@@ -1693,18 +1743,11 @@ export class HighContrastOverlay {
     }
     if (winStart >= windowEnd || winStart >= safeEnd) return null
 
-    const vert = this.cfg.ORIENTATION === 'vertical'
     const hy = this.highwayY, hh = this.highwayH
-    const w = this.canvas.width
 
-    if (!vert) {
-      const [wx]  = this.projectAt(winStart, t)
-      const [sfx] = this.projectAt(safeEnd,  t)
-      return { x: wx, y: hy + 6, w: Math.max(3, sfx - wx), h: hh - 12, swingTime }
-    }
-    const [, wy ] = this.projectAt(winStart, t)
-    const [, sfy] = this.projectAt(safeEnd,  t)
-    return { x: 8, y: sfy, w: w - 16, h: Math.max(3, wy - sfy), swingTime }
+    const [wx]  = this.projectAt(winStart, t)
+    const [sfx] = this.projectAt(safeEnd,  t)
+    return { x: wx, y: hy + 6, w: Math.max(3, sfx - wx), h: hh - 12, swingTime }
   }
 
   /** Fade multiplier (1 = fully visible, 0 = gone) for the currently-active weave
@@ -1745,13 +1788,11 @@ export class HighContrastOverlay {
     const nextReady  = offhandReadyTs > 0 ? offhandReadyTs : t - 1
     const orderSet   = this.lastFistAttackTs > 0
 
-    const vert = this.cfg.ORIENTATION === 'vertical'
     const w = this.canvas.width
     const hy = this.highwayY, hh = this.highwayH
     ctx.save()
     ctx.beginPath()
-    if (!vert) ctx.rect(5, hy, w - 10, hh)
-    else        ctx.rect(0, hy + 1, w, hh - 2)
+    ctx.rect(5, hy, w - 10, hh)
     ctx.clip()
 
     // Static mode: draw green windows for all visible swings, no red zones
@@ -1759,39 +1800,21 @@ export class HighContrastOverlay {
       for (let k = 0; k < 30; k++) {
         const swingTime = firstSwing + k * intervalMs
         const safeEnd   = swingTime + weaveMs
-        const [sx, sy]  = this.projectAt(swingTime, t)
-        if (!vert) {
-          if (sx > w) break
-          if (sx < -10) continue
-          ctx.fillStyle = `${HC.swingBar}0.85)`
-          ctx.fillRect(sx - 2, hy + 2, 5, hh - 4)
-          const [sfx] = this.projectAt(safeEnd, t)
-          if (sfx > sx) {
-            const gw = Math.max(3, sfx - sx)
-            let fade = 1
-            if (k === 0) fade = this.weaveBoxFade(swingTime, t)
-            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
-            ctx.fillRect(sx, hy + 6, gw, hh - 12)
-            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
-            ctx.lineWidth = 1.5
-            ctx.strokeRect(sx + 0.5, hy + 6.5, gw - 1, hh - 13)
-          }
-        } else {
-          if (sy < hy) break
-          if (sy > hy + hh + 10) continue
-          ctx.fillStyle = `${HC.swingBar}0.85)`
-          ctx.fillRect(6, sy - 2, w - 12, 5)
-          const [, sfy] = this.projectAt(safeEnd, t)
-          if (sfy < sy) {
-            const gh = Math.max(3, sy - sfy)
-            let fade = 1
-            if (k === 0) fade = this.weaveBoxFade(swingTime, t)
-            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
-            ctx.fillRect(8, sfy, w - 16, gh)
-            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
-            ctx.lineWidth = 1.5
-            ctx.strokeRect(8 + 0.5, sfy + 0.5, w - 17, gh - 1)
-          }
+        const [sx]      = this.projectAt(swingTime, t)
+        if (sx > w) break
+        if (sx < -10) continue
+        ctx.fillStyle = `${HC.swingBar}0.85)`
+        ctx.fillRect(sx - 2, hy + 2, 5, hh - 4)
+        const [sfx] = this.projectAt(safeEnd, t)
+        if (sfx > sx) {
+          const gw = Math.max(3, sfx - sx)
+          let fade = 1
+          if (k === 0) fade = this.weaveBoxFade(swingTime, t)
+          ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
+          ctx.fillRect(sx, hy + 6, gw, hh - 12)
+          ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
+          ctx.lineWidth = 1.5
+          ctx.strokeRect(sx + 0.5, hy + 6.5, gw - 1, hh - 13)
         }
       }
       ctx.restore()
@@ -1800,7 +1823,7 @@ export class HighContrastOverlay {
 
     // Orange markers: draw every visible swing so they fill the track.
     // Weave windows: draw the next eligible window + anticipated 2nd-round window.
-    const [tzx, tzy] = this.hzCenter()   // swing target line — the discouraged (red) zone must not scroll past it
+    const [tzx] = this.hzCenter()   // swing target line — the discouraged (red) zone must not scroll past it
     let windowsDrawn = 0
     let projectedNextReady = nextReady  // projected offhand ready time for window lookahead
 
@@ -1810,128 +1833,66 @@ export class HighContrastOverlay {
       const windowEnd = swingTime + intervalMs  // full window extent = next mainhand swing
       const winStart  = this.cfg.WEAVE_WINDOW_MS > 0 ? swingTime : Math.max(swingTime, projectedNextReady)
 
-      const [sx, sy] = this.projectAt(swingTime, t)
+      const [sx] = this.projectAt(swingTime, t)
 
-      if (!vert) {
-        if (sx > w) break
-        if (sx < -10) continue
+      if (sx > w) break
+      if (sx < -10) continue
 
-        ctx.fillStyle = `${HC.swingBar}0.85)`
-        ctx.fillRect(sx - 2, hy + 2, 5, hh - 4)
+      ctx.fillStyle = `${HC.swingBar}0.85)`
+      ctx.fillRect(sx - 2, hy + 2, 5, hh - 4)
 
-        if (windowsDrawn < 2 && winStart < windowEnd) {
-          const isAnticipated = windowsDrawn === 1
-          if (isAnticipated) ctx.globalAlpha = 0.45
+      if (windowsDrawn < 2 && winStart < windowEnd) {
+        const isAnticipated = windowsDrawn === 1
+        if (isAnticipated) ctx.globalAlpha = 0.45
 
-          const [wx  ] = this.projectAt(winStart,  t)
-          const [sfx ] = this.projectAt(safeEnd,   t)
-          const [wndx] = this.projectAt(windowEnd, t)
-          const hasWait = projectedNextReady > swingTime
+        const [wx  ] = this.projectAt(winStart,  t)
+        const [sfx ] = this.projectAt(safeEnd,   t)
+        const [wndx] = this.projectAt(windowEnd, t)
+        const hasWait = projectedNextReady > swingTime
 
-          // Wait zone
-          if (hasWait) {
-            const waitW = Math.max(0, wx - sx)
-            if (waitW > 0) {
-              ctx.fillStyle = 'rgba(80,100,180,0.28)'
-              ctx.fillRect(sx, hy + 6, waitW, hh - 12)
-            }
+        // Wait zone
+        if (hasWait) {
+          const waitW = Math.max(0, wx - sx)
+          if (waitW > 0) {
+            ctx.fillStyle = 'rgba(80,100,180,0.28)'
+            ctx.fillRect(sx, hy + 6, waitW, hh - 12)
           }
-
-          // Green safe zone (winStart → safeEnd)
-          if (winStart < safeEnd) {
-            const greenW = Math.max(3, sfx - wx)
-            let fade = 1
-            if (!isAnticipated) fade = this.weaveBoxFade(swingTime, t)
-            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
-            ctx.fillRect(wx, hy + 6, greenW, hh - 12)
-            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
-            ctx.lineWidth = 1.5
-            ctx.strokeRect(wx + 0.5, hy + 6.5, greenW - 1, hh - 13)
-          }
-
-          // Discouraged zone (safeEnd → windowEnd) — clamped so it never scrolls
-          // past the swing target once safeEnd itself has already passed it.
-          if (orderSet && wndx > tzx) {
-            const clampedSfx = Math.max(sfx, tzx)
-            const discW = Math.max(2, wndx - clampedSfx)
-            ctx.fillStyle   = 'rgba(200,40,20,0.30)'
-            ctx.fillRect(clampedSfx, hy + 6, discW, hh - 12)
-            ctx.strokeStyle = 'rgba(255,60,40,0.60)'
-            ctx.lineWidth = 1.5
-            ctx.strokeRect(clampedSfx + 0.5, hy + 6.5, discW - 1, hh - 13)
-          }
-
-          // Cyan ready-line
-          if (hasWait && wx > sx && wx < sfx) {
-            ctx.strokeStyle = 'rgba(80,220,255,0.95)'
-            ctx.lineWidth = 2
-            ctx.beginPath(); ctx.moveTo(wx, hy + 2); ctx.lineTo(wx, hy + hh - 2); ctx.stroke()
-          }
-
-          if (isAnticipated) ctx.globalAlpha = 1.0
-          if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
-          windowsDrawn++
         }
-      } else {
-        if (sy < hy) break
-        if (sy > hy + hh + 10) continue
 
-        ctx.fillStyle = `${HC.swingBar}0.85)`
-        ctx.fillRect(6, sy - 2, w - 12, 5)
-
-        if (windowsDrawn < 2 && winStart < windowEnd) {
-          const isAnticipated = windowsDrawn === 1
-          if (isAnticipated) ctx.globalAlpha = 0.45
-
-          const [, wy  ] = this.projectAt(winStart,  t)
-          const [, sfy ] = this.projectAt(safeEnd,   t)
-          const [, wndy] = this.projectAt(windowEnd, t)
-          const hasWait = projectedNextReady > swingTime
-
-          // Wait zone
-          if (hasWait) {
-            const waitH = Math.max(0, sy - wy)
-            if (waitH > 0) {
-              ctx.fillStyle = 'rgba(80,100,180,0.28)'
-              ctx.fillRect(8, wy, w - 16, waitH)
-            }
-          }
-
-          // Green safe zone (winStart → safeEnd)
-          if (winStart < safeEnd) {
-            const greenH = Math.max(3, wy - sfy)
-            let fade = 1
-            if (!isAnticipated) fade = this.weaveBoxFade(swingTime, t)
-            ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
-            ctx.fillRect(8, sfy, w - 16, greenH)
-            ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
-            ctx.lineWidth = 1.5
-            ctx.strokeRect(8 + 0.5, sfy + 0.5, w - 17, greenH - 1)
-          }
-
-          // Discouraged zone (safeEnd → windowEnd) — clamped so it never scrolls
-          // past the swing target once safeEnd itself has already passed it.
-          if (orderSet && wndy < tzy) {
-            const clampedSfy = Math.min(sfy, tzy)
-            const discH = Math.max(2, clampedSfy - wndy)
-            ctx.fillStyle   = 'rgba(200,40,20,0.30)'
-            ctx.fillRect(8, wndy, w - 16, discH)
-            ctx.strokeStyle = 'rgba(255,60,40,0.60)'
-            ctx.lineWidth = 1.5
-            ctx.strokeRect(8 + 0.5, wndy + 0.5, w - 17, discH - 1)
-          }
-
-          // Cyan ready-line
-          if (hasWait && wy < sy && wy > sfy) {
-            ctx.strokeStyle = 'rgba(80,220,255,0.95)'
-            ctx.lineWidth = 2
-            ctx.beginPath(); ctx.moveTo(6, wy); ctx.lineTo(w - 6, wy); ctx.stroke()
-          }
-
-          if (isAnticipated) ctx.globalAlpha = 1.0
-          if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
-          windowsDrawn++
+        // Green safe zone (winStart → safeEnd)
+        if (winStart < safeEnd) {
+          const greenW = Math.max(3, sfx - wx)
+          let fade = 1
+          if (!isAnticipated) fade = this.weaveBoxFade(swingTime, t)
+          ctx.fillStyle   = `${HC.weaveFill}${0.85 * fade})`
+          ctx.fillRect(wx, hy + 6, greenW, hh - 12)
+          ctx.strokeStyle = `${HC.weaveStrk}${1.0 * fade})`
+          ctx.lineWidth = 1.5
+          ctx.strokeRect(wx + 0.5, hy + 6.5, greenW - 1, hh - 13)
         }
+
+        // Discouraged zone (safeEnd → windowEnd) — clamped so it never scrolls
+        // past the swing target once safeEnd itself has already passed it.
+        if (orderSet && wndx > tzx) {
+          const clampedSfx = Math.max(sfx, tzx)
+          const discW = Math.max(2, wndx - clampedSfx)
+          ctx.fillStyle   = 'rgba(200,40,20,0.30)'
+          ctx.fillRect(clampedSfx, hy + 6, discW, hh - 12)
+          ctx.strokeStyle = 'rgba(255,60,40,0.60)'
+          ctx.lineWidth = 1.5
+          ctx.strokeRect(clampedSfx + 0.5, hy + 6.5, discW - 1, hh - 13)
+        }
+
+        // Cyan ready-line
+        if (hasWait && wx > sx && wx < sfx) {
+          ctx.strokeStyle = 'rgba(80,220,255,0.95)'
+          ctx.lineWidth = 2
+          ctx.beginPath(); ctx.moveTo(wx, hy + 2); ctx.lineTo(wx, hy + hh - 2); ctx.stroke()
+        }
+
+        if (isAnticipated) ctx.globalAlpha = 1.0
+        if (winStart < safeEnd) projectedNextReady = winStart + offhandMs
+        windowsDrawn++
       }
     }
     ctx.restore()
@@ -1955,50 +1916,32 @@ export class HighContrastOverlay {
     let firstSwing = nextSwing
     while (firstSwing - intervalMs > t - intervalMs) firstSwing -= intervalMs
 
-    const vert = this.cfg.ORIENTATION === 'vertical'
     const w = this.canvas.width
     const hy = this.highwayY, hh = this.highwayH
 
     // Clip to the highway interior so windows and swing bars vanish cleanly at the left wall
     ctx.save()
     ctx.beginPath()
-    if (!vert) {
-      ctx.rect(5, hy, w - 10, hh)
-    } else {
-      ctx.rect(0, hy + 1, w, hh - 2)
-    }
+    ctx.rect(5, hy, w - 10, hh)
     ctx.clip()
 
     let rank = 0
     for (let k = 0; rank < 3 && k < 12; k++) {
       const swingTime = firstSwing + k * intervalMs
       const weaveEnd  = swingTime + weaveSec * 1000
-      const [x1, y1] = this.projectAt(swingTime, t)
-      const [x2, y2] = this.projectAt(weaveEnd, t)
+      const [x1] = this.projectAt(swingTime, t)
+      const [x2] = this.projectAt(weaveEnd, t)
 
-      if (!vert) {
-        if (x1 > w) break
-        if (x2 < 5) continue
-        const drawW = Math.max(3, x2 - x1)
-        ctx.fillStyle   = `${HC.weaveFill}${fillsA[rank]})`
-        ctx.fillRect(x1, hy + 6, drawW, hh - 12)
-        ctx.strokeStyle = `${HC.weaveStrk}${strokesA[rank]})`
-        ctx.lineWidth = 1.5
-        ctx.strokeRect(x1 + 0.5, hy + 6.5, drawW - 1, hh - 13)
-        ctx.fillStyle = `${HC.swingBar}${orangeA[rank]})`
-        ctx.fillRect(x1 - 2, hy + 2, 5, hh - 4)
-      } else {
-        if (y1 < hy) break
-        if (y2 > hy + hh) continue
-        const bh = Math.max(3, y1 - y2)
-        ctx.fillStyle   = `${HC.weaveFill}${fillsA[rank]})`
-        ctx.fillRect(8, y2, w - 16, bh)
-        ctx.strokeStyle = `${HC.weaveStrk}${strokesA[rank]})`
-        ctx.lineWidth = 1.5
-        ctx.strokeRect(8 + 0.5, y2 + 0.5, w - 17, bh - 1)
-        ctx.fillStyle = `${HC.swingBar}${orangeA[rank]})`
-        ctx.fillRect(6, y1 - 2, w - 12, 5)
-      }
+      if (x1 > w) break
+      if (x2 < 5) continue
+      const drawW = Math.max(3, x2 - x1)
+      ctx.fillStyle   = `${HC.weaveFill}${fillsA[rank]})`
+      ctx.fillRect(x1, hy + 6, drawW, hh - 12)
+      ctx.strokeStyle = `${HC.weaveStrk}${strokesA[rank]})`
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(x1 + 0.5, hy + 6.5, drawW - 1, hh - 13)
+      ctx.fillStyle = `${HC.swingBar}${orangeA[rank]})`
+      ctx.fillRect(x1 - 2, hy + 2, 5, hh - 4)
       rank++
     }
     ctx.restore()
@@ -2010,13 +1953,11 @@ export class HighContrastOverlay {
   private drawWeaveExplosion(): void {
     if (this.weaveShards.length === 0) return
     const ctx = this.ctx
-    const vert = this.cfg.ORIENTATION === 'vertical'
     const w = this.canvas.width
     const hy = this.highwayY, hh = this.highwayH
     ctx.save()
     ctx.beginPath()
-    if (!vert) ctx.rect(5, hy, w - 10, hh)
-    else        ctx.rect(0, hy + 1, w, hh - 2)
+    ctx.rect(5, hy, w - 10, hh)
     ctx.clip()
     for (const s of this.weaveShards) {
       const a = Math.max(0, 1 - s.life / s.ttl)
@@ -2051,7 +1992,7 @@ export class HighContrastOverlay {
 
   private drawHitZone(): void {
     const ctx = this.ctx
-    const [hzx, hzy] = this.hzCenter()
+    const [hzx] = this.hzCenter()
     // Rogue mode reserves a band at the top of the highway for the evade/hide
     // strip (drawn separately in drawEvadeStrip()) — keep the marker below it
     // so it never visually overlaps/obscures that strip.
@@ -2059,30 +2000,19 @@ export class HighContrastOverlay {
     const hy = this.highwayY + topOffset, hh = this.highwayH - topOffset
     const w = this.canvas.width
 
-    if (this.cfg.ORIENTATION === 'horizontal') {
-      // Thick yellow bar
-      ctx.fillStyle = HC.accent
-      ctx.fillRect(hzx - 2, hy, 4, hh)
-      ctx.fillRect(hzx - 6, hy - 2, 12, 4)
-      ctx.fillRect(hzx - 6, hy + hh - 2, 12, 4)
+    // Thick yellow bar
+    ctx.fillStyle = HC.accent
+    ctx.fillRect(hzx - 2, hy, 4, hh)
+    ctx.fillRect(hzx - 6, hy - 2, 12, 4)
+    ctx.fillRect(hzx - 6, hy + hh - 2, 12, 4)
 
-      // Flash burst across highway when a weave lands
-      if (this.hitFlash > 0) {
-        ctx.fillStyle = `rgba(255,238,0,${this.hitFlash * 0.25})`
-        ctx.fillRect(4, hy, w - 8, hh)
-        ctx.strokeStyle = `rgba(255,255,255,${this.hitFlash})`
-        ctx.lineWidth = 2
-        ctx.strokeRect(hzx - 6, hy + 2, 12, hh - 4)
-      }
-    } else {
-      ctx.fillStyle = HC.accent
-      ctx.fillRect(4, hzy - 2, w - 8, 4)
-      ctx.fillRect(4, hzy - 6, 4, 12)
-      ctx.fillRect(w - 8, hzy - 6, 4, 12)
-      if (this.hitFlash > 0) {
-        ctx.fillStyle = `rgba(255,238,0,${this.hitFlash * 0.25})`
-        ctx.fillRect(4, hy, w - 8, hh)
-      }
+    // Flash burst across highway when a weave lands
+    if (this.hitFlash > 0) {
+      ctx.fillStyle = `rgba(255,238,0,${this.hitFlash * 0.25})`
+      ctx.fillRect(4, hy, w - 8, hh)
+      ctx.strokeStyle = `rgba(255,255,255,${this.hitFlash})`
+      ctx.lineWidth = 2
+      ctx.strokeRect(hzx - 6, hy + 2, 12, hh - 4)
     }
   }
 
@@ -2090,26 +2020,15 @@ export class HighContrastOverlay {
     if (this.missFlash <= 0) return
     const ctx = this.ctx
     const hy = this.highwayY
-    const [hzx, hzy] = this.hzCenter()
+    const [hzx] = this.hzCenter()
     const chipW = 52, chipH = 12
-    if (this.cfg.ORIENTATION === 'horizontal') {
-      const cx = hzx - chipW / 2
-      ctx.fillStyle = `${HC.missChip}${this.missFlash})`
-      ctx.fillRect(cx, hy - chipH - 2, chipW, chipH)
-      ctx.font = '700 9px "Archivo", sans-serif'
-      ctx.fillStyle = `${HC.missText}${this.missFlash})`
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText('— MISS', hzx, hy - chipH / 2 - 2)
-    } else {
-      const cy = hzy - chipH / 2
-      const w = this.canvas.width
-      ctx.fillStyle = `${HC.missChip}${this.missFlash})`
-      ctx.fillRect(w - chipW - 4, cy, chipW, chipH)
-      ctx.font = '700 9px "Archivo", sans-serif'
-      ctx.fillStyle = `${HC.missText}${this.missFlash})`
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText('— MISS', w - chipW / 2 - 4, hzy)
-    }
+    const cx = hzx - chipW / 2
+    ctx.fillStyle = `${HC.missChip}${this.missFlash})`
+    ctx.fillRect(cx, hy - chipH - 2, chipW, chipH)
+    ctx.font = '700 9px "Archivo", sans-serif'
+    ctx.fillStyle = `${HC.missText}${this.missFlash})`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('— MISS', hzx, hy - chipH / 2 - 2)
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
   }
 
@@ -2117,7 +2036,7 @@ export class HighContrastOverlay {
     if (this.clipWarn <= 0) return
     const ctx = this.ctx
     const w = this.canvas.width
-    const [hzx, hzy] = this.hzCenter()
+    const [hzx] = this.hzCenter()
     const hy = this.highwayY, hh = this.highwayH
 
     ctx.fillStyle = `${HC.clipWash}${this.clipWarn * 0.32})`
@@ -2126,17 +2045,11 @@ export class HighContrastOverlay {
     ctx.lineWidth = 2
     ctx.strokeRect(4, hy, w - 8, hh)
 
-    if (this.cfg.ORIENTATION === 'horizontal') {
-      ctx.fillStyle = `${HC.clipChip}${this.clipWarn})`
-      ctx.fillRect(hzx - 3, hy, 6, hh)
-      ctx.fillRect(hzx - 7, hy - 2, 14, 4)
-      ctx.fillRect(hzx - 7, hy + hh - 2, 14, 4)
-      ctx.fillRect(w - 80, hy - 11, 70, 12)
-    } else {
-      ctx.fillStyle = `${HC.clipChip}${this.clipWarn})`
-      ctx.fillRect(4, hzy - 3, w - 8, 6)
-      ctx.fillRect(w - 80, hy - 11, 70, 12)
-    }
+    ctx.fillStyle = `${HC.clipChip}${this.clipWarn})`
+    ctx.fillRect(hzx - 3, hy, 6, hh)
+    ctx.fillRect(hzx - 7, hy - 2, 14, 4)
+    ctx.fillRect(hzx - 7, hy + hh - 2, 14, 4)
+    ctx.fillRect(w - 80, hy - 11, 70, 12)
     ctx.font = '800 9px "Archivo", sans-serif'
     ctx.fillStyle = '#000'
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
@@ -2180,22 +2093,12 @@ export class HighContrastOverlay {
     ctx.beginPath(); ctx.arc(hzx, hzy, rr, 0, Math.PI * 2); ctx.stroke()
     // Solid chip above the highway, same position as miss chip but amber
     const chipW = 64, chipH = 12
-    if (this.cfg.ORIENTATION === 'horizontal') {
-      ctx.fillStyle = `rgba(255,140,0,${this.dwRollFlash * 0.5})`
-      ctx.fillRect(hzx - chipW / 2, hy - chipH - 2, chipW, chipH)
-      ctx.font = '700 9px "Archivo", sans-serif'
-      ctx.fillStyle = `rgba(255,200,0,${this.dwRollFlash})`
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText('DW NO ROLL', hzx, hy - chipH / 2 - 2)
-    } else {
-      const w = this.canvas.width
-      ctx.fillStyle = `rgba(255,140,0,${this.dwRollFlash * 0.5})`
-      ctx.fillRect(w - chipW - 4, hzy - chipH / 2, chipW, chipH)
-      ctx.font = '700 9px "Archivo", sans-serif'
-      ctx.fillStyle = `rgba(255,200,0,${this.dwRollFlash})`
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
-      ctx.fillText('DW NO ROLL', w - chipW / 2 - 4, hzy)
-    }
+    ctx.fillStyle = `rgba(255,140,0,${this.dwRollFlash * 0.5})`
+    ctx.fillRect(hzx - chipW / 2, hy - chipH - 2, chipW, chipH)
+    ctx.font = '700 9px "Archivo", sans-serif'
+    ctx.fillStyle = `rgba(255,200,0,${this.dwRollFlash})`
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillText('DW NO ROLL', hzx, hy - chipH / 2 - 2)
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
   }
 
@@ -2206,6 +2109,7 @@ export class HighContrastOverlay {
 
     this.drawInnerflameBar(h - 30, 3)
     this.drawWhirlwindBar(h - 33, 3)
+    this.drawStonestanceBar(h - 36, 3)
 
     // Left/center-aligned trio across the footer; 4th stat anchored right.
     ctx.textAlign = 'left'
@@ -2261,6 +2165,25 @@ export class HighContrastOverlay {
     }
   }
 
+  private wrapBannerText(text: string, maxW: number): string[] {
+    const ctx = this.ctx
+    const out: string[] = []
+    for (const para of text.split('\n')) {
+      let line = ''
+      for (const word of para.split(' ')) {
+        const test = line ? `${line} ${word}` : word
+        if (line && ctx.measureText(test).width > maxW) {
+          out.push(line)
+          line = word
+        } else {
+          line = test
+        }
+      }
+      out.push(line)
+    }
+    return out
+  }
+
   private drawBanners(): void {
     const ctx = this.ctx
     const w = this.canvas.width
@@ -2270,7 +2193,7 @@ export class HighContrastOverlay {
       ctx.font = b.large ? '800 22px "Archivo", sans-serif' : '800 11px "Archivo", sans-serif'
       ctx.fillStyle = this.rgba(b.color, b.alpha)
       const lineH = b.large ? 26 : 14
-      for (const line of b.text.split('\n')) {
+      for (const line of this.wrapBannerText(b.text, w - 24)) {
         ctx.fillText(line, w / 2, y)
         y += lineH
       }
@@ -2290,9 +2213,7 @@ export class HighContrastOverlay {
    *  independent of mainhand's PUNCH_INTERVAL-based speed/projectAt. */
   private rogueProjectAt(targetTime: number, t: number, speed: number): [number, number] {
     const vo = this.cfg.HIT_ZONE_VISUAL_OFFSET
-    if (this.cfg.ORIENTATION === 'horizontal')
-      return [Math.trunc(this.hzX + vo + (targetTime - t) * speed), this.highwayY + this.highwayH / 2]
-    return [this.hzX, Math.trunc(this.hzY + vo - (targetTime - t) * speed)]
+    return [Math.trunc(this.hzX + vo + (targetTime - t) * speed), this.highwayY + this.highwayH / 2]
   }
 
   private drawRogueTrack(): void {
@@ -2306,7 +2227,6 @@ export class HighContrastOverlay {
     const ready = bs.state === 'ready'
     const t = now()
     const windowMs = this.cfg.ROGUE_BACKSTAB_WINDOW_MS
-    const vert = this.cfg.ORIENTATION === 'vertical'
     // Reserve a band at the top of the highway for the evade/hide strip (drawn
     // separately, after this) so the two tracks never visually overlap.
     const topOffset = this.cfg.ROGUE_EVADE_TRACKING_ENABLED ? EVADE_STRIP_H : 0
@@ -2324,27 +2244,16 @@ export class HighContrastOverlay {
     if (bs.state === 'cooldown' || bs.state === 'ready') {
       const readyAt = bs.readyAtMs
       const boxEnd  = readyAt + windowMs
-      const [sx, sy] = this.rogueProjectAt(readyAt, t, speed)
-      const [ex, ey] = this.rogueProjectAt(boxEnd, t, speed)
-      if (!vert) {
-        const bw = Math.max(3, ex - sx)
-        ctx.fillStyle   = `${HC.backstabFill}0.9)`
-        ctx.fillRect(sx, hy + 16 + topOffset, bw, hh - 32 - topOffset)
-        ctx.strokeStyle = `${HC.backstabStroke}1.0)`
-        ctx.lineWidth = 1.5
-        ctx.strokeRect(sx + 0.5, hy + 16.5 + topOffset, bw - 1, hh - 33 - topOffset)
-        ctx.fillStyle = `${HC.swingBar}1.0)`
-        ctx.fillRect(sx - 1.5, hy + topOffset - 2, 4, hh - topOffset + 4)
-      } else {
-        const bh = Math.max(3, sy - ey)
-        ctx.fillStyle   = `${HC.backstabFill}0.9)`
-        ctx.fillRect(8, ey, w - 16, bh)
-        ctx.strokeStyle = `${HC.backstabStroke}1.0)`
-        ctx.lineWidth = 1.5
-        ctx.strokeRect(8.5, ey + 0.5, w - 17, bh - 1)
-        ctx.fillStyle = `${HC.swingBar}1.0)`
-        ctx.fillRect(8 - 2, sy - 1.5, w - 16 + 4, 4)
-      }
+      const [sx] = this.rogueProjectAt(readyAt, t, speed)
+      const [ex] = this.rogueProjectAt(boxEnd, t, speed)
+      const bw = Math.max(3, ex - sx)
+      ctx.fillStyle   = `${HC.backstabFill}0.9)`
+      ctx.fillRect(sx, hy + 16 + topOffset, bw, hh - 32 - topOffset)
+      ctx.strokeStyle = `${HC.backstabStroke}1.0)`
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(sx + 0.5, hy + 16.5 + topOffset, bw - 1, hh - 33 - topOffset)
+      ctx.fillStyle = `${HC.swingBar}1.0)`
+      ctx.fillRect(sx - 1.5, hy + topOffset - 2, 4, hh - topOffset + 4)
     }
     // Brief white flash at the point of impact — decoupled from the box's own
     // opacity (see backstabFlashT comment) so it doesn't leave the box hidden

@@ -8,8 +8,9 @@
  *   • Handle file picker, opacity, and window resize requests
  */
 
-import { app, BrowserWindow, ipcMain, dialog, screen, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, screen, shell, clipboard } from 'electron'
 import * as path from 'path'
+import * as os   from 'os'
 import { performance } from 'perf_hooks'
 import { Config } from '../shared/config'
 import { IPC, EvType, type GameEvent, type HitRecord } from '../shared/events'
@@ -20,19 +21,71 @@ declare const __LEADERBOARD_API_KEY__:    string
 import { LogReader } from './log-reader'
 import { ZealReader } from './zeal-reader'
 import { LeaderboardManager } from './leaderboard-manager'
+import { fetchLatestZealVersion, isZealOutdated } from './zeal-update-check'
 import { createTray, updateFightHistory, updateTopRecords } from './tray'
 import { autoUpdater } from 'electron-updater'
 import type { EncounterRecord } from '../shared/leaderboard-types'
+import { debugMonitor } from './debug-monitor'
+import { appendCappedLog } from './capped-log'
+import type { DebugEntryInput } from '../shared/debug-monitor-types'
 
 // ── Persist last-used log path ────────────────────────────────
 
 import * as fs   from 'fs'
-import * as os   from 'os'
 
 function configDir(): string {
   const d = path.join(process.env.APPDATA ?? os.homedir(), 'Basketweaver')
   fs.mkdirSync(d, { recursive: true })
   return d
+}
+
+/**
+ * Strip the real Windows username out of any file-path string before a debug
+ * report leaves the machine (it gets attached to Discord/GitHub reports) —
+ * everything else in the report (log line content, mob/target names, weapon
+ * names) is inherent to diagnosing the issue and is left as-is.
+ */
+function redact(text: string): string {
+  const username = os.userInfo().username || process.env.USERNAME || ''
+  if (!username) return text
+  return text.split(username).join('<user>')
+}
+
+/**
+ * Assembles the "Export Debug Report" payload: app/OS/Zeal version info, a
+ * snapshot of the settings most likely to explain a classification/scoring
+ * dispute, and every entry currently in the debug-monitor ring buffer.
+ */
+function buildDebugReport(): Record<string, unknown> {
+  const zealStatus = Config.TRACKING_SOURCE === 'hybrid' && activeZealReader
+    ? activeZealReader.getStatus()
+    : null
+  return {
+    generatedAt: new Date().toISOString(),
+    appVersion: app.getVersion(),
+    packaged: app.isPackaged,
+    platform: `${process.platform} ${os.release()} (${process.arch})`,
+    tracking: {
+      TRACKING_SOURCE: Config.TRACKING_SOURCE,
+      zealVersion: zealStatus?.zealVersion ?? null,
+      pipeConnected: zealStatus?.pipeConnected ?? null,
+    },
+    config: {
+      MAINHAND_ATTACK_TYPE: Config.MAINHAND_ATTACK_TYPE,
+      OFFHAND_CRUSH_ENABLED: Config.OFFHAND_CRUSH_ENABLED,
+      WEAVE_BANDOLIER_ACTIVE: Config.WEAVE_BANDOLIER_ACTIVE,
+      PUNCH_INTERVAL: Config.PUNCH_INTERVAL,
+      GOOD_WINDOW: Config.GOOD_WINDOW,
+      KEYSTROKE_GRADING: Config.KEYSTROKE_GRADING,
+      ROGUE_MODE_ENABLED: Config.ROGUE_MODE_ENABLED,
+      BASE_WEAPON_NAME: Config.BASE_WEAPON_NAME,
+      BASE_WEAPON_DELAY: Config.BASE_WEAPON_DELAY,
+      OFFHAND_WEAPON_NAME: Config.OFFHAND_WEAPON_NAME,
+      OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
+      LATENCY_COMPENSATION: Config.LATENCY_COMPENSATION,
+    },
+    entries: debugMonitor.getAll(),
+  }
 }
 
 function loadLastLog(): string {
@@ -87,6 +140,7 @@ function saveCharacterWeapons(): void {
     fs.writeFileSync(CHAR_WEAPONS_FILE(), JSON.stringify(all, null, 2), 'utf8')
   } catch (err) {
     console.error('[CharWeapons] Failed to save:', err)
+    debugMonitor.logAnomaly('warn', 'settings', 'Failed to save per-character weapon settings', { err: String(err) })
   }
 }
 
@@ -219,6 +273,7 @@ function loadSettings(): void {
       if (typeof saved.WEAVE_KEY2_CODE    === 'number') Config.WEAVE_KEY2_CODE    = saved.WEAVE_KEY2_CODE
       if (typeof saved.WEAVE_KEY2_DISPLAY === 'string') Config.WEAVE_KEY2_DISPLAY = saved.WEAVE_KEY2_DISPLAY
       if (typeof saved.BASE_WEAPON_DELAY === 'number') Config.BASE_WEAPON_DELAY = saved.BASE_WEAPON_DELAY
+      if (typeof saved.CHARACTER_LEVEL === 'number') Config.CHARACTER_LEVEL = Math.min(65, Math.max(1, saved.CHARACTER_LEVEL))
       if (saved.MAINHAND_ATTACK_TYPE === 'crush' || saved.MAINHAND_ATTACK_TYPE === 'slash' ||
           saved.MAINHAND_ATTACK_TYPE === 'pierce' || saved.MAINHAND_ATTACK_TYPE === 'punch') {
         Config.MAINHAND_ATTACK_TYPE = saved.MAINHAND_ATTACK_TYPE
@@ -235,6 +290,7 @@ export function saveSettings(): void {
       OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
       BASE_WEAPON_DELAY:    Config.BASE_WEAPON_DELAY,
       BASE_WEAPON_NAME:     Config.BASE_WEAPON_NAME,
+      CHARACTER_LEVEL:      Config.CHARACTER_LEVEL,
       OVERLAY_STYLE:        Config.OVERLAY_STYLE,
       TRACKING_SOURCE:      Config.TRACKING_SOURCE,
       DYNAMIC_WEAVING:      Config.DYNAMIC_WEAVING,
@@ -382,7 +438,11 @@ export function createSettingsWindow(): void {
   // Keep above the DPS overlay, which is also always-on-top and can otherwise
   // reclaim the topmost z-order (e.g. when a setting change re-asserts it via
   // updateOverlayAlwaysOnTop), blocking clicks on whatever it visually covers.
-  settingsWin.setAlwaysOnTop(true, 'floating')
+  // Must match the overlay's highest possible level ('screen-saver', used by
+  // ALWAYS_ON_TOP_MODE 'elevated'/'aggressive' — see applyAlwaysOnTop) rather
+  // than 'floating', which those modes outrank, or Settings becomes unclickable
+  // underneath the overlay.
+  settingsWin.setAlwaysOnTop(true, 'screen-saver')
 
   settingsWin.setMenu(null)
 
@@ -400,6 +460,55 @@ export function createSettingsWindow(): void {
     learnKeyHandler  = null
     learnKeyHandler2 = null
   })
+}
+
+// ── Zeal update check ──────────────────────────────────────────
+// Compares the Zeal version detected in-game (via "/zeal version" — see
+// zeal-reader.ts) against GitHub's latest release. Both pieces of info arrive
+// independently and asynchronously (network fetch vs. the player eventually
+// running the command), so this just re-checks cheaply on a timer rather than
+// threading a callback through both.
+
+let latestZealVersion: string | null = null
+let zealUpdateNotified = false
+let zealUpdateCheckTimer: ReturnType<typeof setInterval> | null = null
+
+async function refreshLatestZealVersion(): Promise<void> {
+  const version = await fetchLatestZealVersion()
+  if (version) latestZealVersion = version
+}
+
+function maybeNotifyZealOutdated(): void {
+  if (zealUpdateNotified || !latestZealVersion || !activeZealReader) return
+  const installed = activeZealReader.getStatus().zealVersion
+  if (!installed || !isZealOutdated(installed, latestZealVersion)) return
+
+  zealUpdateNotified = true
+  const message = `Zeal update available: you have v${installed}, latest is v${latestZealVersion}`
+  debugMonitor.logAnomaly('warn', 'zeal-version', message, { installed, latest: latestZealVersion })
+  win?.webContents.send(IPC.GAME_EVENT, {
+    type: EvType.WARNING_BANNER, ts: performance.now(),
+    data: { message, code: 'zeal-outdated', level: 'info' },
+  })
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.webContents.send('zeal-update-available', { installed, latest: latestZealVersion })
+  }
+}
+
+function startZealUpdateCheck(): void {
+  if (zealUpdateCheckTimer) return
+  refreshLatestZealVersion().then(maybeNotifyZealOutdated)
+  // Cheap no-network recheck every 30s (covers the installed version showing up
+  // after the GitHub fetch already completed); re-fetches GitHub every 6 hours.
+  let ticks = 0
+  zealUpdateCheckTimer = setInterval(() => {
+    ticks++
+    if (ticks % 720 === 0) {  // 720 * 30s = 6h
+      refreshLatestZealVersion().then(maybeNotifyZealOutdated)
+    } else {
+      maybeNotifyZealOutdated()
+    }
+  }, 30_000)
 }
 
 // ── Auto log detection ────────────────────────────────────────
@@ -542,6 +651,21 @@ function forwardEvent(ev: GameEvent): void {
   // so miss patterns stay in sync (e.g. switching to a slash weapon mid-session).
   if (ev.type === EvType.WEAPON_DETECTED && activeLogReader) {
     activeLogReader.updateAttackType(Config.MAINHAND_ATTACK_TYPE)
+  }
+  // Mainhand and offhand weapon auto-detection (from /mystats "Melee Primary"/"Melee
+  // Secondary" lines) update Config directly in the reader; persist and refresh the
+  // Settings window here so a reopened window shows the detected weapon immediately.
+  if ((ev.type === EvType.WEAPON_DETECTED || ev.type === EvType.OFFHAND_WEAPON_DETECTED)) {
+    saveCharacterWeapons()
+    if (settingsWin && !settingsWin.isDestroyed()) {
+      settingsWin.webContents.send('character-weapons-loaded', {
+        BASE_WEAPON_DELAY:    Config.BASE_WEAPON_DELAY,
+        BASE_WEAPON_NAME:     Config.BASE_WEAPON_NAME,
+        MAINHAND_ATTACK_TYPE: Config.MAINHAND_ATTACK_TYPE,
+        OFFHAND_WEAPON_DELAY: Config.OFFHAND_WEAPON_DELAY,
+        OFFHAND_WEAPON_NAME:  Config.OFFHAND_WEAPON_NAME,
+      })
+    }
   }
   if (ev.type === EvType.ZONE_CHANGED) {
     currentZoneName = String(ev.data?.zone ?? '')
@@ -833,9 +957,32 @@ function setupIPC(): void {
       return {
         pipeConnected: false, characterName: '', msSinceLastSwingData: null,
         eqProcessFound: false, lastPipeError: null, scanError: null,
+        zealVersion: null,
       }
     }
     return activeZealReader.getStatus()
+  })
+
+  ipcMain.handle(IPC.ZEAL_DIAGNOSTICS_COPY, () => {
+    // One-click report path for "Zeal doesn't connect for me" — most affected users
+    // never open Settings or know zeal-reader.log exists, so without this the only
+    // report that reaches the developer is "it doesn't work," with none of the detail
+    // (which error code, which OS build, packaged vs dev) needed to fix the real cause.
+    const status = Config.TRACKING_SOURCE === 'hybrid' && activeZealReader
+      ? activeZealReader.getStatus()
+      : null
+    const lines = [
+      `Basketweaver ${app.getVersion()} (${app.isPackaged ? 'packaged' : 'dev'})`,
+      `OS: ${process.platform} ${os.release()} (${process.arch})`,
+      `TRACKING_SOURCE: ${Config.TRACKING_SOURCE}`,
+      `eqProcessFound: ${status?.eqProcessFound ?? 'n/a (not in hybrid mode)'}`,
+      `pipeConnected: ${status?.pipeConnected ?? 'n/a'}`,
+      `scanError: ${status?.scanError ?? 'none'}`,
+      `lastPipeError: ${status?.lastPipeError ?? 'none'}`,
+      `zealVersion: ${status?.zealVersion ?? 'not detected'}`,
+    ]
+    clipboard.writeText(lines.join('\n'))
+    return true
   })
 
   ipcMain.handle(IPC.ZEAL_LOG_OPEN, async () => {
@@ -845,6 +992,29 @@ function setupIPC(): void {
     }
     const err = await shell.openPath(logPath)
     return err ? err : null
+  })
+
+  // Renderer-detected anomalies (overlay/audio) forwarded into the same ring buffer
+  // that main-process classification tracing and anomaly detection write to.
+  ipcMain.on(IPC.DEBUG_LOG_EVENT, (_e, entry: DebugEntryInput) => {
+    debugMonitor.record(entry)
+  })
+
+  ipcMain.handle(IPC.DEBUG_EXPORT, async (): Promise<{ ok: boolean; path?: string; error?: string }> => {
+    const report = buildDebugReport()
+    const saveOptions = {
+      title: 'Export Debug Report',
+      defaultPath: path.join(app.getPath('documents'), `basketweaver-debug-${Date.now()}.json`),
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    }
+    const result = win ? await dialog.showSaveDialog(win, saveOptions) : await dialog.showSaveDialog(saveOptions)
+    if (result.canceled || !result.filePath) return { ok: false, error: 'canceled' }
+    try {
+      fs.writeFileSync(result.filePath, redact(JSON.stringify(report, null, 2)), 'utf8')
+      return { ok: true, path: result.filePath }
+    } catch (err) {
+      return { ok: false, error: String(err) }
+    }
   })
 
   ipcMain.handle(IPC.SETTINGS_GET, () => ({
@@ -864,6 +1034,7 @@ function setupIPC(): void {
     OFFHAND_WEAPON_DELAY:     Config.OFFHAND_WEAPON_DELAY,
     OFFHAND_WEAPON_NAME:      Config.OFFHAND_WEAPON_NAME,
     PUNCH_INTERVAL:           Config.PUNCH_INTERVAL,
+    CHARACTER_LEVEL:          Config.CHARACTER_LEVEL,
     TARGET_POSITION_PCT:      Config.TARGET_POSITION_PCT,
     TARGET_OFFSET:            Config.TARGET_OFFSET,
     LATENCY_COMPENSATION:     Config.LATENCY_COMPENSATION,
@@ -1079,6 +1250,11 @@ function setupIPC(): void {
       case 'PUNCH_INTERVAL':
         Config.PUNCH_INTERVAL = value as number
         win?.webContents.send(IPC.SET_PUNCH_INTERVAL, value)
+        break
+
+      case 'CHARACTER_LEVEL':
+        Config.CHARACTER_LEVEL = value as number
+        win?.webContents.send(IPC.SET_CHARACTER_LEVEL, value)
         break
 
       case 'WEAVE_WINDOW_MS':
@@ -1351,7 +1527,7 @@ function setupAutoUpdater(): void {
   // without this. Written to %APPDATA%\Basketweaver\updater.log.
   const logPath = path.join(configDir(), 'updater.log')
   const logUpdate = (msg: string) => {
-    try { fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`) } catch {}
+    try { appendCappedLog(logPath, `[${new Date().toISOString()}] ${msg}\n`) } catch {}
   }
 
   autoUpdater.autoDownload = false
@@ -1400,12 +1576,14 @@ function setupAutoUpdater(): void {
   autoUpdater.on('error', (err) => {
     logUpdate(`error: ${err.message}`)
     console.error('[Updater] Error:', err.message)
+    debugMonitor.logAnomaly('error', 'updater', `Updater error: ${err.message}`)
   })
 
   // Check silently — no dialog if already up to date
   autoUpdater.checkForUpdates().catch(err => {
     logUpdate(`checkForUpdates() rejected: ${err.message}`)
     console.error('[Updater] Check failed:', err.message)
+    debugMonitor.logAnomaly('warn', 'updater', `Update check failed: ${err.message}`)
   })
 }
 
@@ -1481,6 +1659,7 @@ function startWeaveKeyMonitor(): void {
     console.log('[Basketweaver] Weave key monitor active')
   } catch (err) {
     console.warn('[Basketweaver] Weave key monitoring unavailable:', (err as Error).message)
+    debugMonitor.logAnomaly('warn', 'weave-key', `Weave key monitoring unavailable: ${(err as Error).message}`)
   }
 }
 
@@ -1588,6 +1767,7 @@ app.whenReady().then(async () => {
   setupIPC()
   createWindow()
   startWeaveKeyMonitor()
+  startZealUpdateCheck()
 
   // Add quick-access items to the Windows taskbar/Start Menu right-click Jump
   // List (packaged only — in dev mode process.execPath is the bare Electron
@@ -1616,6 +1796,7 @@ app.whenReady().then(async () => {
       name:  Config.OFFHAND_WEAPON_NAME,
     })
     win!.webContents.send(IPC.SET_BASE_WEAPON_DELAY, Config.BASE_WEAPON_DELAY)
+    win!.webContents.send(IPC.SET_CHARACTER_LEVEL, Config.CHARACTER_LEVEL)
     win!.webContents.send(IPC.SET_ROGUE_BACKSTAB_WINDOW_MS, Config.ROGUE_BACKSTAB_WINDOW_MS)
     // The renderer's Config starts at the ROGUE_MODE_ENABLED default (false) —
     // it only ever learns otherwise via this TOGGLE_ROGUE_MODE sync, so a fresh

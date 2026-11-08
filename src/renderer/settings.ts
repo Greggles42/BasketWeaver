@@ -2,6 +2,8 @@
  * Settings window renderer logic.
  */
 
+export {}   // marks this file as a module, so the `declare global` augmentation below is valid
+
 declare global {
   interface Window {
     settingsAPI: {
@@ -10,6 +12,7 @@ declare global {
       close(): void
       onCharacterWeaponsLoaded?(cb: (ws: Record<string, unknown>) => void): void
       onCharacterDetected?(cb: (name: string) => void): void
+      onZealUpdateAvailable?(cb: (info: { installed: string; latest: string }) => void): void
       startWeaveKeyLearn(): void
       cancelWeaveKeyLearn(): void
       onWeaveKeyLearned(cb: (result: { keycode: number; display: string } | null) => void): void
@@ -20,8 +23,11 @@ declare global {
       getZealStatus(): Promise<{
         pipeConnected: boolean; characterName: string; msSinceLastSwingData: number | null
         eqProcessFound: boolean; lastPipeError: string | null; scanError: string | null
+        zealVersion: string | null
       }>
       openZealLog(): Promise<string | null>
+      copyZealDiagnostics(): Promise<boolean>
+      exportDebugReport(): Promise<{ ok: boolean; path?: string; error?: string }>
       triggerAction(action: string): void
     }
   }
@@ -419,6 +425,16 @@ async function initIgnoredCharacters(initial: string[]): Promise<void> {
 async function init(): Promise<void> {
   const s = await window.settingsAPI.getSettings()
 
+  // ── Tabs ──
+  const tabBtns = document.querySelectorAll<HTMLButtonElement>(".tab-btn")
+  const tabPanels = document.querySelectorAll<HTMLElement>(".tab-panel")
+  const scrollBody = document.querySelector<HTMLElement>(".scroll-body")
+  tabBtns.forEach(btn => btn.addEventListener("click", () => {
+    tabBtns.forEach(b => b.classList.toggle("active", b === btn))
+    tabPanels.forEach(p => p.classList.toggle("active", p.dataset.tab === btn.dataset.tab))
+    if (scrollBody) scrollBody.scrollTop = 0
+  }))
+
   // Version
   const verEl = document.getElementById('appVersion')
   if (verEl) verEl.textContent = 'v' + s.APP_VERSION
@@ -513,12 +529,45 @@ async function init(): Promise<void> {
     if (zealLogRow)    zealLogRow.style.display    = isHybridSelected() ? 'flex' : 'none'
   }
 
+  // ── Zeal update notice (checked against github.com/CoastalRedwood/Zeal) ──
+  window.settingsAPI.onZealUpdateAvailable?.(({ installed, latest }) => {
+    const row  = document.getElementById('zealUpdateRow')  as HTMLElement | null
+    const text = document.getElementById('zealUpdateText') as HTMLElement | null
+    if (!row || !text) return
+    text.textContent = `v${latest} available (you have v${installed}) — github.com/CoastalRedwood/Zeal/releases`
+    row.style.display = 'flex'
+  })
+
   if (btnOpenZealLog) {
     btnOpenZealLog.addEventListener('click', async () => {
       const original = btnOpenZealLog.textContent
       const err = await window.settingsAPI.openZealLog()
       btnOpenZealLog.textContent = err ? `Failed: ${err}` : 'Opened'
       setTimeout(() => { btnOpenZealLog.textContent = original }, 2000)
+    })
+  }
+
+  const btnCopyZealDiagnostics = document.getElementById('btnCopyZealDiagnostics') as HTMLButtonElement | null
+  if (btnCopyZealDiagnostics) {
+    btnCopyZealDiagnostics.addEventListener('click', async () => {
+      const original = btnCopyZealDiagnostics.textContent
+      await window.settingsAPI.copyZealDiagnostics()
+      btnCopyZealDiagnostics.textContent = 'Copied!'
+      setTimeout(() => { btnCopyZealDiagnostics.textContent = original }, 2000)
+    })
+  }
+
+  const btnExportDebug = document.getElementById('btnExportDebug') as HTMLButtonElement | null
+  if (btnExportDebug) {
+    btnExportDebug.addEventListener('click', async () => {
+      const original = btnExportDebug.textContent
+      const res = await window.settingsAPI.exportDebugReport()
+      if (res.ok) {
+        btnExportDebug.textContent = `Saved: ${res.path}`
+      } else if (res.error !== 'canceled') {
+        btnExportDebug.textContent = `Failed: ${res.error}`
+      }
+      setTimeout(() => { btnExportDebug.textContent = original }, 3000)
     })
   }
 
@@ -550,7 +599,13 @@ async function init(): Promise<void> {
       } else if (!status.eqProcessFound) {
         text = 'Not connected — no eqgame.exe process found. Is EverQuest running?'
       } else if (status.lastPipeError) {
-        text = `Not connected — pipe error: ${status.lastPipeError}. Is Zeal loaded (/zeal)?`
+        if (status.lastPipeError.includes('ENOENT')) {
+          text = 'Not connected — Zeal\'s data pipe was not found. Make sure Zeal is loaded (/zeal) and your build includes named-pipe support.'
+        } else if (status.lastPipeError.includes('EACCES')) {
+          text = 'Not connected — access denied. Try running Basketweaver as Administrator, or check antivirus/firewall.'
+        } else {
+          text = `Not connected — pipe error: ${status.lastPipeError}. Is Zeal loaded (/zeal)?`
+        }
       } else {
         text = 'Not connected — is EverQuest running with Zeal loaded?'
       }
@@ -568,6 +623,9 @@ async function init(): Promise<void> {
         ? `${Math.round(status.msSinceLastSwingData / 60_000)}m`
         : `${Math.round(status.msSinceLastSwingData / 1000)}s`
       text = `Connected (${status.characterName}) — no swing data for ${ago} (normal if out of combat)`
+    }
+    if (status.zealVersion) {
+      text += ` — Zeal ${status.zealVersion}`
     }
     zealStatusDot.style.background = color
     zealStatusText.textContent = text
@@ -838,6 +896,15 @@ async function init(): Promise<void> {
     })
   }
 
+  const characterLevelEl = document.getElementById('characterLevel') as HTMLInputElement | null
+  if (characterLevelEl) {
+    characterLevelEl.value = String(s.CHARACTER_LEVEL ?? 65)
+    characterLevelEl.addEventListener('change', () => {
+      const v = parseInt(characterLevelEl.value, 10)
+      if (!isNaN(v) && v >= 1 && v <= 65) window.settingsAPI.setSetting('CHARACTER_LEVEL', v)
+    })
+  }
+
   const dwRollDelayEl = document.getElementById('dwRollFailDelayMs') as HTMLInputElement | null
   if (dwRollDelayEl) {
     dwRollDelayEl.value = String(s.DW_ROLL_FAIL_DELAY_MS ?? 300)
@@ -980,8 +1047,9 @@ async function init(): Promise<void> {
 
 // ── Tooltip ───────────────────────────────────────────────────
 ;(function setupTooltip(): void {
-  const tip = document.getElementById('settings-tip') as HTMLElement | null
-  if (!tip) return
+  const tipEl = document.getElementById('settings-tip') as HTMLElement | null
+  if (!tipEl) return
+  const tip: HTMLElement = tipEl   // nested functions below close over a definitely-non-null binding
 
   let current: HTMLElement | null = null
 
